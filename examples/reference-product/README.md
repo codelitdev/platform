@@ -6,7 +6,7 @@ intended for local development, conformance testing, and template validation.
 ## Requirements
 
 - Node.js 22 or newer
-- pnpm 10
+- Bun 1.4+
 - PostgreSQL for the API runtime
 
 ## Run locally
@@ -14,10 +14,10 @@ intended for local development, conformance testing, and template validation.
 From the platform workspace root:
 
 ```bash
-pnpm install
+bun install
 cp examples/reference-product/apps/api/.env.example examples/reference-product/apps/api/.env
-pnpm --filter @reference-product/api migrate
-pnpm --filter @reference-product/api dev
+bun run --filter @reference-product/api migrate
+bun run --filter @reference-product/api dev
 ```
 
 The API listens on `http://127.0.0.1:4000`. `SEED=1` in the example environment
@@ -28,7 +28,7 @@ In a second terminal, start the Next.js web app:
 
 ```bash
 cp examples/reference-product/apps/web/.env.example examples/reference-product/apps/web/.env.local
-pnpm --filter @reference-product/web dev
+bun run --filter @reference-product/web dev
 ```
 
 The web app proxies API requests through its server-side BFF using `API_URL`.
@@ -38,10 +38,10 @@ With `SEED=1`, open `/login` and use `owner@example.com` with password
 ## Checks
 
 ```bash
-pnpm --filter @reference-product/api check:drift
-pnpm --filter @reference-product/api test
-pnpm --filter @reference-product/api typecheck
-pnpm --filter @reference-product/web typecheck
+bun run --filter @reference-product/api check:drift
+bun run --filter @reference-product/api test
+bun run --filter @reference-product/api typecheck
+bun run --filter @reference-product/web typecheck
 ```
 
 The API test suite uses an isolated PGlite runtime and does not require the

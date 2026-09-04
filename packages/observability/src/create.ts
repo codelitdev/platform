@@ -1,6 +1,6 @@
-import pino, { type Logger } from "pino";
 import type { NextFunction, Request, Response } from "express";
-import { createDedupe, createSourceCap, type Clock } from "./limits.js";
+import pino, { type Logger } from "pino";
+import { type Clock, createDedupe, createSourceCap } from "./limits.js";
 import { opaqueSubjectId, pickAllowlisted, redactText } from "./redaction.js";
 
 export type ObservabilityClock = Clock;
@@ -173,10 +173,7 @@ function errorParts(error: unknown) {
     const normalized = new Error(message);
     normalized.name = error.name || "Error";
     normalized.stack = stack;
-    const stackTop = redactText(
-      (error.stack ?? "").split("\n")[1]?.trim() ?? "",
-      300,
-    );
+    const stackTop = redactText((error.stack ?? "").split("\n")[1]?.trim() ?? "", 300);
     return {
       name: error.name || "Error",
       message,
@@ -206,9 +203,7 @@ export function createObservability(
   options: CreateObservabilityOptions,
 ): Observability {
   const clock = options.clock ?? systemClock;
-  const otlp = options.logs?.otlp
-    ? createOtlpLogStream(options.logs.otlp)
-    : null;
+  const otlp = options.logs?.otlp ? createOtlpLogStream(options.logs.otlp) : null;
   const logger = pino(
     {
       name: options.serviceName,

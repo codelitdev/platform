@@ -1,5 +1,5 @@
-import { createPlatformError } from "./errors.js";
 import type { PlatformError } from "./errors.js";
+import { createPlatformError } from "./errors.js";
 import type {
   AuthenticationResult,
   CredentialKind,
@@ -58,18 +58,14 @@ export function extractHttpCredentials(
   headers: HeaderMap,
   options: { sessionCookieName?: string } = {},
 ): PresentedCredential[] {
-  const sessionCookieName =
-    options.sessionCookieName ?? DEFAULT_SESSION_COOKIE_NAME;
+  const sessionCookieName = options.sessionCookieName ?? DEFAULT_SESSION_COOKIE_NAME;
   const presented: PresentedCredential[] = [];
   const cookieHeader = headerValue(headers, "cookie");
   // Better Auth prefixes cookies with `__Secure-` when it is configured for
   // HTTPS. Both names represent the same browser-session mechanism.
   const session =
     parseCookie(cookieHeader, sessionCookieName) ??
-    parseCookie(
-      cookieHeader,
-      `${SECURE_SESSION_COOKIE_PREFIX}${sessionCookieName}`,
-    );
+    parseCookie(cookieHeader, `${SECURE_SESSION_COOKIE_PREFIX}${sessionCookieName}`);
   if (session) presented.push({ kind: "session", secret: session });
   const oauth = bearerToken(headerValue(headers, "authorization"));
   if (oauth) presented.push({ kind: "oauth", secret: oauth });
@@ -84,9 +80,7 @@ export function extractHttpCredentials(
  * MCP accepts OAuth bearer or API key, not browser sessions.
  * Never produces `system`.
  */
-export function extractMcpCredentials(
-  headers: HeaderMap,
-): PresentedCredential[] {
+export function extractMcpCredentials(headers: HeaderMap): PresentedCredential[] {
   const presented: PresentedCredential[] = [];
   const oauth = bearerToken(headerValue(headers, "authorization"));
   if (oauth) presented.push({ kind: "oauth", secret: oauth });
@@ -155,9 +149,7 @@ export function mapTransportAuthentication<PrincipalId extends string>(
   };
 }
 
-export function createSystemCredential(
-  credentialId?: string,
-): PlatformCredential {
+export function createSystemCredential(credentialId?: string): PlatformCredential {
   const credential: PlatformCredential = { kind: "system" };
   if (credentialId !== undefined) credential.credentialId = credentialId;
   return credential;

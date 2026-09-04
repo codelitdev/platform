@@ -1,9 +1,9 @@
 export type {
-    AuthenticatedIdentity,
-    AuthenticationResult,
-    OAuthResourceClient,
+  AuthenticatedIdentity,
+  AuthenticationResult,
+  OAuthResourceClient,
 } from "./types";
 export {
-    verifyOAuthAccessToken,
-    type VerifyOAuthAccessTokenOptions,
+  type VerifyOAuthAccessTokenOptions,
+  verifyOAuthAccessToken,
 } from "./verify-access-token";

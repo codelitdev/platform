@@ -1,5 +1,4 @@
-import { describe, expect, it } from "vitest";
-import { createPlatformError, PLATFORM_ERROR_MESSAGES } from "./errors.js";
+import { describe, expect, it } from "bun:test";
 import {
   createSystemCredential,
   extractHttpCredentials,
@@ -8,6 +7,7 @@ import {
   selectHttpCredential,
   selectMcpCredential,
 } from "./credentials.js";
+import { createPlatformError, PLATFORM_ERROR_MESSAGES } from "./errors.js";
 
 describe("credential extraction and transport mapping", () => {
   it("extracts each HTTP mechanism independently and never emits system", () => {
@@ -18,9 +18,7 @@ describe("credential extraction and transport mapping", () => {
     const secureSession = extractHttpCredentials({
       cookie: "__Secure-better-auth.session_token=secure_sess_1; other=1",
     });
-    expect(secureSession).toEqual([
-      { kind: "session", secret: "secure_sess_1" },
-    ]);
+    expect(secureSession).toEqual([{ kind: "session", secret: "secure_sess_1" }]);
     const oauth = extractHttpCredentials({
       authorization: "Bearer tok_1",
     });
@@ -41,9 +39,7 @@ describe("credential extraction and transport mapping", () => {
     expect(selected.kind).toBe("ambiguous");
     if (selected.kind !== "ambiguous") throw new Error("expected ambiguous");
     expect(selected.error.code).toBe("credential_ambiguous");
-    expect(selected.error.message).toBe(
-      PLATFORM_ERROR_MESSAGES.credential_ambiguous,
-    );
+    expect(selected.error.message).toBe(PLATFORM_ERROR_MESSAGES.credential_ambiguous);
   });
 
   it("treats cookie plus API key as ambiguous", () => {
@@ -70,9 +66,7 @@ describe("credential extraction and transport mapping", () => {
       credential: { kind: "oauth", secret: "tok_1" },
     });
     expect(
-      extractMcpCredentials({ authorization: "Bearer tok" }).map(
-        (item) => item.kind,
-      ),
+      extractMcpCredentials({ authorization: "Bearer tok" }).map((item) => item.kind),
     ).toEqual(["oauth"]);
   });
 

@@ -1,14 +1,15 @@
 {
-    "compilerOptions": {
-        "outDir": "dist",
-        "rootDir": "src",
-        "target": "es2022",
-        "module": "nodenext",
-        "moduleResolution": "nodenext",
-        "strict": true,
-        "declaration": true,
-        "skipLibCheck": true
-    },
-    "include": ["src"],
-    "exclude": ["**/*.test.ts"]
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "target": "es2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "types": ["node"],
+    "declaration": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"],
+  "exclude": ["**/*.test.ts"]
 }

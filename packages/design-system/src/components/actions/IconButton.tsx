@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import type React from "react";
 
 export interface IconButtonProps {
   variant?: "ghost" | "outline";
@@ -14,7 +14,14 @@ export interface IconButtonProps {
 }
 
 /** Square icon-only button for toolbars, table rows, headers. */
-export function IconButton({ variant = "ghost", size = "md", label, children, style, onClick }: IconButtonProps) {
+export function IconButton({
+  variant = "ghost",
+  size = "md",
+  label,
+  children,
+  style,
+  onClick,
+}: IconButtonProps) {
   return (
     <button
       type="button"

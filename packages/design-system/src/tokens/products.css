@@ -9,7 +9,8 @@
   --primary-hover: oklch(0.55 0.14 30);
   --ring: oklch(0.6 0.14 30);
 }
-.dark[data-product="courselit"], .dark [data-product="courselit"] {
+.dark[data-product="courselit"],
+.dark [data-product="courselit"] {
   --primary: oklch(0.72 0.13 30);
   --primary-foreground: oklch(0.2 0.04 30);
   --primary-soft: oklch(0.72 0.13 30 / 0.16);
@@ -24,7 +25,8 @@
   --primary-hover: oklch(0.55 0.14 300);
   --ring: oklch(0.6 0.14 300);
 }
-.dark[data-product="medialit"], .dark [data-product="medialit"] {
+.dark[data-product="medialit"],
+.dark [data-product="medialit"] {
   --primary: oklch(0.72 0.13 300);
   --primary-foreground: oklch(0.2 0.04 300);
   --primary-soft: oklch(0.72 0.13 300 / 0.16);
@@ -39,7 +41,8 @@
   --primary-hover: oklch(0.55 0.14 150);
   --ring: oklch(0.6 0.14 150);
 }
-.dark[data-product="sendlit"], .dark [data-product="sendlit"] {
+.dark[data-product="sendlit"],
+.dark [data-product="sendlit"] {
   --primary: oklch(0.72 0.13 150);
   --primary-foreground: oklch(0.2 0.04 150);
   --primary-soft: oklch(0.72 0.13 150 / 0.16);
@@ -54,7 +57,8 @@
   --primary-hover: oklch(0.55 0.14 230);
   --ring: oklch(0.6 0.14 230);
 }
-.dark[data-product="frontlit"], .dark [data-product="frontlit"] {
+.dark[data-product="frontlit"],
+.dark [data-product="frontlit"] {
   --primary: oklch(0.72 0.13 230);
   --primary-foreground: oklch(0.2 0.04 230);
   --primary-soft: oklch(0.72 0.13 230 / 0.16);

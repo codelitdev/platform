@@ -2,7 +2,7 @@
 
 Status: accepted for staged implementation  
 Audience: CourseLit, SendLit, FrontLit, MediaLit, and platform maintainers  
-Package manager: pnpm
+Package manager and runtime: Bun
 
 ## 1. Purpose
 
@@ -28,7 +28,7 @@ It is not a hosted control plane or a superclass application from which products
 
 @codelitdev/billing is already an official package and SendLit is its first production consumer. Its current published line is pre-1.0; provider/core/schema behavior is reusable now, while cross-product workflows, action grants, operator services, and lifecycle hooks remain experimental until CourseLit proves the same contracts as the second consumer. SendLit and every other product continue consuming the package through the registry rather than importing workspace source.
 
-Current repository state: root Git/pnpm workspace normalization, one lockfile, Changesets, pinned CI, alpha release automation, and packed-artifact checks are complete. Imported repository archival/redirects and the remaining packages, examples, compatibility manifest, conformance suites, and templates are pending.
+Current repository state: root Git/Bun workspace normalization, one lockfile, Changesets, pinned CI, stable release automation, and packed-artifact checks are complete. Imported repository archival/redirects and the remaining packages, examples, compatibility manifest, conformance suites, and templates are pending.
 
 ## 2. Goals
 
@@ -124,7 +124,7 @@ Platform is the source repository for shared CodeLit infrastructure packages and
 
 The arrows above express package consumption, not source co-location. `apps/api` and `apps/web` live in each generated product repository; no `@codelitdev/*` package resides inside a product's `apps/api` directory.
 
-Target pnpm workspace:
+Target Bun workspace:
 
     platform/
       packages/
@@ -150,7 +150,11 @@ Target pnpm workspace:
         compatibility.md
         decisions/
 
-The root is private workspace metadata with one `pnpm-workspace.yaml`, one lockfile, shared CI, Changesets, linting, and publishing automation. Internal examples use `workspace:` dependencies. Packed-consumer tests and real products install registry artifacts so unpublished source coupling cannot pass unnoticed.
+The root is private workspace metadata with a `workspaces` field in
+`package.json`, one `bun.lock`, shared CI, Changesets, Biome linting and
+formatting, and publishing automation. Internal examples use `workspace:`
+dependencies. Packed-consumer tests and real products install registry
+artifacts so unpublished source coupling cannot pass unnoticed.
 
 Packages remain independently installable, versioned, published, documented, and releasable. A Changeset bumps only affected packages and dependants whose published contract or compatibility declaration changed. The monorepo may coordinate a release, but it does not impose lockstep versions or require consumers to install a catch-all runtime.
 
@@ -365,8 +369,8 @@ The extraction must not copy product event names, context allowlists, environmen
 A tested compatibility bill of materials pinning:
 
 - Exact compatible releases of the independently versioned Platform workspace packages and selected external peers such as dodopayments.
-- Express, ts-rest, Zod, Better Auth, Drizzle, MCP SDK, Pino, Vitest, and PGlite.
-- Supported Node.js, TypeScript, pnpm, Next.js, and React lines.
+- Express, ts-rest, Zod, Better Auth, Drizzle, MCP SDK, Pino, Bun test, and PGlite.
+- Supported Bun, TypeScript, Next.js, and React lines.
 
 Products depend on individual packages; CI verifies that resolved versions match one preset. The preset has no runtime code.
 
@@ -375,10 +379,9 @@ The package exports and ships a machine-readable manifest with this versioned sh
 ```json
 {
   "schemaVersion": 1,
-  "presetVersion": "1.0.0",
+  "presetVersion": "0.1.0",
   "runtime": {
-    "node": "22.x",
-    "pnpm": "10.22.0"
+    "bun": "1.4.1"
   },
   "packages": {
     "@codelitdev/platform": {
@@ -452,9 +455,9 @@ The adapter contract covers fixture creation, credential issuance, REST/MCP invo
 
 ### 6.9 @codelitdev/platform-cli
 
-    pnpm dlx @codelitdev/platform-cli create my-product
-    pnpm dlx @codelitdev/platform-cli doctor
-    pnpm dlx @codelitdev/platform-cli upgrade 1.1
+    bunx @codelitdev/platform-cli create my-product
+    bunx @codelitdev/platform-cli doctor
+    bunx @codelitdev/platform-cli upgrade 1.1
 
 The CLI:
 
@@ -493,7 +496,7 @@ After Phase 5, CI generates the template into a temporary directory, installs wi
     {
       "schemaVersion": 1,
       "templateVersion": "1.0.0",
-      "presetVersion": "1.0.0",
+      "presetVersion": "0.1.0",
       "capabilities": ["auth", "mcp", "observability", "billing"],
       "managedFiles": {
         "tooling/platform/config.ts": "sha256:<digest>",
@@ -676,8 +679,8 @@ docs/compatibility.md records supported preset lines and end-of-support dates.
 
 Already complete:
 
-- Normalize imported source into one private pnpm workspace with one lockfile and no nested repositories.
-- Establish Changesets, pinned CI, alpha release automation, root verification, and packed-artifact checks.
+- Normalize imported source into one private Bun workspace with one lockfile and no nested repositories.
+- Establish Changesets, pinned CI, stable release automation, root verification, and packed-artifact checks.
 - Lock the high-level package, product, persistence, billing, and update boundaries in this document.
 
 Remaining:

@@ -1,12 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { loadPresetManifest, validateResolvedVersions } from "./index.js";
 
 describe("platform preset", () => {
   it("ships schemaVersion 1 with recommended/supported/minimumSecure", () => {
     const manifest = loadPresetManifest();
     expect(manifest.schemaVersion).toBe(1);
-    expect(manifest.runtime.node).toBe("22.x");
-    expect(manifest.runtime.pnpm).toBe("10.22.0");
+    expect(manifest.runtime.bun).toBe("1.4.1");
     const platform = manifest.packages["@codelitdev/platform"];
     expect(platform?.recommended).toBeTruthy();
     expect(platform?.supported).toContain(">=");
@@ -17,9 +16,7 @@ describe("platform preset", () => {
     const issues = validateResolvedVersions({
       "@codelitdev/platform": "0.0.1",
     });
-    expect(
-      issues.some((issue) => issue.reason === "below_minimum_secure"),
-    ).toBe(true);
+    expect(issues.some((issue) => issue.reason === "below_minimum_secure")).toBe(true);
     const ok = validateResolvedVersions({
       "@codelitdev/platform":
         loadPresetManifest().packages["@codelitdev/platform"]!.minimumSecure,
@@ -38,10 +35,7 @@ describe("platform preset", () => {
       ).some((issue) => issue.reason === "external_mismatch"),
     ).toBe(true);
     expect(
-      validateResolvedVersions(
-        { typescript: manifest.external.typescript },
-        manifest,
-      ),
+      validateResolvedVersions({ typescript: manifest.external.typescript }, manifest),
     ).toEqual([]);
   });
 });

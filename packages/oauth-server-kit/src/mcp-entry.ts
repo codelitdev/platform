@@ -1,5 +1,5 @@
 export {
-    createMcpOAuthDiscoveryRoutes,
-    type BetterAuthMetadataApi,
-    type CreateMcpOAuthDiscoveryRoutesOptions,
+  type BetterAuthMetadataApi,
+  type CreateMcpOAuthDiscoveryRoutesOptions,
+  createMcpOAuthDiscoveryRoutes,
 } from "./mcp-discovery";

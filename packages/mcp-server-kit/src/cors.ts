@@ -12,9 +12,7 @@ export const MCP_ALLOWED_HEADERS = [
   "Mcp-Name",
 ].join(", ");
 
-export function mcpCorsHeaders(
-  requestHeaders: HeaderMap,
-): Record<string, string> {
+export function mcpCorsHeaders(requestHeaders: HeaderMap): Record<string, string> {
   const originHeader = requestHeaders.origin ?? requestHeaders.Origin;
   const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
   return {

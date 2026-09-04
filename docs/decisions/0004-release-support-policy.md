@@ -22,9 +22,9 @@ workspace source (architecture §5, §11).
   compatible preset → automated adopter PR → adopter tests and
   conformance.
 - Support lines and end-of-support dates are recorded in
-  `docs/compatibility.md` when the preset exists (Phase 4). Until then,
-  published alpha tags are unsupported for production except by explicit
-  origin-canary agreement (SendLit for billing).
+  `docs/compatibility.md` when the preset exists (Phase 4). Prerelease tags
+  are unsupported for production except by explicit origin-canary agreement
+  (SendLit for billing).
 - Security: the affected package publishes a patch; the preset records
   recommended and minimum-secure versions; adopter PRs are expedited.
   Critical fixes may use coordinated disclosure; they are never silently

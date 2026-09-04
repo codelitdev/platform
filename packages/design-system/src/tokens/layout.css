@@ -13,10 +13,10 @@
   --space-12: 48px;
 
   /* Radii */
-  --radius: 0.625rem;      /* 10px — controls, inputs, buttons */
-  --radius-sm: 6px;        /* chips, code spans, small tiles */
-  --radius-lg: 16px;       /* cards, dialogs */
-  --radius-full: 999px;    /* pills, badges, avatars */
+  --radius: 0.625rem; /* 10px — controls, inputs, buttons */
+  --radius-sm: 6px; /* chips, code spans, small tiles */
+  --radius-lg: 16px; /* cards, dialogs */
+  --radius-full: 999px; /* pills, badges, avatars */
 
   /* Shadows — warm-tinted, soft */
   --shadow-card: 0 2px 12px oklch(0.3 0.02 60 / 0.06);

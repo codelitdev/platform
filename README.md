@@ -23,19 +23,19 @@ The executable specification lives at `examples/reference-product`. Bootstrap te
 ## Development
 
 ```sh
-pnpm install
-pnpm format:check
-pnpm verify
+bun install
+bun run format:check
+bun run verify
 ```
 
-`pnpm verify` runs package linting, type checks, tests, builds, and packed-public-artifact checks.
+`bun run verify` runs package linting, type checks, Bun tests, builds, and packed-public-artifact checks.
 
 ## Releases
 
 Add a Changeset for every publishable package change:
 
 ```sh
-pnpm changeset
+bun run changeset
 ```
 
-Merging to `main` creates or updates the Changesets release pull request. Merging that pull request publishes affected prerelease packages on the `alpha` npm tag. Package versions are independent; publishing one package does not force an unrelated package release.
+Merging to `main` creates or updates the Changesets release pull request. Merging that pull request publishes affected stable packages on the `latest` npm tag. Package versions are independent; publishing one package does not force an unrelated package release.

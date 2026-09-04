@@ -59,10 +59,10 @@ A typical SaaS split (what SendLit does, not required): upgrades → immediate +
 ## Install
 
 ```bash
-pnpm add @codelitdev/billing@0.1.0-alpha.3
-# or: pnpm add @codelitdev/billing@alpha
+bun add @codelitdev/billing@0.1.0-alpha.3
+# or: bun add @codelitdev/billing@alpha
 # Dodo is an optional peer of the Dodo adapter
-pnpm add dodopayments
+bun add dodopayments
 ```
 
 Public imports (do not import `src/`):
@@ -82,8 +82,8 @@ Public imports (do not import `src/`):
 CLI:
 
 ```bash
-pnpm exec codelit-billing generate --config billing.config.ts
-pnpm exec codelit-billing generate --check --config billing.config.ts
+bun x codelit-billing generate --config billing.config.ts
+bun x codelit-billing generate --check --config billing.config.ts
 ```
 
 ## How it fits together
@@ -153,9 +153,9 @@ export default defineBillingConfig({
 Then:
 
 ```bash
-pnpm exec codelit-billing generate --config apps/api/billing.config.ts
-pnpm exec drizzle-kit generate
-pnpm exec drizzle-kit migrate
+bun x codelit-billing generate --config apps/api/billing.config.ts
+bun x drizzle-kit generate
+bun x drizzle-kit migrate
 ```
 
 CI should run `generate --check` so committed `billing.generated.ts` cannot drift. Hand-edit SQL for backfills (for example seeding a Free `billing_plan_states` row); never edit the generated TypeScript.
@@ -372,7 +372,7 @@ import {
 - `runBillingProviderContract(adapter)` — every adapter, including Dodo in CI against the fake and gated sandbox tests against Dodo test mode.
 - `createWorkflowHarness()` — catalog, checkout, webhook ordering, grants, reconciliation without a network.
 
-`pnpm test` is deterministic. Live Dodo sandbox tests stay behind an explicit env gate.
+`bun test` is deterministic. Live Dodo sandbox tests stay behind an explicit env gate.
 
 ## What this package will not do
 
@@ -393,9 +393,9 @@ import {
 ## Develop this repo
 
 ```bash
-pnpm install
-pnpm test
-pnpm typecheck
-pnpm build
-pnpm test:packed   # install the tarball via public exports only
+bun install
+bun test
+bun run typecheck
+bun run build
+bun run test:packed   # install the tarball via public exports only
 ```

@@ -22,7 +22,7 @@ require lockstep versions.
 
 - Package source, tests, docs, ADRs, and runbooks under `packages/*`.
 - Independent package versions and Changesets release metadata.
-- Published npm contracts and `publishConfig` (`public`, `alpha` tag).
+- Published npm contracts and `publishConfig` (`public`, `latest` tag).
 - Security reporting through this repository's `SECURITY.md` and GitHub
   Security tab.
 - Architecture boundaries in `docs/architecture.md`.

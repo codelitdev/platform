@@ -1,55 +1,54 @@
 {
   "schemaVersion": 1,
-  "presetVersion": "1.0.0-alpha.0",
+  "presetVersion": "0.1.0",
   "runtime": {
-    "node": "22.x",
-    "pnpm": "10.22.0"
+    "bun": "1.4.1"
   },
   "packages": {
     "@codelitdev/platform": {
-      "recommended": "0.1.0-alpha.0",
-      "supported": ">=0.1.0-alpha.0 <2",
-      "minimumSecure": "0.1.0-alpha.0"
+      "recommended": "0.1.0",
+      "supported": ">=0.1.0 <2",
+      "minimumSecure": "0.1.0"
     },
     "@codelitdev/observability": {
-      "recommended": "0.1.0-alpha.0",
-      "supported": ">=0.1.0-alpha.0 <2",
-      "minimumSecure": "0.1.0-alpha.0"
+      "recommended": "0.1.0",
+      "supported": ">=0.1.0 <2",
+      "minimumSecure": "0.1.0"
     },
     "@codelitdev/mcp-server-kit": {
-      "recommended": "0.1.0-alpha.0",
-      "supported": ">=0.1.0-alpha.0 <2",
-      "minimumSecure": "0.1.0-alpha.0"
+      "recommended": "0.1.0",
+      "supported": ">=0.1.0 <2",
+      "minimumSecure": "0.1.0"
     },
     "@codelitdev/platform-conformance": {
-      "recommended": "0.1.0-alpha.0",
-      "supported": ">=0.1.0-alpha.0 <2",
-      "minimumSecure": "0.1.0-alpha.0"
+      "recommended": "0.1.0",
+      "supported": ">=0.1.0 <2",
+      "minimumSecure": "0.1.0"
     },
     "@codelitdev/platform-cli": {
-      "recommended": "0.1.0-alpha.0",
-      "supported": ">=0.1.0-alpha.0 <2",
-      "minimumSecure": "0.1.0-alpha.0"
+      "recommended": "0.1.0",
+      "supported": ">=0.1.0 <2",
+      "minimumSecure": "0.1.0"
     },
     "@codelitdev/platform-preset": {
-      "recommended": "1.0.0-alpha.0",
-      "supported": ">=1.0.0-alpha.0 <2",
-      "minimumSecure": "1.0.0-alpha.0"
+      "recommended": "0.1.0",
+      "supported": ">=0.1.0 <1",
+      "minimumSecure": "0.1.0"
     },
     "@codelitdev/billing": {
-      "recommended": "0.1.0-alpha.3",
-      "supported": ">=0.1.0-alpha.3 <1",
-      "minimumSecure": "0.1.0-alpha.3"
+      "recommended": "0.1.0",
+      "supported": ">=0.1.0 <1",
+      "minimumSecure": "0.1.0"
     },
     "@codelitdev/oauth-server-kit": {
-      "recommended": "0.1.0-alpha.1",
-      "supported": ">=0.1.0-alpha.1 <1",
-      "minimumSecure": "0.1.0-alpha.1"
+      "recommended": "0.1.1",
+      "supported": ">=0.1.1 <1",
+      "minimumSecure": "0.1.1"
     },
     "@codelitdev/design-system": {
-      "recommended": "0.1.0-alpha.6",
-      "supported": ">=0.1.0-alpha.6 <1",
-      "minimumSecure": "0.1.0-alpha.6"
+      "recommended": "0.1.0",
+      "supported": ">=0.1.0 <1",
+      "minimumSecure": "0.1.0"
     }
   },
   "external": {
@@ -61,12 +60,12 @@
     "pg": "8.23.0",
     "@types/pg": "8.23.1",
     "zod": "3.25.76",
-    "better-auth": "1.6.23",
-    "@better-auth/oauth-provider": "1.6.23",
+    "better-auth": "1.7.2",
+    "@better-auth/oauth-provider": "1.7.2",
     "drizzle-orm": "0.45.2",
     "drizzle-kit": "0.31.4",
     "pino": "9.6.0",
-    "vitest": "4.1.9",
+    "@types/bun": "1.4.1",
     "@electric-sql/pglite": "0.2.17",
     "@modelcontextprotocol/sdk": "1.30.0",
     "dodopayments": "2.48.0",

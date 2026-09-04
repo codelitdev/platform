@@ -1,5 +1,5 @@
-import { validateBillingConfig, type BillingConfig } from "./validate.js";
+import { type BillingConfig, validateBillingConfig } from "./validate.js";
 
 export function defineBillingConfig(config: BillingConfig): BillingConfig {
-    return validateBillingConfig(config);
+  return validateBillingConfig(config);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import type React from "react";
 
 export interface InputProps {
   label?: React.ReactNode;
@@ -29,6 +29,7 @@ export function Input({ label, hint, error, multiline, style, ...rest }: InputPr
   );
   if (!label && !hint && !error) return control;
   return (
+    /* biome-ignore lint/a11y/noLabelWithoutControl: the control is rendered inside this label. */
     <label className="cl-field" style={style}>
       {label ? <span className="cl-field__label">{label}</span> : null}
       {control}

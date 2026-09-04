@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import { headers } from "next/headers";
+import type { ReactNode } from "react";
 import "@codelitdev/design-system/styles.css";
 import "./globals.css";
 import { BrowserObservabilityProvider } from "../components/browser-observability";
@@ -9,11 +9,7 @@ export const metadata = {
   title: "Reference product",
 };
 
-export default async function RootLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
   await headers();
   const posthog = getBrowserObservabilityConfig();
 

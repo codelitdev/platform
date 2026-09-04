@@ -1,5 +1,5 @@
 import { IconButton } from "@codelitdev/design-system";
-import { Copy, Trash2, Pencil } from "lucide-react";
+import { Copy, Pencil, Trash2 } from "lucide-react";
 
 export function Variants() {
   return (

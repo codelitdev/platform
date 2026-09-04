@@ -17,7 +17,9 @@
       "title": "Icon Button",
       "description": "CodeLit icon-only square button for toolbars, table rows, and headers — ghost/outline, sm/md.",
       "dependencies": ["class-variance-authority", "radix-ui"],
-      "files": [{ "path": "registry/codelit/ui/icon-button.tsx", "type": "registry:ui" }]
+      "files": [
+        { "path": "registry/codelit/ui/icon-button.tsx", "type": "registry:ui" }
+      ]
     },
     {
       "name": "dropdown-menu",
@@ -25,7 +27,9 @@
       "title": "Dropdown Menu",
       "description": "CodeLit dropdown menu — matches the Select popover treatment (token-radius, popover shadow, muted item hover). Full Radix parts incl. checkbox/radio items and submenus.",
       "dependencies": ["radix-ui", "lucide-react"],
-      "files": [{ "path": "registry/codelit/ui/dropdown-menu.tsx", "type": "registry:ui" }]
+      "files": [
+        { "path": "registry/codelit/ui/dropdown-menu.tsx", "type": "registry:ui" }
+      ]
     },
     {
       "name": "badge",
@@ -78,7 +82,9 @@
       "title": "Radio Group",
       "description": "CodeLit radio group — accent-filled selected item with a light center dot.",
       "dependencies": ["radix-ui"],
-      "files": [{ "path": "registry/codelit/ui/radio-group.tsx", "type": "registry:ui" }]
+      "files": [
+        { "path": "registry/codelit/ui/radio-group.tsx", "type": "registry:ui" }
+      ]
     },
     {
       "name": "switch",

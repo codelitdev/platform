@@ -3,7 +3,7 @@
 Status: proposed  
 Audience: SendLit, CourseLit, FrontLit, MediaLit, and billing maintainers  
 Package: @codelitdev/billing  
-Package manager: pnpm
+Package manager and runtime: Bun
 
 ## 1. Purpose
 
@@ -537,15 +537,15 @@ This extension mechanism lets SendLit preserve fields such as teams/contact over
 
 Initial reference-app setup:
 
-    pnpm dlx @codelitdev/billing generate
-    pnpm drizzle-kit generate
-    pnpm drizzle-kit migrate
+    bunx @codelitdev/billing generate
+    bunx drizzle-kit generate
+    bunx drizzle-kit migrate
 
 The first command loads billing.config.ts and writes billing.generated.ts. The file starts with a generated warning and package schema version. It is committed but never manually edited.
 
 CI runs:
 
-    pnpm dlx @codelitdev/billing generate --check
+    bunx @codelitdev/billing generate --check
 
 Check mode renders into memory and fails when the committed output differs. Package CI also generates a clean reference app, type-checks the schema, runs drizzle-kit generation, applies the migration to an empty database, and runs adapter conformance.
 

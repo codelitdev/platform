@@ -13,8 +13,8 @@ import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const presetRoot = path.join(root, "..", "platform-preset");
-execFileSync("pnpm", ["run", "build"], { cwd: presetRoot, stdio: "inherit" });
-execFileSync("pnpm", ["exec", "tsc", "-p", "tsconfig.json"], {
+execFileSync("bun", ["run", "build"], { cwd: presetRoot, stdio: "inherit" });
+execFileSync("bun", ["x", "tsc", "-p", "tsconfig.json"], {
   cwd: root,
   stdio: "inherit",
 });
@@ -28,14 +28,10 @@ cpSync(
 );
 const packDirectory = mkdtempSync(path.join(tmpdir(), "cli-package-"));
 function pack(cwd) {
-  const out = execFileSync(
-    "pnpm",
-    ["pack", "--pack-destination", packDirectory],
-    {
-      cwd,
-      encoding: "utf8",
-    },
-  );
+  const out = execFileSync("bun", ["pm", "pack", "--destination", packDirectory], {
+    cwd,
+    encoding: "utf8",
+  });
   const name = out
     .trim()
     .split("\n")
@@ -43,9 +39,7 @@ function pack(cwd) {
     .filter((l) => l.endsWith(".tgz"))
     .at(-1);
   if (!name) throw new Error(out);
-  return path.isAbsolute(name)
-    ? name
-    : path.join(packDirectory, path.basename(name));
+  return path.isAbsolute(name) ? name : path.join(packDirectory, path.basename(name));
 }
 const presetTarball = pack(presetRoot);
 const tarball = pack(root);
@@ -57,19 +51,17 @@ writeFileSync(
     name: "consumer",
     type: "module",
     private: true,
-    packageManager: "pnpm@10.22.0",
+    packageManager: "bun@1.4.1",
     dependencies: {
       "@codelitdev/platform-preset": presetTarball,
       "@codelitdev/platform-cli": tarball,
     },
-    pnpm: {
-      overrides: {
-        "@codelitdev/platform-preset": presetTarball,
-      },
+    overrides: {
+      "@codelitdev/platform-preset": presetTarball,
     },
   }),
 );
-execFileSync("pnpm", ["install", "--ignore-scripts"], {
+execFileSync("bun", ["install", "--ignore-scripts"], {
   cwd: dir,
   stdio: "inherit",
 });
@@ -89,7 +81,7 @@ if (typeof doctor !== "function") throw new Error("doctor");
 console.log("packed-exports-ok");
 `,
 );
-execFileSync("node", [path.join(dir, "assert.mjs")], {
+execFileSync("bun", [path.join(dir, "assert.mjs")], {
   cwd: dir,
   stdio: "inherit",
 });

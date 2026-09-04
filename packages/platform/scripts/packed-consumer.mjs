@@ -5,62 +5,61 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-execFileSync("pnpm", ["exec", "tsc", "-p", "tsconfig.json"], {
-    cwd: root,
-    stdio: "inherit",
+execFileSync("bun", ["x", "tsc", "-p", "tsconfig.json"], {
+  cwd: root,
+  stdio: "inherit",
 });
 const packDirectory = mkdtempSync(path.join(tmpdir(), "platform-package-"));
-const packOut = execFileSync("pnpm", ["pack", "--pack-destination", packDirectory], {
-    cwd: root,
-    encoding: "utf8",
+const packOut = execFileSync("bun", ["pm", "pack", "--destination", packDirectory], {
+  cwd: root,
+  encoding: "utf8",
 });
 const packedName = packOut
-    .trim()
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.endsWith(".tgz"))
-    .at(-1);
+  .trim()
+  .split("\n")
+  .map((line) => line.trim())
+  .filter((line) => line.endsWith(".tgz"))
+  .at(-1);
 if (!packedName) {
-    throw new Error(`pnpm pack did not print a tarball:\n${packOut}`);
+  throw new Error(`bun pm pack did not print a tarball:\n${packOut}`);
 }
 const tarball = path.isAbsolute(packedName)
-    ? packedName
-    : path.join(packDirectory, path.basename(packedName));
+  ? packedName
+  : path.join(packDirectory, path.basename(packedName));
 const dir = mkdtempSync(path.join(tmpdir(), "platform-packed-"));
 mkdirSync(dir, { recursive: true });
 writeFileSync(
-    path.join(dir, "package.json"),
-    JSON.stringify(
-        {
-            name: "consumer",
-            type: "module",
-            private: true,
-            packageManager: "pnpm@10.22.0",
-            pnpm: { ignoredBuiltDependencies: ["esbuild"] },
-        },
-        null,
-        2,
-    ),
+  path.join(dir, "package.json"),
+  JSON.stringify(
+    {
+      name: "consumer",
+      type: "module",
+      private: true,
+      packageManager: "bun@1.4.1",
+    },
+    null,
+    2,
+  ),
 );
-execFileSync("pnpm", ["add", tarball, "--ignore-scripts"], {
-    cwd: dir,
-    stdio: "inherit",
+execFileSync("bun", ["add", tarball, "--ignore-scripts"], {
+  cwd: dir,
+  stdio: "inherit",
 });
 const pkg = JSON.parse(
-    readFileSync(
-        path.join(dir, "node_modules/@codelitdev/platform/package.json"),
-        "utf8",
-    ),
+  readFileSync(
+    path.join(dir, "node_modules/@codelitdev/platform/package.json"),
+    "utf8",
+  ),
 );
 if (JSON.stringify(pkg.exports).includes("src/")) {
-    throw new Error("src export present");
+  throw new Error("src export present");
 }
 if (!pkg.exports["."]?.import) {
-    throw new Error("missing root export");
+  throw new Error("missing root export");
 }
 writeFileSync(
-    path.join(dir, "assert.mjs"),
-    `
+  path.join(dir, "assert.mjs"),
+  `
 import {
   PLATFORM_ERROR_CODES,
   createPlatformError,
@@ -94,9 +93,9 @@ if (createPlatformError("forbidden").message.includes("cause")) {
 console.log("packed-exports-ok");
 `,
 );
-execFileSync("node", [path.join(dir, "assert.mjs")], {
-    cwd: dir,
-    stdio: "inherit",
+execFileSync("bun", [path.join(dir, "assert.mjs")], {
+  cwd: dir,
+  stdio: "inherit",
 });
 console.log(`tarball=${tarball}`);
 console.log(`consumer=${dir}`);

@@ -6,63 +6,66 @@ import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const platformRoot = path.join(root, "..", "platform");
-execFileSync("pnpm", ["exec", "tsc", "-p", "tsconfig.json"], {
-    cwd: platformRoot,
-    stdio: "inherit",
+execFileSync("bun", ["x", "tsc", "-p", "tsconfig.json"], {
+  cwd: platformRoot,
+  stdio: "inherit",
 });
-execFileSync("pnpm", ["exec", "tsc", "-p", "tsconfig.json"], {
-    cwd: root,
-    stdio: "inherit",
+execFileSync("bun", ["x", "tsc", "-p", "tsconfig.json"], {
+  cwd: root,
+  stdio: "inherit",
 });
 const packDirectory = mkdtempSync(path.join(tmpdir(), "mcp-kit-package-"));
 const platformPack = execFileSync(
-    "pnpm",
-    ["pack", "--pack-destination", packDirectory],
-    { cwd: platformRoot, encoding: "utf8" },
+  "bun",
+  ["pm", "pack", "--destination", packDirectory],
+  { cwd: platformRoot, encoding: "utf8" },
 );
-const packOut = execFileSync("pnpm", ["pack", "--pack-destination", packDirectory], {
-    cwd: root,
-    encoding: "utf8",
+const packOut = execFileSync("bun", ["pm", "pack", "--destination", packDirectory], {
+  cwd: root,
+  encoding: "utf8",
 });
 function tarballFrom(out) {
-    const packedName = out
-        .trim()
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.endsWith(".tgz"))
-        .at(-1);
-    if (!packedName) throw new Error(out);
-    return path.isAbsolute(packedName)
-        ? packedName
-        : path.join(packDirectory, path.basename(packedName));
+  const packedName = out
+    .trim()
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.endsWith(".tgz"))
+    .at(-1);
+  if (!packedName) throw new Error(out);
+  return path.isAbsolute(packedName)
+    ? packedName
+    : path.join(packDirectory, path.basename(packedName));
 }
 const platformTarball = tarballFrom(platformPack);
 const tarball = tarballFrom(packOut);
 const dir = mkdtempSync(path.join(tmpdir(), "mcp-kit-packed-"));
 mkdirSync(dir, { recursive: true });
 writeFileSync(
-    path.join(dir, "package.json"),
-    JSON.stringify({
-        name: "consumer",
-        type: "module",
-        private: true,
-        packageManager: "pnpm@10.22.0",
-    }),
+  path.join(dir, "package.json"),
+  JSON.stringify({
+    name: "consumer",
+    type: "module",
+    private: true,
+    packageManager: "bun@1.4.1",
+    overrides: {
+      "@codelitdev/platform": platformTarball,
+    },
+  }),
 );
-execFileSync("pnpm", ["add", platformTarball, tarball, "--ignore-scripts"], {
-    cwd: dir,
-    stdio: "inherit",
+execFileSync("bun", ["add", platformTarball, tarball, "--ignore-scripts"], {
+  cwd: dir,
+  stdio: "inherit",
 });
 const pkg = JSON.parse(
-    readFileSync(
-        path.join(dir, "node_modules/@codelitdev/mcp-server-kit/package.json"),
-        "utf8",
-    ),
+  readFileSync(
+    path.join(dir, "node_modules/@codelitdev/mcp-server-kit/package.json"),
+    "utf8",
+  ),
 );
 if (JSON.stringify(pkg.exports).includes("src/")) throw new Error("src export present");
 writeFileSync(
-    path.join(dir, "assert.mjs"),
-    `
+  path.join(dir, "assert.mjs"),
+  `
 import { createMcpServerKit, validateParityManifest } from "@codelitdev/mcp-server-kit";
 const kit = createMcpServerKit({
   name: "c",
@@ -88,5 +91,5 @@ validateParityManifest([], { restOperationIds: new Set(), mcpToolNames: new Set(
 console.log("packed-exports-ok");
 `,
 );
-execFileSync("node", [path.join(dir, "assert.mjs")], { cwd: dir, stdio: "inherit" });
+execFileSync("bun", [path.join(dir, "assert.mjs")], { cwd: dir, stdio: "inherit" });
 console.log(`tarball=${tarball}`);

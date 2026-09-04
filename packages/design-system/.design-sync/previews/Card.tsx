@@ -1,4 +1,4 @@
-import { Card, Button, Input } from "@codelitdev/design-system";
+import { Button, Card, Input } from "@codelitdev/design-system";
 
 export function WithFooter() {
   return (

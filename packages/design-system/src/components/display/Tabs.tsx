@@ -14,7 +14,14 @@ export interface TabsProps {
 }
 
 /** Tab bar. Controlled via value/onChange or uncontrolled via defaultValue. */
-export function Tabs({ tabs = [], value, defaultValue, onChange, variant = "segmented", style }: TabsProps) {
+export function Tabs({
+  tabs = [],
+  value,
+  defaultValue,
+  onChange,
+  variant = "segmented",
+  style,
+}: TabsProps) {
   const [internal, setInternal] = React.useState(defaultValue ?? tabs[0]);
   const active = value ?? internal;
   const pick = (t: string) => {
@@ -22,9 +29,20 @@ export function Tabs({ tabs = [], value, defaultValue, onChange, variant = "segm
     if (onChange) onChange(t);
   };
   return (
-    <div className={`cl-tabs__list ${variant === "underline" ? "cl-tabs__list--underline" : ""}`} role="tablist" style={style}>
+    <div
+      className={`cl-tabs__list ${variant === "underline" ? "cl-tabs__list--underline" : ""}`}
+      role="tablist"
+      style={style}
+    >
       {tabs.map((t) => (
-        <button key={t} type="button" role="tab" className="cl-tabs__trigger" data-active={String(t === active)} onClick={() => pick(t)}>
+        <button
+          key={t}
+          type="button"
+          role="tab"
+          className="cl-tabs__trigger"
+          data-active={String(t === active)}
+          onClick={() => pick(t)}
+        >
           {t}
         </button>
       ))}

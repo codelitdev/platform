@@ -11,15 +11,12 @@ export type PackagePin = {
 export type PresetManifest = {
   schemaVersion: 1;
   presetVersion: string;
-  runtime: { node: string; pnpm: string };
+  runtime: { bun: string };
   packages: Record<string, PackagePin>;
   external: Record<string, string>;
 };
 
-const manifestPath = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "manifest.json",
-);
+const manifestPath = join(dirname(fileURLToPath(import.meta.url)), "manifest.json");
 
 export function loadPresetManifest(): PresetManifest {
   return JSON.parse(readFileSync(manifestPath, "utf8")) as PresetManifest;
@@ -31,9 +28,7 @@ function parseVersion(value: string): {
   patch: number;
   prerelease: string[];
 } | null {
-  const match = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-Za-z.-]+))?$/.exec(
-    value,
-  );
+  const match = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-Za-z.-]+))?$/.exec(value);
   if (!match) return null;
   return {
     major: Number(match[1]),
@@ -52,11 +47,7 @@ function cmp(a: string, b: string): number {
   }
   if (pa.prerelease.length === 0 && pb.prerelease.length > 0) return 1;
   if (pa.prerelease.length > 0 && pb.prerelease.length === 0) return -1;
-  for (
-    let i = 0;
-    i < Math.max(pa.prerelease.length, pb.prerelease.length);
-    i += 1
-  ) {
+  for (let i = 0; i < Math.max(pa.prerelease.length, pb.prerelease.length); i += 1) {
     const left = pa.prerelease[i];
     const right = pb.prerelease[i];
     if (left === undefined) return -1;

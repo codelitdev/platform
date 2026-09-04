@@ -1,13 +1,13 @@
-import { and, eq, sql } from "drizzle-orm";
 import {
+  type Clock,
   createPlatformError,
   createPublicId,
-  serializeDate,
-  uuidv7,
-  type Clock,
   type PlatformError,
   type PlatformRequestContext,
+  serializeDate,
+  uuidv7,
 } from "@codelitdev/platform";
+import { and, eq, sql } from "drizzle-orm";
 import * as schema from "./db/schema/index.js";
 import type { ReferencePermission } from "./permissions.js";
 import type { AppDb } from "./types.js";
@@ -23,10 +23,7 @@ export type NoteDto = {
 
 type Ctx = PlatformRequestContext<string, string, ReferencePermission>;
 
-function toDto(
-  row: typeof schema.notes.$inferSelect,
-  publicTenantId: string,
-): NoteDto {
+function toDto(row: typeof schema.notes.$inferSelect, publicTenantId: string): NoteDto {
   return {
     id: row.publicId,
     tenantId: publicTenantId,
@@ -41,9 +38,7 @@ export async function listNotes(
   db: AppDb,
   ctx: Ctx,
   publicTenantId: string,
-): Promise<
-  { ok: true; value: NoteDto[] } | { ok: false; error: PlatformError }
-> {
+): Promise<{ ok: true; value: NoteDto[] } | { ok: false; error: PlatformError }> {
   if (!ctx.permissions.has("notes:read")) {
     return { ok: false, error: createPlatformError("forbidden") };
   }
@@ -146,9 +141,7 @@ export async function deleteNote(
   ctx: Ctx,
   notePublicId: string,
   clock: Clock,
-): Promise<
-  { ok: true; value: { id: string } } | { ok: false; error: PlatformError }
-> {
+): Promise<{ ok: true; value: { id: string } } | { ok: false; error: PlatformError }> {
   if (!ctx.permissions.has("notes:delete")) {
     return { ok: false, error: createPlatformError("forbidden") };
   }
@@ -182,10 +175,7 @@ export async function deleteNote(
   });
 }
 
-export async function countOwners(
-  db: AppDb,
-  tenantId: string,
-): Promise<number> {
+export async function countOwners(db: AppDb, tenantId: string): Promise<number> {
   const rows = await db
     .select()
     .from(schema.memberships)
@@ -211,9 +201,7 @@ export async function removeMember(
     // Every membership removal for a tenant locks the tenant row first.
     // PostgreSQL serializes these transactions, so two concurrent owner
     // removals cannot both observe two owners and delete the last pair.
-    await tx.execute(
-      sql`SELECT id FROM tenants WHERE id = ${ctx.tenantId} FOR UPDATE`,
-    );
+    await tx.execute(sql`SELECT id FROM tenants WHERE id = ${ctx.tenantId} FOR UPDATE`);
     const rows = await tx
       .select()
       .from(schema.memberships)
@@ -247,9 +235,7 @@ export async function removeMember(
         };
       }
     }
-    await tx
-      .delete(schema.memberships)
-      .where(eq(schema.memberships.id, member.id));
+    await tx.delete(schema.memberships).where(eq(schema.memberships.id, member.id));
     await tx.insert(schema.auditEvents).values({
       id: uuidv7(clock),
       tenantId: ctx.tenantId,

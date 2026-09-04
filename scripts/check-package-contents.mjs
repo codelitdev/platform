@@ -45,11 +45,7 @@ const packages = [
   {
     directory: "packages/platform-cli",
     prepare: "build",
-    required: [
-      "package/package.json",
-      "package/dist/index.js",
-      "package/dist/bin.js",
-    ],
+    required: ["package/package.json", "package/dist/index.js", "package/dist/bin.js"],
     forbidden: ["package/src/", "package/test/"],
   },
   {
@@ -71,29 +67,20 @@ const packages = [
   },
 ];
 
-const globallyForbidden = [
-  "/node_modules/",
-  "/coverage/",
-  "/.git/",
-  "/.env",
-  ".eslintcache",
-  ".tgz",
-];
+const globallyForbidden = ["/node_modules/", "/coverage/", "/.git/", ".tgz"];
 
 try {
   for (const candidate of packages) {
     const directory = path.join(root, candidate.directory);
-    execFileSync("pnpm", ["--dir", directory, candidate.prepare], {
-      cwd: root,
+    execFileSync("bun", ["run", candidate.prepare], {
+      cwd: directory,
       stdio: "inherit",
     });
-
     const before = new Set(readdirSync(outputDirectory));
-    execFileSync(
-      "pnpm",
-      ["--dir", directory, "pack", "--pack-destination", outputDirectory],
-      { cwd: root, stdio: "inherit" },
-    );
+    execFileSync("bun", ["pm", "pack", "--destination", outputDirectory], {
+      cwd: directory,
+      stdio: "inherit",
+    });
     const tarballName = readdirSync(outputDirectory).find(
       (name) => name.endsWith(".tgz") && !before.has(name),
     );
@@ -118,6 +105,9 @@ try {
       if (listing.some((entry) => entry.includes(forbidden))) {
         throw new Error(`${tarballName} contains forbidden path ${forbidden}`);
       }
+    }
+    if (listing.some((entry) => entry.endsWith("/.env") || entry.includes("/.env/"))) {
+      throw new Error(`${tarballName} contains a .env file`);
     }
 
     process.stdout.write(`packed-contents-ok ${tarballName}\n`);

@@ -6,6 +6,10 @@ export function Segmented() {
 
 export function Underline() {
   return (
-    <Tabs tabs={["Overview", "Students", "Settings"]} variant="underline" defaultValue="Students" />
+    <Tabs
+      tabs={["Overview", "Students", "Settings"]}
+      variant="underline"
+      defaultValue="Students"
+    />
   );
 }

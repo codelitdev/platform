@@ -22,7 +22,11 @@ export function Tooltip({ label, open, children, style }: TooltipProps) {
       onMouseLeave={() => setHover(false)}
     >
       {children}
-      {show ? <span className="cl-tooltip" role="tooltip">{label}</span> : null}
+      {show ? (
+        <span className="cl-tooltip" role="tooltip">
+          {label}
+        </span>
+      ) : null}
     </span>
   );
 }

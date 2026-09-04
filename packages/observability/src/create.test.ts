@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { createObservability, type CaptureClient } from "./create.js";
+import { describe, expect, it, vi } from "bun:test";
+import { type CaptureClient, createObservability } from "./create.js";
 
 function frozen(at: Date) {
   return { now: () => new Date(at.getTime()) };
@@ -85,9 +85,7 @@ describe("createObservability", () => {
     expect(captured.properties.job_id).toBe("job_1");
     expect(captured.properties.teamId).toBeUndefined();
     expect(captured.properties.email).toBeUndefined();
-    expect(String(captured.properties.error_message)).toContain(
-      "[redacted-email]",
-    );
+    expect(String(captured.properties.error_message)).toContain("[redacted-email]");
     expect(JSON.stringify(captured)).not.toContain("user@example.com");
   });
 
@@ -110,27 +108,31 @@ describe("createObservability", () => {
 
   it("redacts exception payloads sent by the default HTTP client", async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-    const obs = createObservability({
-      serviceName: "reference-api",
-      environment: "test",
-      posthog: { apiKey: "phc_test", host: "https://posthog.example" },
-      contextPolicy: { propertyAllowlist: new Set() },
-    });
-    obs.captureException({
-      error: new Error("failed password=super-secret-value"),
-      source: "worker",
-    });
-    await obs.shutdown(500);
-    const request = (
-      fetchMock.mock.calls as unknown as Array<[string, RequestInit]>
-    )[0]?.[1];
-    expect(request).toBeDefined();
-    if (!request) throw new Error("capture_request_missing");
-    const payload = JSON.stringify(request.body);
-    expect(payload).not.toContain("super-secret-value");
-    expect(payload).toContain("[redacted]");
-    vi.unstubAllGlobals();
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const obs = createObservability({
+        serviceName: "reference-api",
+        environment: "test",
+        posthog: { apiKey: "phc_test", host: "https://posthog.example" },
+        contextPolicy: { propertyAllowlist: new Set() },
+      });
+      obs.captureException({
+        error: new Error("failed password=super-secret-value"),
+        source: "worker",
+      });
+      await obs.shutdown(500);
+      const request = (
+        fetchMock.mock.calls as unknown as Array<[string, RequestInit]>
+      )[0]?.[1];
+      expect(request).toBeDefined();
+      if (!request) throw new Error("capture_request_missing");
+      const payload = JSON.stringify(request.body);
+      expect(payload).not.toContain("super-secret-value");
+      expect(payload).toContain("[redacted]");
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
   });
 
   it("dedupes identical exceptions and applies a per-source cap", () => {
@@ -215,23 +217,27 @@ describe("createObservability", () => {
 
   it("fans structured logs to OTLP without disabling stdout", async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-    const obs = createObservability({
-      serviceName: "reference-api",
-      environment: "test",
-      logs: {
-        level: "info",
-        otlp: { endpoint: "https://collector.example/v1/logs" },
-      },
-      contextPolicy: { propertyAllowlist: new Set() },
-    });
-    obs.logger.info({ job_id: "job_1" }, "worker started");
-    await obs.shutdown(500);
-    expect(obs.enabled).toBe(true);
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://collector.example/v1/logs",
-      expect.objectContaining({ method: "POST" }),
-    );
-    vi.unstubAllGlobals();
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const obs = createObservability({
+        serviceName: "reference-api",
+        environment: "test",
+        logs: {
+          level: "info",
+          otlp: { endpoint: "https://collector.example/v1/logs" },
+        },
+        contextPolicy: { propertyAllowlist: new Set() },
+      });
+      obs.logger.info({ job_id: "job_1" }, "worker started");
+      await obs.shutdown(500);
+      expect(obs.enabled).toBe(true);
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://collector.example/v1/logs",
+        expect.objectContaining({ method: "POST" }),
+      );
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
   });
 });

@@ -7,14 +7,14 @@ export type AppDb = PgliteDatabase<typeof schema>;
 export type { ReferencePermission };
 
 export type IncomingRequest = {
-    method: string;
-    path: string;
-    headers: Record<string, string | string[] | undefined>;
-    body?: unknown;
+  method: string;
+  path: string;
+  headers: Record<string, string | string[] | undefined>;
+  body?: unknown;
 };
 
 export type DispatchResponse = {
-    status: number;
-    body: unknown;
-    headers?: Record<string, string>;
+  status: number;
+  body: unknown;
+  headers?: Record<string, string>;
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import type React from "react";
 
 export interface ButtonProps {
   /** Visual style. `soft` is the accent-wash variant unique to CodeLit. */
@@ -14,7 +14,15 @@ export interface ButtonProps {
 }
 
 /** Primary action affordance. Variants: primary, secondary, outline, ghost, soft, destructive. */
-export function Button({ variant = "primary", size = "md", disabled, children, style, onClick, type = "button" }: ButtonProps) {
+export function Button({
+  variant = "primary",
+  size = "md",
+  disabled,
+  children,
+  style,
+  onClick,
+  type = "button",
+}: ButtonProps) {
   return (
     <button
       type={type}

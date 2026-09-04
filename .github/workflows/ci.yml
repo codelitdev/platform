@@ -37,25 +37,21 @@ jobs:
       API_KEY_PEPPER: ci-api-key-pepper-that-is-long-enough
     steps:
       - name: Check out repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
-          cache: pnpm
+          bun-version: 1.4.1
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Check workspace formatting
-        run: pnpm format:check
+        run: bun run format:check
 
       - name: Verify packages and packed public APIs
-        run: pnpm verify
+        run: bun run verify
 
       - name: Generate and smoke-test an independently packed template
-        run: pnpm template:smoke
+        run: bun run template:smoke

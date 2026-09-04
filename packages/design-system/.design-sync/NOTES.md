@@ -15,9 +15,9 @@
      project "CodeLit Products") — uploads the DS so the design agent designs
      with it. Direction: repo → Claude Design.
   3. **shadcn registry** (`registry/codelit/ui/*.tsx` → built to `public/r/*.json`
-     via `pnpm registry:build`, i.e. `shadcn build`) — real shadcn/Radix
+     via `bun run registry:build`, i.e. `shadcn build`) — real shadcn/Radix
      components styled to the DS spec, installed into the apps via
-     `npx shadcn add @codelit/<name>`. This is how the four products share ONE
+     `bunx shadcn add @codelit/<name>`. This is how the four products share ONE
      component layer (added 2026-07-25: button, badge, card so far). The
      registry components pull their look from the DS tokens (they assume
      `@codelitdev/design-system/styles.css` is imported) and use raw-var
@@ -132,25 +132,25 @@
 - **Publish gotcha #1**: npm 11.x does NOT honor `publishConfig.tag`, so a bare
   `npm publish` lands a prerelease on the `latest` dist-tag (verified on npm
   11.6.0 — dry-run printed "with tag latest" despite `publishConfig.tag:
-  alpha`). Always publish via `npm run release:alpha` (forces `--tag alpha`)
+  alpha`). Always publish via `bun run release:alpha` (forces `--tag alpha`)
   or an explicit `npm publish --tag alpha`. `publishConfig.access: public` IS
   honored. When a stable release is eventually cut, THAT one goes to `latest`
   via a plain `npm publish` (no `release:alpha`).
 - **Publish gotcha #2 (bigger, unavoidable)**: npm ALSO sets `latest` on a
   package's very first publish regardless of `--tag` — confirmed after
   publishing `0.1.0-alpha.0` with `--tag alpha` (2026-07-25):
-  `npm view @codelitdev/design-system dist-tags` showed
+  `bun info @codelitdev/design-system --json` showed
   `{ alpha: '0.1.0-alpha.0', latest: '0.1.0-alpha.0' }`. There is no flag to
   suppress this on a first publish, and `npm dist-tag` can only repoint
   `latest` to an EXISTING version — there was no other version to repoint it
-  to. Net effect: right now a bare `npm install @codelitdev/design-system`
+  to. Net effect: right now a bare `bun add @codelitdev/design-system`
   (no version, no tag) resolves to the alpha, exactly what the `alpha` tag was
   meant to prevent. Consumers (CourseLit/MediaLit/FrontLit/SendLit) must pin
   the exact version until a stable release exists.
   **Correction (verified 2026-07-25 publishing `0.1.0-alpha.1`):** this does
   NOT self-resolve on the next publish. A subsequent `--tag alpha` publish
   moves only `alpha`; `latest` stayed pinned at `0.1.0-alpha.0`, i.e. a bare
-  `npm install` then fetched the OLDER alpha, and npmjs.com kept rendering the
+  `bun add` then fetched the OLDER alpha, and npmjs.com kept rendering the
   stale README. Once ≥2 versions exist the tag is repointable, so fix it
   explicitly after each prerelease:
       npm dist-tag add @codelitdev/design-system@<new-version> latest
@@ -239,7 +239,7 @@
   a real bundler run (dev server or build) is needed to catch these before
   publishing.
 
-- **Added 2026-07-26 (0.1.0-alpha.6): `npm run check`** (`tsc --noEmit` +
+- **Added 2026-07-26 (0.1.0-alpha.6): `bun run check`** (`tsc --noEmit` +
   an `esbuild` bundle of `src/index.ts`) plus `typescript`/`esbuild`/
   `react`/`react-dom`/`@types/react-dom` devDependencies and a root
   `tsconfig.json` (strict, `moduleResolution: bundler`, matching

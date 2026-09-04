@@ -65,10 +65,10 @@ product requirements and public contract.
 ## Development gates
 
 ```bash
-pnpm check-types
-pnpm test
-pnpm test:coverage
-pnpm build
+bun run check-types
+bun test
+bun run test:coverage
+bun run build
 ```
 
 The coverage release gate is 90% statements, lines, and functions and 80%

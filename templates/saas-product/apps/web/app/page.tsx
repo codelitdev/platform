@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
 import { Button } from "@codelitdev/design-system";
-import { TenantSwitcher } from "../components/tenant-switcher";
+import { type FormEvent, useEffect, useState } from "react";
 import { AuthGate } from "../components/auth-gate";
+import { TenantSwitcher } from "../components/tenant-switcher";
 
 export default function HomePage() {
   const [tenants, setTenants] = useState<
@@ -16,10 +16,8 @@ export default function HomePage() {
       cache: "no-store",
     })
       .then((response) => (response.ok ? response.json() : { items: [] }))
-      .then(
-        (body: {
-          items?: { id: string; name: string; selected?: boolean }[];
-        }) => setTenants(body.items ?? []),
+      .then((body: { items?: { id: string; name: string; selected?: boolean }[] }) =>
+        setTenants(body.items ?? []),
       )
       .catch(() => setTenants([]));
   }, []);
@@ -71,9 +69,7 @@ export default function HomePage() {
         </section>
         <section className="card">
           <h2>Notes</h2>
-          <p className="subtitle">
-            Create and review notes for the selected tenant.
-          </p>
+          <p className="subtitle">Create and review notes for the selected tenant.</p>
           <p>
             <a href="/notes">Open notes →</a>
           </p>

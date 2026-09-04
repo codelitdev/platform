@@ -76,10 +76,7 @@ export async function runPlatformConformance(
     return { failures };
   }
   if (capabilities.shutdown && typeof adapter.shutdown !== "function") {
-    fail(
-      "capabilities",
-      "declared shutdown capability has no shutdown fixture",
-    );
+    fail("capabilities", "declared shutdown capability has no shutdown fixture");
     return { failures };
   }
 
@@ -99,10 +96,7 @@ export async function runPlatformConformance(
     path: "/health",
     headers: {},
   });
-  if (
-    health.status !== 200 ||
-    (health.body as { status?: string }).status !== "ok"
-  ) {
+  if (health.status !== 200 || (health.body as { status?: string }).status !== "ok") {
     fail("lifecycle", "health body is not ok");
   }
   const ready = await adapter.http({
@@ -270,9 +264,7 @@ export async function runPlatformConformance(
 
   if (capabilities.observability) {
     const obs = adapter.observability!;
-    const redacted = await obs.redact(
-      "secret-token-abcdefghijklmnopqrstuvwxyz",
-    );
+    const redacted = await obs.redact("secret-token-abcdefghijklmnopqrstuvwxyz");
     if (redacted.includes("secret-token-abcdefghijklmnopqrstuvwxyz")) {
       fail("observability", "secret was not redacted");
     }

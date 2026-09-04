@@ -4,19 +4,20 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --env-file-if-exists=.env --watch --import tsx src/main.ts",
+    "dev": "bun --watch src/main.ts",
     "build": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "start": "node --env-file-if-exists=.env --import tsx src/main.ts",
-    "worker": "node --env-file-if-exists=.env --import tsx src/worker.ts",
+    "test": "bun test --timeout 60000 src",
+    "lint": "biome lint .",
+    "start": "bun src/main.ts",
+    "worker": "bun src/worker.ts",
     "generate:billing": "codelit-billing generate --config billing.config.ts",
-    "generate:auth-schema": "node scripts/generate-auth-schema.mjs",
+    "generate:auth-schema": "bun scripts/generate-auth-schema.mjs",
     "check:billing-schema": "codelit-billing generate --check --config billing.config.ts",
-    "check:auth-schema": "node scripts/generate-auth-schema.mjs --check",
-    "check:drift": "pnpm check:billing-schema && pnpm check:auth-schema",
-    "migrate": "node --env-file-if-exists=.env --import tsx scripts/migrate.mjs",
-    "pretest": "pnpm check:auth-schema"
+    "check:auth-schema": "bun scripts/generate-auth-schema.mjs --check",
+    "check:drift": "bun run check:billing-schema && bun run check:auth-schema",
+    "migrate": "bun scripts/migrate.mjs",
+    "pretest": "bun run check:auth-schema"
   },
   "dependencies": {
     "@better-auth/core": "1.7.2",
@@ -46,8 +47,7 @@
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.1",
     "drizzle-kit": "0.31.4",
-    "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.9"
+    "@types/bun": "^1.4.1"
   }
 }

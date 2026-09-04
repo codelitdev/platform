@@ -1,17 +1,11 @@
+import type { HeaderMap } from "@codelitdev/platform";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import type { HeaderMap } from "@codelitdev/platform";
 
-export {
-  StreamableHTTPServerTransport,
-  WebStandardStreamableHTTPServerTransport,
-};
+export { StreamableHTTPServerTransport, WebStandardStreamableHTTPServerTransport };
 
-export function headerString(
-  headers: HeaderMap,
-  name: string,
-): string | undefined {
+export function headerString(headers: HeaderMap, name: string): string | undefined {
   const value = headers[name] ?? headers[name.toLowerCase()];
   if (Array.isArray(value)) return value[0];
   return value;
@@ -27,9 +21,7 @@ export function patchMcpAccept(headers: HeaderMap): HeaderMap {
     ...(needsJson ? ["application/json"] : []),
     ...(needsSse ? ["text/event-stream"] : []),
   ];
-  const next = accept
-    ? `${accept}, ${additions.join(", ")}`
-    : additions.join(", ");
+  const next = accept ? `${accept}, ${additions.join(", ")}` : additions.join(", ");
   return { ...headers, accept: next, Accept: next };
 }
 
@@ -128,9 +120,7 @@ export function createStreamableSession(input: {
   // so the Web Standard transport is the protocol implementation.
   void StreamableHTTPServerTransport;
   const transport = new WebStandardStreamableHTTPServerTransport({
-    sessionIdGenerator: input.sessionId
-      ? () => input.sessionId as string
-      : undefined,
+    sessionIdGenerator: input.sessionId ? () => input.sessionId as string : undefined,
     enableJsonResponse: true,
     onsessioninitialized: () => undefined,
     onsessionclosed: (id) => input.onclosed?.(id),

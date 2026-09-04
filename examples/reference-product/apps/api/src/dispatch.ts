@@ -1,48 +1,38 @@
 import {
   captureAndMapException,
-  createPublicId,
   createPlatformError,
+  createPublicId,
   healthReport,
-  readOrCreateRequestId,
+  type PlatformRequestContext,
   readinessReport,
+  readOrCreateRequestId,
   toPublicHttpError,
   uuidv7,
-  type PlatformRequestContext,
 } from "@codelitdev/platform";
 import {
   createNoteBodySchema,
   updateNoteBodySchema,
 } from "@reference-product/api-contract";
 import { eq } from "drizzle-orm";
-import { authenticateHttpRequest } from "./auth/authenticate.js";
 import {
   createApiKeyRecord,
   listApiKeyRecords,
   revokeApiKey,
 } from "./auth/api-keys.js";
-import {
-  acceptInvitation,
-  createInvitation,
-  revokeInvitation,
-} from "./invitations.js";
-import { createNote, deleteNote, listNotes, updateNote } from "./notes.js";
-import { createReferenceMcp } from "./mcp.js";
-import { createOpenApiDocument } from "./openapi.js";
+import { authenticateHttpRequest } from "./auth/authenticate.js";
 import * as schema from "./db/schema/index.js";
-import {
-  REFERENCE_PERMISSIONS,
-  type ReferencePermission,
-} from "./permissions.js";
-import { headerTenantId, resolveTenantContext } from "./tenancy.js";
 import type { DispatchDeps } from "./deps.js";
+import { acceptInvitation, createInvitation, revokeInvitation } from "./invitations.js";
+import { createReferenceMcp } from "./mcp.js";
+import { createNote, deleteNote, listNotes, updateNote } from "./notes.js";
+import { createOpenApiDocument } from "./openapi.js";
+import { REFERENCE_PERMISSIONS, type ReferencePermission } from "./permissions.js";
+import { headerTenantId, resolveTenantContext } from "./tenancy.js";
 import type { DispatchResponse, IncomingRequest } from "./types.js";
 
 export type { DispatchDeps };
 
-const mcpKits = new WeakMap<
-  DispatchDeps,
-  ReturnType<typeof createReferenceMcp>
->();
+const mcpKits = new WeakMap<DispatchDeps, ReturnType<typeof createReferenceMcp>>();
 
 export function mcpFor(deps: DispatchDeps) {
   const existing = mcpKits.get(deps);
@@ -76,9 +66,7 @@ export async function dispatch(
       };
     }
     if (request.method === "GET" && path === "/ready") {
-      const report = readinessReport([
-        { name: "database", ready: deps.databaseReady },
-      ]);
+      const report = readinessReport([{ name: "database", ready: deps.databaseReady }]);
       return {
         status: report.status === "ready" ? 200 : 503,
         body: report,
@@ -108,9 +96,7 @@ export async function dispatch(
     const auth = await authenticateHttpRequest(requestHeaders(request), deps);
     if (auth.kind !== "authenticated") {
       const error =
-        auth.kind === "rejected"
-          ? auth.error
-          : createPlatformError("unauthenticated");
+        auth.kind === "rejected" ? auth.error : createPlatformError("unauthenticated");
       return errorResponse(error);
     }
 
@@ -126,8 +112,7 @@ export async function dispatch(
         typeof (request.body as { tenantId?: unknown }).tenantId === "string"
           ? (request.body as { tenantId: string }).tenantId
           : "";
-      if (!tenantId)
-        return errorResponse(createPlatformError("validation_failed"));
+      if (!tenantId) return errorResponse(createPlatformError("validation_failed"));
       const resolved = await resolveTenantContext({
         db: deps.db,
         principalId: auth.principalId,
@@ -182,10 +167,7 @@ export async function dispatch(
           name: schema.tenants.name,
         })
         .from(schema.memberships)
-        .innerJoin(
-          schema.tenants,
-          eq(schema.tenants.id, schema.memberships.tenantId),
-        )
+        .innerJoin(schema.tenants, eq(schema.tenants.id, schema.memberships.tenantId))
         .where(eq(schema.memberships.userId, auth.principalId));
       return {
         status: 200,
@@ -233,8 +215,7 @@ export async function dispatch(
           userId: auth.principalId,
           role: "owner",
           isOwner: true,
-          permissions:
-            "notes:read,notes:write,notes:delete,tenant:admin,billing:read",
+          permissions: "notes:read,notes:write,notes:delete,tenant:admin,billing:read",
           createdAt: now,
         });
         await tx.insert(schema.auditEvents).values({
@@ -261,8 +242,7 @@ export async function dispatch(
       if (auth.credential.kind === "api_key") {
         return errorResponse(createPlatformError("forbidden"));
       }
-      const input = request.body as
-        { token?: unknown; email?: unknown } | undefined;
+      const input = request.body as { token?: unknown; email?: unknown } | undefined;
       if (typeof input?.token !== "string" || typeof input.email !== "string") {
         return errorResponse(createPlatformError("validation_failed"));
       }
@@ -284,9 +264,7 @@ export async function dispatch(
         input.email,
         deps.clock,
       );
-      return result.ok
-        ? { status: 200, body: result }
-        : errorResponse(result.error);
+      return result.ok ? { status: 200, body: result } : errorResponse(result.error);
     }
 
     const tenant = await resolveTenantContext({
@@ -297,19 +275,18 @@ export async function dispatch(
     });
     if (!tenant.ok) return errorResponse(tenant.error);
 
-    const context: PlatformRequestContext<string, string, ReferencePermission> =
-      {
-        requestId: readOrCreateRequestId(
-          typeof request.headers["x-request-id"] === "string"
-            ? request.headers["x-request-id"]
-            : undefined,
-          deps.clock,
-        ),
-        principalId: auth.principalId,
-        tenantId: tenant.value.tenantId,
-        credential: auth.credential,
-        permissions: tenant.value.permissions,
-      };
+    const context: PlatformRequestContext<string, string, ReferencePermission> = {
+      requestId: readOrCreateRequestId(
+        typeof request.headers["x-request-id"] === "string"
+          ? request.headers["x-request-id"]
+          : undefined,
+        deps.clock,
+      ),
+      principalId: auth.principalId,
+      tenantId: tenant.value.tenantId,
+      credential: auth.credential,
+      permissions: tenant.value.permissions,
+    };
 
     if (request.method === "POST" && path === "/v1/api-keys") {
       if (!context.permissions.has("tenant:admin")) {
@@ -321,13 +298,9 @@ export async function dispatch(
             expiresAt?: unknown;
           }
         | undefined;
-      const permissions = Array.isArray(input?.permissions)
-        ? input.permissions
-        : [];
+      const permissions = Array.isArray(input?.permissions) ? input.permissions : [];
       const expiresAt =
-        typeof input?.expiresAt === "string"
-          ? new Date(input.expiresAt)
-          : undefined;
+        typeof input?.expiresAt === "string" ? new Date(input.expiresAt) : undefined;
       if (
         expiresAt &&
         (Number.isNaN(expiresAt.getTime()) || expiresAt <= deps.clock.now())
@@ -398,9 +371,7 @@ export async function dispatch(
             permissions?: unknown;
           }
         | undefined;
-      const permissions = Array.isArray(input?.permissions)
-        ? input.permissions
-        : [];
+      const permissions = Array.isArray(input?.permissions) ? input.permissions : [];
       if (
         typeof input?.email !== "string" ||
         typeof input.role !== "string" ||
@@ -418,9 +389,7 @@ export async function dispatch(
         { email: input.email, role: input.role, permissions },
         deps.clock,
       );
-      return result.ok
-        ? { status: 201, body: result }
-        : errorResponse(result.error);
+      return result.ok ? { status: 201, body: result } : errorResponse(result.error);
     }
     const invitationMatch = /^\/v1\/invitations\/([^/]+)$/.exec(path);
     if (request.method === "DELETE" && invitationMatch) {
@@ -430,9 +399,7 @@ export async function dispatch(
         decodeURIComponent(invitationMatch[1]!),
         deps.clock,
       );
-      return result.ok
-        ? { status: 204, body: null }
-        : errorResponse(result.error);
+      return result.ok ? { status: 204, body: null } : errorResponse(result.error);
     }
 
     if (request.method === "GET" && path === "/v1/notes") {
@@ -489,9 +456,7 @@ export async function dispatch(
       if (!context.permissions.has("billing:read")) {
         return errorResponse(createPlatformError("forbidden"));
       }
-      const state = await deps.billing.billing.commercialState(
-        context.tenantId!,
-      );
+      const state = await deps.billing.billing.commercialState(context.tenantId!);
       return {
         status: 200,
         body: {

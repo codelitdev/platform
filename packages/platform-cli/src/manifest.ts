@@ -16,9 +16,7 @@ export const MANIFEST_NAME = ".codelit-platform.json";
 export function readManifest(root: string): PlatformManifest {
   const file = path.join(root, MANIFEST_NAME);
   if (!existsSync(file)) throw new Error("platform_manifest_missing");
-  const manifest = JSON.parse(
-    readFileSync(file, "utf8"),
-  ) as Partial<PlatformManifest>;
+  const manifest = JSON.parse(readFileSync(file, "utf8")) as Partial<PlatformManifest>;
   if (
     manifest.schemaVersion !== 1 ||
     typeof manifest.templateVersion !== "string" ||

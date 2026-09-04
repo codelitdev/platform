@@ -1,9 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
+import { type AuthenticationResult, createPlatformError } from "@codelitdev/platform";
 import { z } from "zod";
-import {
-  createPlatformError,
-  type AuthenticationResult,
-} from "@codelitdev/platform";
 import { createMcpServerKit } from "./create.js";
 
 type Ctx = { principalId: string; tenantId: string };
@@ -233,9 +230,7 @@ describe("createMcpServerKit", () => {
       },
     });
     expect(initialized.status).toBe(200);
-    expect(initialized.headers["Access-Control-Expose-Headers"]).toBe(
-      "Mcp-Session-Id",
-    );
+    expect(initialized.headers["Access-Control-Expose-Headers"]).toBe("Mcp-Session-Id");
     const sessionId = initialized.headers["Mcp-Session-Id"];
     expect(sessionId).toEqual(expect.any(String));
     expect(server.sessions.get(sessionId)?.id).toBe(sessionId);
@@ -274,9 +269,7 @@ describe("createMcpServerKit", () => {
     const listedBody = listed.body as {
       result: { tools: Array<{ name: string; annotations: { risk: string } }> };
     };
-    expect(listedBody.result.tools.map((tool) => tool.name)).toContain(
-      "notes.list",
-    );
+    expect(listedBody.result.tools.map((tool) => tool.name)).toContain("notes.list");
 
     const stalePost = await server.handle({
       method: "POST",

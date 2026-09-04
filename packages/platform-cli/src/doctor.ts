@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import {
   loadPresetManifest,
@@ -48,34 +48,27 @@ export function doctor(root: string): DoctorReport {
 }
 
 /**
- * Read direct importer resolutions from pnpm lockfile v9 without requiring a
- * YAML parser at CLI runtime. Package manifests describe intent; this catches
- * a stale lockfile that would actually install an unsupported package.
+ * Read package resolutions from Bun's lockfile without requiring a parser at
+ * CLI runtime. Package manifests describe intent; this catches a stale
+ * lockfile that would actually install an unsupported package.
  */
 export function resolveLockfileVersions(
   root: string,
   managedNames: ReadonlySet<string>,
 ): Record<string, string> {
-  const lockfile = path.join(root, "pnpm-lock.yaml");
+  const lockfile = path.join(root, "bun.lock");
   if (!existsSync(lockfile)) return {};
-  const importerSection = readFileSync(lockfile, "utf8").split("\npackages:")[0] ?? "";
   const resolved: Record<string, string> = {};
-  let dependencyName: string | undefined;
-  for (const line of importerSection.split("\n")) {
-    const dependency = /^\s{6}(?:'([^']+)'|([^:\s]+)):\s*$/.exec(line);
-    if (dependency) {
-      const name = dependency[1] ?? dependency[2];
-      dependencyName = name && managedNames.has(name) ? name : undefined;
-      continue;
-    }
-    const version = /^\s{8}version:\s*([^\s(]+)/.exec(line);
-    if (dependencyName && version?.[1]) {
-      const normalized = version[1].replace(/^link:/, "");
-      if (!normalized.startsWith("../")) resolved[dependencyName] = normalized;
-      dependencyName = undefined;
-      continue;
-    }
-    if (/^\s{6}\S/.test(line)) dependencyName = undefined;
+  const packagesSection = readFileSync(lockfile, "utf8").split(
+    /\n\s{2}"packages":\s*\{/,
+  )[1];
+  if (!packagesSection) return resolved;
+  const entryPattern =
+    /^\s{4}"([^"\\]*(?:\\.[^"\\]*)*)": \["[^"\n]*@(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/gm;
+  for (const match of packagesSection.matchAll(entryPattern)) {
+    const name = match[1];
+    const version = match[2];
+    if (name && version && managedNames.has(name)) resolved[name] = version;
   }
   return resolved;
 }
@@ -113,11 +106,7 @@ export function resolveCodelitVersions(
     const specs = { ...pkg.dependencies, ...pkg.devDependencies };
     for (const [name, spec] of Object.entries(specs)) {
       if (!name.startsWith("@codelitdev/") && !names?.has(name)) continue;
-      const installed = findInstalledPackageJson(
-        path.dirname(pkgPath),
-        root,
-        name,
-      );
+      const installed = findInstalledPackageJson(path.dirname(pkgPath), root, name);
       if (installed) {
         const version = (
           JSON.parse(readFileSync(installed, "utf8")) as { version: string }

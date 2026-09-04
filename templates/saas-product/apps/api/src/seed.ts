@@ -1,15 +1,15 @@
 import { createHash, randomBytes } from "node:crypto";
-import { eq } from "drizzle-orm";
-import { createPublicId, uuidv7, type Clock } from "@codelitdev/platform";
 import { grant as billingGrant } from "@codelitdev/billing/testing";
-import { resolveBetterAuthSession } from "@codelitdev/oauth-server-kit/better-auth";
 import { verifyOAuthAccessToken } from "@codelitdev/oauth-server-kit";
-import * as schema from "./db/schema/index.js";
+import { resolveBetterAuthSession } from "@codelitdev/oauth-server-kit/better-auth";
+import { type Clock, createPublicId, uuidv7 } from "@codelitdev/platform";
+import { eq } from "drizzle-orm";
 import {
   digestApiKeySecret,
   formatApiKey,
   generateApiKeySecret,
 } from "./auth/api-keys.js";
+import * as schema from "./db/schema/index.js";
 import {
   MEMBER_PERMISSIONS,
   OWNER_PERMISSIONS,
@@ -139,9 +139,7 @@ async function mintOAuthToken(
     code = new URL(location).searchParams.get("code");
   } else {
     const consentLocation =
-      location ??
-      ((await authorization.json()) as { url?: string }).url ??
-      null;
+      location ?? ((await authorization.json()) as { url?: string }).url ?? null;
     if (!consentLocation) {
       throw new Error(`authorize_failed:${authorization.status}`);
     }
@@ -199,10 +197,7 @@ async function mintOAuthToken(
   return token.access_token;
 }
 
-export async function seedWorld(
-  runtime: Runtime,
-  clock: Clock,
-): Promise<SeededWorld> {
+export async function seedWorld(runtime: Runtime, clock: Clock): Promise<SeededWorld> {
   const now = clock.now();
   const owner = await signUp(runtime, "Owner", "owner@example.com");
   const member = await signUp(runtime, "Member", "member@example.com");

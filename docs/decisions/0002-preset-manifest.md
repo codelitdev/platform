@@ -17,11 +17,11 @@ untested combinations.
 
 - `schemaVersion: 1`
 - `presetVersion`
-- `runtime` pins for Node.js and pnpm
+- `runtime` pins for Node.js and Bun
 - `packages` entries with `recommended`, `supported`, and monotonic
   `minimumSecure`
 - `external` pins for selected peers (TypeScript, Express, ts-rest, Zod,
-  Better Auth, Drizzle, MCP SDK, Pino, Vitest, PGlite, dodopayments, and
+  Better Auth, Drizzle, MCP SDK, Pino, Bun types, PGlite, dodopayments, and
   others as extraction proceeds)
 
 The preset has no runtime code. It validates a product manifest and

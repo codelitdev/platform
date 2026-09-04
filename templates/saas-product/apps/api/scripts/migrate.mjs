@@ -7,9 +7,9 @@ const client = new Client({ connectionString: databaseUrl });
 await client.connect();
 await applyMigrations((sql) => client.query(sql));
 const tables = await client.query(
-    "select tablename from pg_tables where schemaname = 'public' order by tablename",
+  "select tablename from pg_tables where schemaname = 'public' order by tablename",
 );
 process.stdout.write(
-    `${JSON.stringify({ migrated: true, tables: tables.rows.map((row) => row.tablename) })}\n`,
+  `${JSON.stringify({ migrated: true, tables: tables.rows.map((row) => row.tablename) })}\n`,
 );
 await client.end();

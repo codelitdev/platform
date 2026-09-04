@@ -1,48 +1,73 @@
-name: Release alpha packages
+name: Release
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
-permissions:
-  contents: write
-  id-token: write
-  pull-requests: write
-
-concurrency:
-  group: release-alpha
-  cancel-in-progress: false
+concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      pull-requests: write
     timeout-minutes: 45
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
+          node-version: 22.14.0
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.4.1
+
+      - name: Cache Bun install
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
-      - name: Create release PR or publish alpha packages
-        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
-        with:
-          publish: pnpm release:alpha
-          version: pnpm version-packages
-          title: Release Platform packages
-          commit: Release Platform packages
+      - name: Verify workspace
+        run: bun run verify
+
+      - name: Configure npm authentication
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npmrc_path="$RUNNER_TEMP/codelit-npmrc"
+          printf '%s\n' \
+            '@codelitdev:registry=https://registry.npmjs.org/' \
+            '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}' \
+            'always-auth=true' > "$npmrc_path"
+          echo "NPM_CONFIG_USERCONFIG=$npmrc_path" >> "$GITHUB_ENV"
+
+      - name: Create release PR or publish packages
+        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          publish-script: bun run release
+          version-script: bun run version-packages
+          pr-title: Release Platform packages
+          commit-message: Release Platform packages
+          push-git-tags: true
+        env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
           NPM_CONFIG_PROVENANCE: "true"

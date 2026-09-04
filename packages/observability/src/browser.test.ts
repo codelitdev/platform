@@ -1,13 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock, vi } from "bun:test";
 
-const mocks = vi.hoisted(() => ({
+const mocks = {
   init: vi.fn(),
   identify: vi.fn(),
   reset: vi.fn(),
   register: vi.fn(),
-}));
+};
 
-vi.mock("posthog-js", () => ({
+mock.module("posthog-js", () => ({
   default: {
     init: mocks.init,
     identify: mocks.identify,
@@ -16,7 +16,6 @@ vi.mock("posthog-js", () => ({
 }));
 
 const load = async () => {
-  vi.resetModules();
   return import("./browser.js");
 };
 

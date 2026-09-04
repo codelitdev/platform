@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+.next/
+*.tsbuildinfo
+*.tgz
+
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

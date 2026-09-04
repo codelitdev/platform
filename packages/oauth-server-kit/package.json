@@ -1,109 +1,101 @@
 {
-    "name": "@codelitdev/oauth-server-kit",
-    "version": "0.1.0-alpha.1",
-    "description": "Lean Better Auth OAuth authentication framework for web, mobile, REST, and MCP surfaces.",
-    "author": "CodeLit",
-    "license": "MIT",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/codelitdev/platform.git",
-        "directory": "packages/oauth-server-kit"
+  "name": "@codelitdev/oauth-server-kit",
+  "version": "0.1.1",
+  "description": "Lean Better Auth OAuth authentication framework for web, mobile, REST, and MCP surfaces.",
+  "author": "CodeLit",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codelitdev/platform.git",
+    "directory": "packages/oauth-server-kit"
+  },
+  "homepage": "https://github.com/codelitdev/platform/tree/main/packages/oauth-server-kit#readme",
+  "bugs": {
+    "url": "https://github.com/codelitdev/platform/issues"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
     },
-    "homepage": "https://github.com/codelitdev/platform/tree/main/packages/oauth-server-kit#readme",
-    "bugs": {
-        "url": "https://github.com/codelitdev/platform/issues"
+    "./better-auth": {
+      "import": {
+        "types": "./dist/better-auth.d.mts",
+        "default": "./dist/better-auth.mjs"
+      },
+      "require": {
+        "types": "./dist/better-auth.d.ts",
+        "default": "./dist/better-auth.js"
+      }
     },
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts",
-    "files": [
-        "dist"
-    ],
-    "exports": {
-        ".": {
-            "import": {
-                "types": "./dist/index.d.mts",
-                "default": "./dist/index.mjs"
-            },
-            "require": {
-                "types": "./dist/index.d.ts",
-                "default": "./dist/index.js"
-            }
-        },
-        "./better-auth": {
-            "import": {
-                "types": "./dist/better-auth.d.mts",
-                "default": "./dist/better-auth.mjs"
-            },
-            "require": {
-                "types": "./dist/better-auth.d.ts",
-                "default": "./dist/better-auth.js"
-            }
-        },
-        "./express": {
-            "import": {
-                "types": "./dist/express.d.mts",
-                "default": "./dist/express.mjs"
-            },
-            "require": {
-                "types": "./dist/express.d.ts",
-                "default": "./dist/express.js"
-            }
-        },
-        "./mcp": {
-            "import": {
-                "types": "./dist/mcp.d.mts",
-                "default": "./dist/mcp.mjs"
-            },
-            "require": {
-                "types": "./dist/mcp.d.ts",
-                "default": "./dist/mcp.js"
-            }
-        }
+    "./express": {
+      "import": {
+        "types": "./dist/express.d.mts",
+        "default": "./dist/express.mjs"
+      },
+      "require": {
+        "types": "./dist/express.d.ts",
+        "default": "./dist/express.js"
+      }
     },
-    "scripts": {
-        "clean": "rimraf dist/",
-        "build": "tsup",
-        "dev": "tsup --watch",
-        "check-types": "tsc --noEmit",
-        "test": "vitest run",
-        "test:watch": "vitest",
-        "test:coverage": "vitest run --coverage",
-        "lint": "eslint src test --quiet",
-        "lint:fix": "pnpm lint --fix",
-        "prettier": "prettier --write src test docs *.md *.json",
-        "format": "pnpm prettier",
-        "format:check": "prettier --check src test docs *.md *.json",
-        "quality": "pnpm format:check && pnpm lint && pnpm check-types"
-    },
-    "publishConfig": {
-        "access": "public",
-        "tag": "alpha"
-    },
-    "peerDependencies": {
-        "@better-auth/oauth-provider": "^1.7.2",
-        "better-auth": "^1.7.2",
-        "express": "^4.21.2"
-    },
-    "devDependencies": {
-        "@better-auth/core": "1.7.2",
-        "@better-auth/oauth-provider": "1.7.2",
-        "@better-auth/utils": "0.4.2",
-        "@better-fetch/fetch": "1.3.1",
-        "@types/express": "^4.17.20",
-        "@types/node": "^22.14.1",
-        "@vitest/coverage-v8": "3.2.7",
-        "better-auth": "1.7.2",
-        "better-call": "1.4.0",
-        "eslint": "^10.8.0",
-        "eslint-config-prettier": "^10.1.8",
-        "eslint-plugin-unused-imports": "^4.3.0",
-        "express": "^4.21.2",
-        "globals": "^15.15.0",
-        "prettier": "^3.9.6",
-        "rimraf": "^5.0.0",
-        "tsup": "^8.3.0",
-        "typescript": "^5.9.3",
-        "typescript-eslint": "^8.46.0",
-        "vitest": "^3.2.7"
+    "./mcp": {
+      "import": {
+        "types": "./dist/mcp.d.mts",
+        "default": "./dist/mcp.mjs"
+      },
+      "require": {
+        "types": "./dist/mcp.d.ts",
+        "default": "./dist/mcp.js"
+      }
     }
+  },
+  "scripts": {
+    "clean": "rimraf dist/",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "check-types": "tsc -p tsconfig.test.json --noEmit",
+    "test": "bun test --timeout 60000 src",
+    "test:watch": "bun test --watch --timeout 60000 src",
+    "test:coverage": "bun test --coverage --timeout 60000 src",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome ci --linter-enabled=false .",
+    "quality": "bun run format:check && bun run lint && bun run check-types"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "latest"
+  },
+  "peerDependencies": {
+    "@better-auth/oauth-provider": "^1.7.2",
+    "better-auth": "^1.7.2",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@better-auth/core": "1.7.2",
+    "@better-auth/oauth-provider": "1.7.2",
+    "@better-auth/utils": "0.4.2",
+    "@better-fetch/fetch": "1.3.1",
+    "@types/express": "^4.17.20",
+    "@types/node": "^22.14.1",
+    "@types/bun": "^1.4.1",
+    "better-auth": "1.7.2",
+    "better-call": "1.4.0",
+    "express": "^4.21.2",
+    "rimraf": "^5.0.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.9.3"
+  }
 }

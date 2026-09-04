@@ -1,15 +1,15 @@
-import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
 import { contract } from "@__PRODUCT_SLUG__/api-contract";
+import { describe, expect, it } from "bun:test";
+import { eq } from "drizzle-orm";
+import { createReferenceAuth } from "./auth/better-auth.js";
+import { composeOAuthProviderOptions } from "./auth/oauth.js";
 import * as schema from "./db/schema/index.js";
 import { dispatch } from "./dispatch.js";
 import { createExpressApp } from "./express-app.js";
-import { createReferenceAuth } from "./auth/better-auth.js";
-import { composeOAuthProviderOptions } from "./auth/oauth.js";
 import { createPgliteRuntime, freezeRuntimeClock } from "./runtime.js";
 import { seedWorld } from "./seed.js";
 
-describe("reference API adapters", () => {
+describe.serial("reference API adapters", () => {
   it("does not run DDL when oauth-server-kit options and schema modules are imported", async () => {
     const { PGlite } = await import("@electric-sql/pglite");
     const client = new PGlite();
@@ -22,11 +22,12 @@ describe("reference API adapters", () => {
     expect(tables.rows).toEqual([]);
     const { drizzle } = await import("drizzle-orm/pglite");
     const db = drizzle(client);
-    createReferenceAuth({
+    const auth = createReferenceAuth({
       db: db as never,
       publicApiUrl: "http://127.0.0.1:4000",
       secret: "test-secret-that-is-at-least-thirty-two-characters",
     });
+    await auth.auth.$context.catch(() => undefined);
     const after = await client.query(
       "select tablename from pg_tables where schemaname = 'public'",
     );
@@ -95,12 +96,10 @@ describe("reference API adapters", () => {
     const body = response.body as {
       items: Array<{ tenantId: string; id: string }>;
     };
-    expect(
-      body.items.every((item) => item.tenantId === world.tenantA.publicId),
-    ).toBe(true);
-    expect(body.items.some((item) => item.id === world.noteA.publicId)).toBe(
+    expect(body.items.every((item) => item.tenantId === world.tenantA.publicId)).toBe(
       true,
     );
+    expect(body.items.some((item) => item.id === world.noteA.publicId)).toBe(true);
     await runtime.close();
   });
 
@@ -228,9 +227,7 @@ describe("reference API adapters", () => {
       entitled: true,
       activePaidPlan: "pro",
     });
-    const direct = await runtime.billing.billing.commercialState(
-      world.tenantA.id,
-    );
+    const direct = await runtime.billing.billing.commercialState(world.tenantA.id);
     expect(direct.activePaidPlan).toBe(
       (response.body as { activePaidPlan: string }).activePaidPlan,
     );
@@ -260,10 +257,8 @@ describe("reference API adapters", () => {
     const clock = freezeRuntimeClock(new Date("2026-03-01T00:00:00.000Z"));
     const runtime = await createPgliteRuntime({ clock });
     const world = await seedWorld(runtime, clock);
-    const { validateParityManifest } =
-      await import("@codelitdev/mcp-server-kit");
-    const { mcpParityManifest } =
-      await import("@__PRODUCT_SLUG__/api-contract");
+    const { validateParityManifest } = await import("@codelitdev/mcp-server-kit");
+    const { mcpParityManifest } = await import("@__PRODUCT_SLUG__/api-contract");
     const { createReferenceMcp } = await import("./mcp.js");
     const mcp = createReferenceMcp(runtime);
     const issues = validateParityManifest([...mcpParityManifest], {
@@ -351,9 +346,7 @@ describe("reference API adapters", () => {
         },
       },
     });
-    expect((cross.body as { error: { code: string } }).error.code).toBe(
-      "not_found",
-    );
+    expect((cross.body as { error: { code: string } }).error.code).toBe("not_found");
 
     const denied = await dispatch(runtime, {
       method: "POST",
@@ -372,9 +365,7 @@ describe("reference API adapters", () => {
         },
       },
     });
-    expect((denied.body as { error: { code: string } }).error.code).toBe(
-      "forbidden",
-    );
+    expect((denied.body as { error: { code: string } }).error.code).toBe("forbidden");
 
     const deleted = await dispatch(runtime, {
       method: "POST",
@@ -431,8 +422,7 @@ describe("reference API adapters", () => {
     const clock = freezeRuntimeClock(new Date("2026-03-01T00:00:00.000Z"));
     const runtime = await createPgliteRuntime({ clock });
     const world = await seedWorld(runtime, clock);
-    const { runReferenceConformance } =
-      await import("./conformance-adapter.js");
+    const { runReferenceConformance } = await import("./conformance-adapter.js");
     const result = await runReferenceConformance(runtime, world);
     expect(result.failures).toEqual([]);
     await runtime.close();
@@ -471,21 +461,16 @@ describe("reference API adapters", () => {
       clock: freezeRuntimeClock(new Date("2026-03-01T00:00:00.000Z")),
     });
     const app = createExpressApp(runtime);
-    const server = await new Promise<ReturnType<typeof app.listen>>(
-      (resolve) => {
-        const listening = app.listen(0, () => resolve(listening));
-      },
-    );
+    const server = await new Promise<ReturnType<typeof app.listen>>((resolve) => {
+      const listening = app.listen(0, () => resolve(listening));
+    });
     const address = server.address();
-    if (!address || typeof address === "string")
-      throw new Error("listen_failed");
+    if (!address || typeof address === "string") throw new Error("listen_failed");
     const response = await fetch(`http://127.0.0.1:${address.port}/health`);
     expect(response.status).toBe(200);
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(response.headers.get("x-request-id")).toEqual(expect.any(String));
-    const openapi = await fetch(
-      `http://127.0.0.1:${address.port}/openapi.json`,
-    );
+    const openapi = await fetch(`http://127.0.0.1:${address.port}/openapi.json`);
     expect(openapi.status).toBe(200);
     expect((await openapi.json()).paths["/v1/notes"]).toBeDefined();
     await new Promise<void>((resolve) => server.close(() => resolve()));

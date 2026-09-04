@@ -8,7 +8,11 @@ export function Variants() {
         title="Course published"
         description="Students can enroll from your public page now."
       />
-      <Toast variant="default" title="Draft saved" description="Auto-saved a minute ago." />
+      <Toast
+        variant="default"
+        title="Draft saved"
+        description="Auto-saved a minute ago."
+      />
       <Toast
         variant="destructive"
         title="Delivery failed"

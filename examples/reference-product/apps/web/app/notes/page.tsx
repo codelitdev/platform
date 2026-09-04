@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import Link from "next/link";
 import { Button } from "@codelitdev/design-system";
+import Link from "next/link";
+import { type FormEvent, useEffect, useState } from "react";
 import { AuthGate } from "../../components/auth-gate";
 
 type Note = { id: string; title: string; body: string };
@@ -57,12 +57,8 @@ export default function NotesPage() {
           <div>
             <p className="eyebrow">Workspace</p>
             <h1>Notes</h1>
-            <p className="subtitle">
-              Keep shared notes for your selected workspace.
-            </p>
-            <p className="eyebrow">
-              Active workspace: {workspace ?? "None selected"}
-            </p>
+            <p className="subtitle">Keep shared notes for your selected workspace.</p>
+            <p className="eyebrow">Active workspace: {workspace ?? "None selected"}</p>
           </div>
           <Link href="/">Back to workspace</Link>
         </header>

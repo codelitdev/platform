@@ -1,9 +1,6 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
-const API_URL = (process.env.API_URL ?? "http://127.0.0.1:4000").replace(
-  /\/$/,
-  "",
-);
+const API_URL = (process.env.API_URL ?? "http://127.0.0.1:4000").replace(/\/$/, "");
 
 async function proxy(
   request: NextRequest,
@@ -14,9 +11,7 @@ async function proxy(
   // The BFF strips its own `/api` segment.  Restore it for Better Auth and
   // account-scoped routes; versioned product APIs live at `/v1/*` upstream.
   const upstreamPath =
-    path[0] === "auth" || path[0] === "tenant"
-      ? `/api/${suffix}`
-      : `/${suffix}`;
+    path[0] === "auth" || path[0] === "tenant" ? `/api/${suffix}` : `/${suffix}`;
   const target = `${API_URL}${upstreamPath}${request.nextUrl.search}`;
   const headers = new Headers(request.headers);
   headers.delete("host");
@@ -39,12 +34,7 @@ async function proxy(
     redirect: "manual",
   });
   const outputHeaders = new Headers();
-  for (const name of [
-    "content-type",
-    "set-cookie",
-    "location",
-    "x-request-id",
-  ]) {
+  for (const name of ["content-type", "set-cookie", "location", "x-request-id"]) {
     const value = response.headers.get(name);
     if (value) outputHeaders.set(name, value);
   }

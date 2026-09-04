@@ -1,22 +1,19 @@
 import http from "node:http";
+import { createObservability, type Observability } from "@codelitdev/observability";
+import { type Clock, frozenClock, systemClock } from "@codelitdev/platform";
 import { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
-import { drizzle as drizzlePostgres } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
 import { toNodeHandler } from "better-auth/node";
-import {
-  createObservability,
-  type Observability,
-} from "@codelitdev/observability";
-import { frozenClock, systemClock, type Clock } from "@codelitdev/platform";
+import { drizzle as drizzlePostgres } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/pglite";
+import { Pool } from "pg";
 import type { Logger } from "pino";
-import * as schema from "./db/schema/index.js";
-import * as billingSchema from "./db/schema/billing.generated.js";
-import { applyMigrations } from "./db/migrate.js";
-import { composeBilling, type BillingBundle } from "./billing.js";
 import { createReferenceAuth } from "./auth/better-auth.js";
-import type { AppDb } from "./types.js";
+import { type BillingBundle, composeBilling } from "./billing.js";
+import { applyMigrations } from "./db/migrate.js";
+import * as billingSchema from "./db/schema/billing.generated.js";
+import * as schema from "./db/schema/index.js";
 import type { DispatchDeps } from "./deps.js";
+import type { AppDb } from "./types.js";
 
 export type Runtime = DispatchDeps & {
   client: PGlite | Pool;
@@ -67,9 +64,7 @@ export async function createPgliteRuntime(options: {
     db,
     publicApiUrl,
     webOrigin: options.webOrigin,
-    secret:
-      options.authSecret ??
-      "test-secret-that-is-at-least-thirty-two-characters",
+    secret: options.authSecret ?? "test-secret-that-is-at-least-thirty-two-characters",
   });
   handler = toNodeHandler(auth.auth);
   const importTables = await client.query(

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
 import { createBrowserObservability } from "@codelitdev/observability/browser";
+import { type ReactNode, useEffect } from "react";
 
 export function BrowserObservabilityProvider({
   apiKey,

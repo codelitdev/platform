@@ -2,9 +2,10 @@ node_modules/
 dist/
 coverage/
 .nyc_output/
-.eslintcache
+.next/
 *.tsbuildinfo
 *.tgz
+.eslintcache
 
 .env
 .env.*

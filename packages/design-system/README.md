@@ -16,13 +16,13 @@ under the `alpha` dist-tag.
 > `latest` on a package's first-ever publish, regardless of `--tag` — this is
 > unavoidable until a real stable version is cut, at which point publishing it
 > moves `latest` forward automatically. Until then, **always pin the exact
-> version** — do not `npm install @codelitdev/design-system` bare, and do not
+> version** — do not `bun add @codelitdev/design-system` bare, and do not
 > use a caret/tilde range (`^0.1.0-alpha.0` would still resolve to a
 > prerelease, which is at least explicit — but a bare install with no version
 > silently means "whatever `latest` is," which right now is this alpha).
 
 ```sh
-npm install @codelitdev/design-system@0.1.0-alpha.6
+bun add @codelitdev/design-system@0.1.0-alpha.6
 ```
 
 Platform examples consume the package as `workspace:*`. Product repositories
@@ -93,13 +93,13 @@ Add the registry namespace to your app's `components.json`:
 Then install components like any other shadcn component:
 
 ```sh
-npx shadcn@latest add @codelit/button @codelit/badge @codelit/card
+bunx shadcn@latest add @codelit/button @codelit/badge @codelit/card
 ```
 
 Or install a single component directly by URL, no config:
 
 ```sh
-npx shadcn@latest add https://raw.githubusercontent.com/codelitdev/platform/main/packages/design-system/public/r/button.json
+bunx shadcn@latest add https://raw.githubusercontent.com/codelitdev/platform/main/packages/design-system/public/r/button.json
 ```
 
 ### Available components
@@ -126,28 +126,28 @@ npx shadcn@latest add https://raw.githubusercontent.com/codelitdev/platform/main
 Install everything at once:
 
 ```sh
-npx shadcn@latest add @codelit/button @codelit/icon-button @codelit/badge @codelit/card \
+bunx shadcn@latest add @codelit/button @codelit/icon-button @codelit/badge @codelit/card \
   @codelit/input @codelit/textarea @codelit/label @codelit/checkbox @codelit/radio-group \
   @codelit/switch @codelit/select @codelit/tabs @codelit/dialog @codelit/dropdown-menu \
   @codelit/tooltip @codelit/toast
 ```
 
 **Maintainers:** component sources live in `registry/codelit/ui/`. After changing
-one, rebuild the served JSON with `pnpm registry:build` (→ `public/r/*.json`) and
+one, rebuild the served JSON with `bun run registry:build` (→ `public/r/*.json`) and
 commit it — the raw-URL install serves those committed files.
 
 ## Publishing
 
-Prereleases go under the `alpha` dist-tag so a plain `npm install` never grabs
+Prereleases go under the `alpha` dist-tag so a plain `bun add` never grabs
 one. Releases are driven from the Platform root through Changesets; do not run
-`npm publish` from this package directory:
+`bun publish` from this package directory:
 
 ```sh
-pnpm changeset
-pnpm release:alpha
+bun run changeset
+bun run release:alpha
 ```
 
-Verify: `npm view @codelitdev/design-system dist-tags` should show the
+Verify: `bun info @codelitdev/design-system --json` should show the
 prerelease under `alpha` and leave `latest` untouched.
 
 ## License

@@ -29,10 +29,7 @@ export function listFiles(root: string): string[] {
   return out.sort();
 }
 
-export function replaceTokens(
-  root: string,
-  tokens: Record<string, string>,
-): void {
+export function replaceTokens(root: string, tokens: Record<string, string>): void {
   for (const rel of listFiles(root)) {
     const full = path.join(root, rel);
     const text = readFileSync(full, "utf8");

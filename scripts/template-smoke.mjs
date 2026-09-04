@@ -1,9 +1,9 @@
 import { execFileSync, spawn } from "node:child_process";
 import {
-  mkdtempSync,
   mkdirSync,
-  readFileSync,
+  mkdtempSync,
   readdirSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -27,7 +27,7 @@ const packageDirectories = [
 ];
 
 function run(command, args, cwd = root) {
-  const quietPack = command === "pnpm" && args.includes("pack");
+  const quietPack = command === "bun" && args.includes("pack");
   execFileSync(command, args, {
     cwd,
     stdio: quietPack ? "ignore" : "inherit",
@@ -38,7 +38,7 @@ function run(command, args, cwd = root) {
 async function smokeHttp() {
   if (!process.env.DATABASE_URL) return;
   const port = "45123";
-  const child = spawn("pnpm", ["start"], {
+  const child = spawn("bun", ["start"], {
     cwd: path.join(target, "apps", "api"),
     env: {
       ...process.env,
@@ -48,8 +48,7 @@ async function smokeHttp() {
         process.env.AUTH_SECRET ??
         "smoke-secret-that-is-at-least-thirty-two-characters",
       API_KEY_PEPPER:
-        process.env.API_KEY_PEPPER ??
-        "smoke-api-key-pepper-that-is-long-enough",
+        process.env.API_KEY_PEPPER ?? "smoke-api-key-pepper-that-is-long-enough",
       SEED: "0",
     },
     stdio: "inherit",
@@ -71,15 +70,11 @@ async function smokeHttp() {
 
 async function smokeWeb() {
   const port = "45124";
-  const child = spawn(
-    "pnpm",
-    ["start", "--", "--hostname", "127.0.0.1", "-p", port],
-    {
-      cwd: path.join(target, "apps", "web"),
-      env: { ...process.env, API_URL: "http://127.0.0.1:45123" },
-      stdio: "inherit",
-    },
-  );
+  const child = spawn("bun", ["start", "--", "--hostname", "127.0.0.1", "-p", port], {
+    cwd: path.join(target, "apps", "web"),
+    env: { ...process.env, API_URL: "http://127.0.0.1:45123" },
+    stdio: "inherit",
+  });
   try {
     let response;
     for (let attempt = 0; attempt < 16; attempt += 1) {
@@ -100,19 +95,17 @@ async function smokeWeb() {
 }
 
 try {
-  run("node", [
+  run("bun", [
     "-e",
     `import('./packages/platform-cli/dist/index.js').then(({ createProduct }) => createProduct({ targetDir: ${JSON.stringify(target)}, productName: 'Smoke Product' }))`,
   ]);
   mkdirSync(packed, { recursive: true });
   for (const name of packageDirectories) {
-    run("pnpm", [
-      "--dir",
+    run(
+      "bun",
+      ["pm", "pack", "--destination", packed],
       path.join(root, "packages", name),
-      "pack",
-      "--pack-destination",
-      packed,
-    ]);
+    );
   }
   const tarballs = new Map();
   for (const file of readdirSync(packed)) {
@@ -132,6 +125,7 @@ try {
     }
   }
   findPackages(target);
+  const platformTarball = tarballs.get("platform");
   for (const file of packageFiles) {
     const pkg = JSON.parse(readFileSync(file, "utf8"));
     for (const field of ["dependencies", "devDependencies"]) {
@@ -142,17 +136,23 @@ try {
         if (tarball) pkg[field][name] = `file:${tarball}`;
       }
     }
+    if (file === path.join(target, "package.json") && platformTarball) {
+      pkg.overrides = {
+        ...(pkg.overrides ?? {}),
+        "@codelitdev/platform": platformTarball,
+      };
+    }
     writeFileSync(file, `${JSON.stringify(pkg, null, 4)}\n`);
   }
-  run("pnpm", ["install", "--lockfile-only", "--ignore-scripts"], target);
-  run("pnpm", ["install", "--frozen-lockfile"], target);
-  run("pnpm", ["--filter", "*/api", "check:drift"], target);
+  run("bun", ["install", "--ignore-scripts"], target);
+  run("bun", ["install", "--frozen-lockfile"], target);
+  run("bun", ["run", "--filter", "*/api", "check:drift"], target);
   if (process.env.DATABASE_URL)
-    run("pnpm", ["--filter", "*/api", "migrate"], target);
-  run("pnpm", ["test"], target);
-  run("pnpm", ["typecheck"], target);
-  run("pnpm", ["build"], target);
-  run("pnpm", ["lint"], target);
+    run("bun", ["run", "--filter", "*/api", "migrate"], target);
+  run("bun", ["run", "test"], target);
+  run("bun", ["run", "typecheck"], target);
+  run("bun", ["run", "build"], target);
+  run("bun", ["run", "lint"], target);
   await smokeHttp();
   await smokeWeb();
   process.stdout.write("template-smoke-ok\n");

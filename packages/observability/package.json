@@ -1,65 +1,67 @@
 {
-    "name": "@codelitdev/observability",
-    "version": "0.1.0-alpha.0",
-    "description": "Provider-neutral logging and optional telemetry for CodeLit products",
-    "author": "CodeLit",
-    "type": "module",
-    "license": "MIT",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/codelitdev/platform.git",
-        "directory": "packages/observability"
+  "name": "@codelitdev/observability",
+  "version": "0.1.0",
+  "description": "Provider-neutral logging and optional telemetry for CodeLit products",
+  "author": "CodeLit",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codelitdev/platform.git",
+    "directory": "packages/observability"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
-    "exports": {
-        ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.js",
-            "default": "./dist/index.js"
-        },
-        "./browser": {
-            "types": "./dist/browser.d.ts",
-            "import": "./dist/browser.js",
-            "default": "./dist/browser.js"
-        }
-    },
-    "files": ["dist"],
-    "scripts": {
-        "build": "tsc -p tsconfig.json",
-        "test": "vitest run",
-        "test:packed": "node scripts/packed-consumer.mjs",
-        "typecheck": "tsc -p tsconfig.test.json --noEmit",
-        "lint": "eslint . --quiet",
-        "prepublishOnly": "pnpm build"
-    },
-    "publishConfig": {
-        "access": "public",
-        "tag": "alpha"
-    },
-    "dependencies": {
-        "pino": "^9.6.0"
-    },
-    "peerDependencies": {
-        "express": "^4.21.2",
-        "posthog-js": "^1.200.0",
-        "posthog-node": "^4.0.0"
-    },
-    "peerDependenciesMeta": {
-        "express": { "optional": true },
-        "posthog-js": { "optional": true },
-        "posthog-node": { "optional": true }
-    },
-    "devDependencies": {
-        "@eslint/js": "^10.0.1",
-        "@types/express": "^4.17.21",
-        "@types/node": "^22.14.1",
-        "eslint": "^10.9.1",
-        "eslint-config-prettier": "^8.5.0",
-        "eslint-plugin-unused-imports": "^4.3.0",
-        "express": "^4.21.2",
-        "globals": "^17.11.0",
-        "posthog-js": "^1.425.1",
-        "typescript": "^5.9.3",
-        "typescript-eslint": "^8.68.0",
-        "vitest": "^4.1.9"
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js",
+      "default": "./dist/browser.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "bun test --timeout 60000 src",
+    "test:packed": "bun scripts/packed-consumer.mjs",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "lint": "biome lint .",
+    "prepublishOnly": "bun run build"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "latest"
+  },
+  "dependencies": {
+    "pino": "^9.6.0"
+  },
+  "peerDependencies": {
+    "express": "^4.21.2",
+    "posthog-js": "^1.200.0",
+    "posthog-node": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": true
+    },
+    "posthog-js": {
+      "optional": true
+    },
+    "posthog-node": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.1",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.1",
+    "express": "^4.21.2",
+    "posthog-js": "^1.425.1",
+    "typescript": "^5.9.3"
+  }
 }

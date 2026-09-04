@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import type React from "react";
 
 export interface SelectProps {
   label?: React.ReactNode;
@@ -21,19 +21,36 @@ export function Select({ label, hint, options = [], style, ...rest }: SelectProp
       <select {...rest}>
         {options.map((o) =>
           typeof o === "string" ? (
-            <option key={o} value={o}>{o}</option>
+            <option key={o} value={o}>
+              {o}
+            </option>
           ) : (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          )
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ),
         )}
       </select>
       <span className="cl-select__chevron">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        <svg
+          aria-hidden="true"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m6 9 6 6 6-6"></path>
+        </svg>
       </span>
     </span>
   );
   if (!label && !hint) return <span style={style}>{control}</span>;
   return (
+    /* biome-ignore lint/a11y/noLabelWithoutControl: the select control is rendered inside this label. */
     <label className="cl-field" style={style}>
       {label ? <span className="cl-field__label">{label}</span> : null}
       {control}

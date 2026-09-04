@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { runPlatformConformance, type ReferenceHttpInput } from "./run.js";
+import { describe, expect, it } from "bun:test";
 import type { PlatformConformanceAdapter } from "./adapter.js";
+import { type ReferenceHttpInput, runPlatformConformance } from "./run.js";
 
 type Principal = { id: string; sessionCookie: string; oauthToken: string };
 type Tenant = { id: string; publicId: string };
@@ -30,8 +30,7 @@ function memoryAdapter(options: {
   };
   const tenantA = { id: "a", publicId: "tnt_a" };
   const tenantB = { id: "b", publicId: "tnt_b" };
-  const auditEvents: { action: string; resourceId: string; actorId: string }[] =
-    [];
+  const auditEvents: { action: string; resourceId: string; actorId: string }[] = [];
   return {
     async reset() {},
     fixtures: {
@@ -140,12 +139,7 @@ function memoryAdapter(options: {
     async openapiDocument() {
       return {
         paths: { "/v1/notes": { get: { operationId: "listNotes" } } },
-        contractOperationIds: [
-          "listNotes",
-          "createNote",
-          "updateNote",
-          "deleteNote",
-        ],
+        contractOperationIds: ["listNotes", "createNote", "updateNote", "deleteNote"],
       };
     },
     observability: {

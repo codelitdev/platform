@@ -1044,7 +1044,7 @@ This is the launch boundary.
     canonical Drizzle schema from the public API.
 11. Enforce static registration for first-party web/mobile clients and
     explicit opt-in Dynamic Client Registration for MCP interoperability.
-12. Add the normative Vitest, coverage, HTTP integration, and consumer test
+12. Add the normative Bun test, coverage, HTTP integration, and consumer test
     gates.
 13. Migrate FrontLit to application-owned account/team/API-key middleware.
 14. Document one integration for web, mobile, REST, and MCP.
@@ -1081,20 +1081,20 @@ None of these is required for the authentication kit's first stable release.
 
 ### Test framework and coverage gate
 
-Vitest is the only package test runner. V8 is the coverage provider. The
+Bun test is the only package test runner. Bun's coverage support is used. The
 package defines these scripts:
 
 ```json
 {
     "scripts": {
-        "test": "vitest run",
-        "test:watch": "vitest",
-        "test:coverage": "vitest run --coverage"
+        "test": "bun test",
+        "test:watch": "bun test --watch",
+        "test:coverage": "bun test --coverage"
     }
 }
 ```
 
-`pnpm test:coverage` is a required CI and release gate. Coverage includes every
+`bun test --coverage` is a required CI and release gate. Coverage includes every
 non-test TypeScript source file shipped by the package and may exclude only
 type-declaration files and generated artifacts. Difficult security or protocol
 code must not be excluded to satisfy the threshold.
@@ -1216,7 +1216,7 @@ Phase 1 is complete when all of the following are true:
 - Invalid explicit bearers fail closed.
 - FrontLit owns its account/team/API-key mapping after migration.
 - Unit, integration, and consumer tests pass.
-- `pnpm test:coverage` passes the 90% statement, line, and function thresholds
+- `bun test --coverage` passes the 90% statement, line, and function thresholds
   and the 80% branch threshold.
 - Integration documentation exists for all four supported surfaces.
 

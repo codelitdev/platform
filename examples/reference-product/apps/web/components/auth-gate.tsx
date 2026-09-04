@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const [checking, setChecking] = useState(true);

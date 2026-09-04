@@ -1,28 +1,28 @@
+export { advancingClock, frozenClock, systemClock } from "./clocks.js";
 export {
-    runBillingProviderContract,
-    createContractFake,
-} from "./provider-contract.js";
+  courselitShapedCatalog,
+  sendlitShapedCatalog,
+} from "./consumer-conformance.js";
 export {
-    createBillingFrom,
-    createWorkflowHarness,
-} from "./workflow-harness.js";
-export {
-    REFERENCE_OFFERS,
-    COURSELIT_OFFER_KEYS,
-    payer,
-    entity,
-    grant,
+  COURSELIT_OFFER_KEYS,
+  entity,
+  grant,
+  payer,
+  REFERENCE_OFFERS,
 } from "./fixtures.js";
 export {
-    sendlitShapedCatalog,
-    courselitShapedCatalog,
-} from "./consumer-conformance.js";
-export { frozenClock, advancingClock, systemClock } from "./clocks.js";
+  createContractFake,
+  runBillingProviderContract,
+} from "./provider-contract.js";
 export {
-    decideCheckoutTransition,
-    decideCustomerTransition,
-    decidePlanChangeTransition,
-    decideReconciliationTransition,
-    decideSubscriptionTransition,
-    decideWebhookInboxTransition,
+  decideCheckoutTransition,
+  decideCustomerTransition,
+  decidePlanChangeTransition,
+  decideReconciliationTransition,
+  decideSubscriptionTransition,
+  decideWebhookInboxTransition,
 } from "./state-machine.js";
+export {
+  createBillingFrom,
+  createWorkflowHarness,
+} from "./workflow-harness.js";

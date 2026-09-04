@@ -1,6 +1,6 @@
 {
   "name": "@codelitdev/platform-cli",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0",
   "description": "Create, doctor, and upgrade CodeLit Platform products",
   "author": "CodeLit",
   "type": "module",
@@ -20,28 +20,22 @@
     "template"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && node -e \"import('node:fs').then(fs=>{fs.rmSync('template',{recursive:true,force:true});fs.cpSync('../../templates/saas-product','template',{recursive:true})})\"",
-    "test": "vitest run",
-    "test:packed": "node scripts/packed-consumer.mjs",
+    "build": "tsc -p tsconfig.json && bun -e \"import('node:fs').then(fs=>{fs.rmSync('template',{recursive:true,force:true});fs.cpSync('../../templates/saas-product','template',{recursive:true})})\"",
+    "test": "bun test --timeout 60000 src --path-ignore-patterns=**/template/**",
+    "test:packed": "bun scripts/packed-consumer.mjs",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
-    "lint": "eslint . --quiet"
+    "lint": "biome lint ."
   },
   "publishConfig": {
     "access": "public",
-    "tag": "alpha"
+    "tag": "latest"
   },
   "dependencies": {
     "@codelitdev/platform-preset": "workspace:*"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@types/bun": "^1.4.1",
     "@types/node": "^22.14.1",
-    "eslint": "^10.9.1",
-    "eslint-config-prettier": "^8.5.0",
-    "eslint-plugin-unused-imports": "^4.3.0",
-    "globals": "^17.11.0",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.68.0",
-    "vitest": "^4.1.9"
+    "typescript": "^5.9.3"
   }
 }

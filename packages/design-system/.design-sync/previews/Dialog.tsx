@@ -1,4 +1,4 @@
-import { Dialog, Button } from "@codelitdev/design-system";
+import { Button, Dialog } from "@codelitdev/design-system";
 
 export function Confirm() {
   return (

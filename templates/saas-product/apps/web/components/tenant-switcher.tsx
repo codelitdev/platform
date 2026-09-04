@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
 import { Button } from "@codelitdev/design-system";
+import { type FormEvent, useState } from "react";
 
 type Tenant = { id: string; name: string; selected?: boolean };
 
@@ -19,9 +19,9 @@ export function TenantSwitcher({ tenants }: { tenants: Tenant[] }) {
       body: JSON.stringify({ tenantId: form.get("tenantId") }),
     });
     if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as
-        | { message?: string }
-        | null;
+      const payload = (await response.json().catch(() => null)) as {
+        message?: string;
+      } | null;
       setError(payload?.message ?? `Unable to switch tenant (${response.status}).`);
       return;
     }

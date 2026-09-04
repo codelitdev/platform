@@ -7,22 +7,22 @@ Human owns git push.
 ## Commands
 
 ```bash
-pnpm install
-pnpm test          # vitest; PGlite files run sequentially
-pnpm typecheck
-pnpm lint
-pnpm build         # tsc → dist/; consumers import dist, not src
-pnpm test:packed   # tarball + public exports only
+bun install
+bun test           # Bun test; PGlite files run sequentially
+bun run typecheck
+bun run lint
+bun run build      # tsc → dist/; consumers import dist, not src
+bun run test:packed # tarball + public exports only
 ```
 
-CLI (after build, or via `pnpm generate`):
+CLI (after build, or via `bun run generate`):
 
 ```bash
-pnpm exec codelit-billing generate --config <billing.config.ts>
-pnpm exec codelit-billing generate --check --config <billing.config.ts>
+bun x codelit-billing generate --config <billing.config.ts>
+bun x codelit-billing generate --check --config <billing.config.ts>
 ```
 
-Do not add `console.log` (eslint `no-console`, `warn`/`error` allowed). Do not import `src/` from a consumer or from `package.json` `exports`.
+Do not add `console.log` (Biome's console rule, `warn`/`error` allowed). Do not import `src/` from a consumer or from `package.json` `exports`.
 
 ## Layout
 
@@ -42,7 +42,7 @@ Do not add `console.log` (eslint `no-console`, `warn`/`error` allowed). Do not i
 | `examples/` | Reference + SendLit/CourseLit **config mapping** fixtures, not live products. |
 | `docs/` | `architecture.md` (proposed v1 spec), `runbooks.md`, `decisions/0001-*.md`. |
 
-Public subpaths are listed in `package.json` `exports` and asserted by `src/exports.test.ts`. Adding an export means `package.json` + `exports.test.ts` + `pnpm build`.
+Public subpaths are listed in `package.json` `exports` and asserted by `src/exports.test.ts`. Adding an export means `package.json` + `exports.test.ts` + `bun run build`.
 
 ## Invariants — do not break
 
@@ -113,11 +113,11 @@ CourseLit mapping under `examples/consumers/courselit/` is a **generator fixture
 
 ## Tests
 
-- Vitest, `fileParallelism: false`, 60s timeouts (PGlite WASM).
+- Bun test, sequential PGlite files, and 60s timeouts (PGlite WASM).
 - Isolation: `src/core/isolation.test.ts` forbids core importing drizzle/dodo/express/pino/posthog.
 - Prefer table-driven transition tests and the workflow harness over spinning Express.
 - Real PostgreSQL lock tests are **not** in CI yet; do not claim they are. PGlite covers generator/adapter happy paths.
-- After engine/store/export changes run `pnpm test` and `pnpm build`. After `package.json` exports changes run `pnpm test:packed`.
+- After engine/store/export changes run `bun test` and `bun run build`. After `package.json` exports changes run `bun run test:packed`.
 
 ## Docs
 
@@ -135,7 +135,7 @@ CourseLit mapping under `examples/consumers/courselit/` is a **generator fixture
 | Snapshot fields / diff | `projection-diff` tests + webhook harness |
 | Dodo mapping | `normalize.ts` tests + no-env test + contract suite |
 | Retry/lease policy | `src/maintenance/retry.ts` + webhook/reconciliation tests |
-| Public export | `package.json`, `exports.test.ts`, `pnpm build` |
+| Public export | `package.json`, `exports.test.ts`, `bun run build` |
 
 ## Out of scope unless the human asks
 

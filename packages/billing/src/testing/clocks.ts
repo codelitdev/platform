@@ -1,1 +1,1 @@
-export { frozenClock, advancingClock, systemClock } from "../core/clock.js";
+export { advancingClock, frozenClock, systemClock } from "../core/clock.js";

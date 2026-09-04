@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { assertGitClean } from "./git.js";
 import { sha256File } from "./hash.js";
 import { readManifest, writeManifest } from "./manifest.js";
-import { assertGitClean } from "./git.js";
 
 export type UpgradeResult = {
   dryRun: boolean;
@@ -55,8 +55,7 @@ export function upgradeProduct(input: {
   }
 
   const productName =
-    JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).name ??
-    "product";
+    JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).name ?? "product";
   const readme = path.join(root, "apps/api/README.md");
   if (!existsSync(readme)) {
     throw new Error("codemod_input_unsupported");

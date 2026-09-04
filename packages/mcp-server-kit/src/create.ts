@@ -1,18 +1,18 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { z } from "zod";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
+  type AuthenticationResult,
   captureAndMapException,
   createPlatformError,
+  type HeaderMap,
   mapTransportAuthentication,
   PLATFORM_ERROR_CODES,
-  selectMcpCredential,
-  toPublicHttpError,
-  type AuthenticationResult,
-  type HeaderMap,
   type PlatformError,
   type PlatformErrorCode,
+  selectMcpCredential,
+  toPublicHttpError,
 } from "@codelitdev/platform";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { z } from "zod";
 import { mcpCorsHeaders } from "./cors.js";
 import { createMcpSessionStore } from "./sessions.js";
 import {
@@ -45,9 +45,7 @@ export type CreateMcpServerKitOptions<Context> = {
     principalId: string;
     credential: AuthenticationResult<string> & { kind: "authenticated" };
     headers: HeaderMap;
-  }) => Promise<
-    { ok: true; context: Context } | { ok: false; error: PlatformError }
-  >;
+  }) => Promise<{ ok: true; context: Context } | { ok: false; error: PlatformError }>;
   tools: readonly McpToolDefinition<Context>[];
   onError?: (input: { error: unknown; source: string }) => void;
 };
@@ -56,6 +54,26 @@ type ToolScope<Context> = {
   context: Context;
   signal: AbortSignal;
 };
+
+type RegisterTool = (
+  name: string,
+  config: {
+    description?: string;
+    inputSchema?: Record<string, z.ZodType>;
+    annotations?: {
+      readOnlyHint?: boolean;
+      destructiveHint?: boolean;
+    };
+    _meta?: Record<string, unknown>;
+  },
+  callback: (
+    args: Record<string, unknown>,
+    extra: {
+      authInfo?: { extra?: Record<string, unknown> };
+      signal?: AbortSignal;
+    },
+  ) => Promise<unknown>,
+) => unknown;
 
 function isPlatformErrorCode(value: unknown): value is PlatformErrorCode {
   return (
@@ -80,10 +98,7 @@ function platformToolError(error: PlatformError) {
 export function createMcpServerKit<Context>(
   options: CreateMcpServerKitOptions<Context>,
 ) {
-  const transports = new Map<
-    string,
-    WebStandardStreamableHTTPServerTransport
-  >();
+  const transports = new Map<string, WebStandardStreamableHTTPServerTransport>();
   const sessions = createMcpSessionStore({
     onExpire(session) {
       const transport = transports.get(session.id);
@@ -116,6 +131,7 @@ export function createMcpServerKit<Context>(
   }
 
   function registerTools(server: McpServer) {
+    const registerTool = (server.registerTool as unknown as RegisterTool).bind(server);
     for (const tool of options.tools) {
       const shape =
         tool.inputSchema &&
@@ -123,7 +139,7 @@ export function createMcpServerKit<Context>(
         "shape" in tool.inputSchema
           ? (tool.inputSchema as { shape: Record<string, z.ZodType> }).shape
           : undefined;
-      server.registerTool(
+      registerTool(
         tool.name,
         {
           description: tool.description,
@@ -137,8 +153,7 @@ export function createMcpServerKit<Context>(
         async (args, extra) => {
           const scope = requestScope.getStore();
           const context =
-            scope?.context ??
-            (extra.authInfo?.extra?.context as Context | undefined);
+            scope?.context ?? (extra.authInfo?.extra?.context as Context | undefined);
           if (!context) {
             return platformToolError(createPlatformError("unauthenticated"));
           }
@@ -175,9 +190,7 @@ export function createMcpServerKit<Context>(
               return platformToolError(result.error as PlatformError);
             }
             return {
-              content: [
-                { type: "text" as const, text: JSON.stringify(result) },
-              ],
+              content: [{ type: "text" as const, text: JSON.stringify(result) }],
               structuredContent:
                 result && typeof result === "object"
                   ? (result as Record<string, unknown>)
@@ -239,8 +252,7 @@ export function createMcpServerKit<Context>(
       for (const listed of rpc.result.tools) {
         const meta = listed._meta as { risk?: string } | undefined;
         const annotations = {
-          ...((listed.annotations as Record<string, unknown> | undefined) ??
-            {}),
+          ...((listed.annotations as Record<string, unknown> | undefined) ?? {}),
         };
         if (meta?.risk) annotations.risk = meta.risk;
         listed.annotations = annotations;
@@ -339,19 +351,14 @@ export function createMcpServerKit<Context>(
     const auth = await authenticateHeaders(headers);
     if (auth.kind !== "authenticated") {
       const error =
-        auth.kind === "rejected"
-          ? auth.error
-          : createPlatformError("unauthenticated");
+        auth.kind === "rejected" ? auth.error : createPlatformError("unauthenticated");
       const mapped = jsonRpcError(rpcId, error);
       return { ...mapped, headers: { ...cors, ...mapped.headers } };
     }
 
     if (method === "GET" || method === "DELETE") {
       const session = sessions.get(sessionId);
-      if (
-        !session ||
-        (session.ownerId && session.ownerId !== auth.principalId)
-      ) {
+      if (!session || (session.ownerId && session.ownerId !== auth.principalId)) {
         return {
           status: 404,
           headers: cors,
@@ -448,10 +455,7 @@ export function createMcpServerKit<Context>(
 
     if (sessionId) {
       const session = sessions.get(sessionId);
-      if (
-        !session ||
-        (session.ownerId && session.ownerId !== auth.principalId)
-      ) {
+      if (!session || (session.ownerId && session.ownerId !== auth.principalId)) {
         return {
           status: 404,
           headers: cors,
@@ -530,6 +534,4 @@ export function createMcpServerKit<Context>(
   };
 }
 
-export type McpServerKit<Context> = ReturnType<
-  typeof createMcpServerKit<Context>
->;
+export type McpServerKit<Context> = ReturnType<typeof createMcpServerKit<Context>>;

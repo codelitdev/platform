@@ -22,10 +22,7 @@ export type PlatformConformanceAdapter<
   credentials: {
     session(principal: Principal): Promise<SessionCredential>;
     oauth(principal: Principal): Promise<OAuthCredential>;
-    apiKey(
-      tenant: Tenant,
-      permissions: readonly string[],
-    ): Promise<ApiKeyCredential>;
+    apiKey(tenant: Tenant, permissions: readonly string[]): Promise<ApiKeyCredential>;
     system?(principal: Principal): Promise<{ kind: "system" }>;
   };
   http(input: HttpInput): Promise<{

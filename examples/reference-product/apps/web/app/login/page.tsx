@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
 import { Button } from "@codelitdev/design-system";
+import { type FormEvent, useState } from "react";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
@@ -96,8 +96,7 @@ export default function SignInPage() {
         <details>
           <summary>Local demo password sign-in</summary>
           <p>
-            When started with SEED=1, use owner@example.com and
-            reference-password-1.
+            When started with SEED=1, use owner@example.com and reference-password-1.
           </p>
           <form onSubmit={signInWithPassword}>
             <label>
@@ -121,9 +120,7 @@ export default function SignInPage() {
             <Button type="submit">Sign in with password</Button>
           </form>
         </details>
-        <small>
-          Same-origin BFF cookies are set by the API after verification.
-        </small>
+        <small>Same-origin BFF cookies are set by the API after verification.</small>
       </section>
     </main>
   );

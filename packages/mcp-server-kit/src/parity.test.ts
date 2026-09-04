@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { validateParityManifest } from "./parity.js";
 
 describe("validateParityManifest", () => {
@@ -56,9 +56,7 @@ describe("validateParityManifest", () => {
         now: new Date("2026-09-02T00:00:00.000Z"),
       },
     );
-    expect(issues).toEqual([
-      { capability: "health", reason: "exemption_expired" },
-    ]);
+    expect(issues).toEqual([{ capability: "health", reason: "exemption_expired" }]);
   });
 
   it("checks declared MCP risk against runtime tool metadata", () => {

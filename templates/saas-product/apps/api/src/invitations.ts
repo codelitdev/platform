@@ -1,17 +1,14 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { and, eq, gt, isNull } from "drizzle-orm";
 import {
-  createPlatformError,
-  uuidv7,
   type Clock,
+  createPlatformError,
   type PlatformError,
   type PlatformRequestContext,
+  uuidv7,
 } from "@codelitdev/platform";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import * as schema from "./db/schema/index.js";
-import {
-  serializePermissions,
-  type ReferencePermission,
-} from "./permissions.js";
+import { type ReferencePermission, serializePermissions } from "./permissions.js";
 import type { AppDb } from "./types.js";
 
 type Ctx = PlatformRequestContext<string, string, ReferencePermission>;
@@ -91,9 +88,7 @@ export async function acceptInvitation(
   token: string,
   actorEmail: string,
   clock: Clock,
-): Promise<
-  { ok: true; tenantId: string } | { ok: false; error: PlatformError }
-> {
+): Promise<{ ok: true; tenantId: string } | { ok: false; error: PlatformError }> {
   const digest = digestToken(token);
   const now = clock.now();
   return db.transaction(async (tx) => {

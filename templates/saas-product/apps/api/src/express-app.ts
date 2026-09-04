@@ -1,9 +1,9 @@
-import express, { type Express } from "express";
-import { toNodeHandler } from "better-auth/node";
-import { createExpressEndpoints, initServer } from "@ts-rest/express";
 import { contract } from "@__PRODUCT_SLUG__/api-contract";
-import { readOrCreateRequestId } from "@codelitdev/platform";
 import { createOAuthPagesRouter } from "@codelitdev/oauth-server-kit/express";
+import { readOrCreateRequestId } from "@codelitdev/platform";
+import { createExpressEndpoints, initServer } from "@ts-rest/express";
+import { toNodeHandler } from "better-auth/node";
+import express, { type Express } from "express";
 import { AUTH_BASE_PATH } from "./auth/options.js";
 import type { DispatchDeps } from "./deps.js";
 import { dispatch } from "./dispatch.js";

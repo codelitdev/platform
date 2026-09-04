@@ -52,8 +52,7 @@ export const mcpParityManifest = [
     rest: { operationId: "getEntitlement" },
     parity: "exempt",
     exemption: {
-      reason:
-        "Billing entitlement remains REST-only in the reference vertical.",
+      reason: "Billing entitlement remains REST-only in the reference vertical.",
       owner: "platform",
       reviewBy: "2027-09-01",
     },
@@ -151,8 +150,7 @@ export const mcpParityManifest = [
     rest: { operationId: "revokeInvitation" },
     parity: "exempt",
     exemption: {
-      reason:
-        "Invitation administration remains REST-only in the reference vertical.",
+      reason: "Invitation administration remains REST-only in the reference vertical.",
       owner: "platform",
       reviewBy: "2027-09-01",
     },

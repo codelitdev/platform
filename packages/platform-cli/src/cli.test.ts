@@ -1,14 +1,14 @@
+import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { applyReadmeTitleCodemod } from "./codemod-readme-title.js";
 import { createProduct } from "./create.js";
 import { doctor } from "./doctor.js";
-import { upgradeProduct } from "./upgrade.js";
-import { applyReadmeTitleCodemod } from "./codemod-readme-title.js";
-import { readManifest } from "./manifest.js";
 import { sha256File } from "./hash.js";
+import { readManifest } from "./manifest.js";
+import { upgradeProduct } from "./upgrade.js";
 
 function git(cwd: string, args: string[]) {
   execFileSync("git", args, { cwd, stdio: "pipe" });
@@ -25,10 +25,7 @@ describe("platform-cli", () => {
     expect(result.root).toBe(target);
     const manifest = readManifest(target);
     expect(manifest.capabilities).toContain("mcp");
-    expect(manifest.productOwnedGlobs).toEqual([
-      "apps/**",
-      "packages/api-contract/**",
-    ]);
+    expect(manifest.productOwnedGlobs).toEqual(["apps/**", "packages/api-contract/**"]);
     expect(manifest.managedFiles["tooling/platform/config.ts"]).toBe(
       sha256File(path.join(target, "tooling/platform/config.ts")),
     );
@@ -82,10 +79,7 @@ describe("platform-cli", () => {
       path.join(target, "tooling/platform/config.ts"),
       "export const drifted = true;\n",
     );
-    const beforeReadme = readFileSync(
-      path.join(target, "apps/api/README.md"),
-      "utf8",
-    );
+    const beforeReadme = readFileSync(path.join(target, "apps/api/README.md"), "utf8");
     const beforeManifest = readManifest(target);
     const result = upgradeProduct({ root: target, allowDirty: true });
     expect(result.conflicts).toContain("tooling/platform/config.ts");
@@ -143,8 +137,7 @@ describe("platform-cli", () => {
       ),
     ).toBe(workflow);
     expect(
-      upgradeProduct({ root: target, version: "1.2.0", allowDirty: true })
-        .changed,
+      upgradeProduct({ root: target, version: "1.2.0", allowDirty: true }).changed,
     ).toEqual([]);
   });
 
@@ -172,38 +165,38 @@ describe("platform-cli", () => {
     ).toBe(true);
   });
 
-  it("uses pnpm lockfile resolutions when checking minimum secure versions", () => {
+  it("uses Bun lockfile resolutions when checking minimum secure versions", () => {
     const parent = mkdtempSync(path.join(tmpdir(), "cli-doctor-lock-"));
     const target = path.join(parent, "acme");
     createProduct({ targetDir: target, productName: "Acme" });
     writeFileSync(
-      path.join(target, "pnpm-lock.yaml"),
+      path.join(target, "bun.lock"),
       [
-        "lockfileVersion: '9.0'",
+        "{",
+        '  "lockfileVersion": 2,',
+        '  "configVersion": 1,',
         "",
-        "importers:",
+        '  "workspaces": {',
         "",
-        "  apps/api:",
-        "    dependencies:",
-        "      '@codelitdev/platform':",
-        "        specifier: 0.1.0-alpha.0",
-        "        version: 0.0.1",
+        '    "": {},',
         "",
-        "packages:",
+        "  },",
+        '  "packages": {',
+        '    "@codelitdev/platform": ["@codelitdev/platform@0.0.1", "", {}, ""],',
+        "  }",
+        "}",
       ].join("\n"),
     );
     const report = doctor(target);
     expect(report.ok).toBe(false);
-    expect(report.issues).toContain(
-      "below_minimum_secure:@codelitdev/platform",
-    );
+    expect(report.issues).toContain("below_minimum_secure:@codelitdev/platform");
   });
 
   it("does not create into a non-empty directory", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "cli-full-"));
     writeFileSync(path.join(dir, "keep.txt"), "1");
-    expect(() =>
-      createProduct({ targetDir: dir, productName: "Nope" }),
-    ).toThrow("create_target_not_empty");
+    expect(() => createProduct({ targetDir: dir, productName: "Nope" })).toThrow(
+      "create_target_not_empty",
+    );
   });
 });

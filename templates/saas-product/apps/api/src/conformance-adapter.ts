@@ -1,7 +1,7 @@
-import { createObservability, redactText } from "@codelitdev/observability";
-import { eq } from "drizzle-orm";
-import { runPlatformConformance } from "@codelitdev/platform-conformance";
 import { contract } from "@__PRODUCT_SLUG__/api-contract";
+import { createObservability, redactText } from "@codelitdev/observability";
+import { runPlatformConformance } from "@codelitdev/platform-conformance";
+import { eq } from "drizzle-orm";
 import { runBoundedMaintenance } from "./billing.js";
 import { mcpFor } from "./dispatch.js";
 import { createExpressApp } from "./express-app.js";
@@ -296,9 +296,9 @@ export function createReferenceConformanceAdapter(
       async auditRecorded() {
         return Boolean(
           checkoutAuditEffectId &&
-          runtime.billing.audit.records.some(
-            (record) => record.effectId === checkoutAuditEffectId,
-          ),
+            runtime.billing.audit.records.some(
+              (record) => record.effectId === checkoutAuditEffectId,
+            ),
         );
       },
     },
@@ -319,10 +319,7 @@ export function createReferenceConformanceAdapter(
   };
 }
 
-export async function runReferenceConformance(
-  runtime: Runtime,
-  world: SeededWorld,
-) {
+export async function runReferenceConformance(runtime: Runtime, world: SeededWorld) {
   const adapter = createReferenceConformanceAdapter(runtime, world);
   try {
     return await runPlatformConformance(adapter, {

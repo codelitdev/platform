@@ -7,21 +7,14 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { loadPresetManifest } from "@codelitdev/platform-preset";
-import {
-  copyTemplate,
-  isEmptyDir,
-  listFiles,
-  removeDir,
-  replaceTokens,
-} from "./fs.js";
+import { copyTemplate, isEmptyDir, listFiles, removeDir, replaceTokens } from "./fs.js";
 import { sha256File } from "./hash.js";
 import { writeManifest } from "./manifest.js";
 import { resolveTemplateDir, slugify } from "./template.js";
 
-export function createProduct(input: {
-  targetDir: string;
-  productName: string;
-}): { root: string } {
+export function createProduct(input: { targetDir: string; productName: string }): {
+  root: string;
+} {
   const target = path.resolve(input.targetDir);
   if (existsSync(target) && !isEmptyDir(target)) {
     throw new Error("create_target_not_empty");
@@ -31,6 +24,10 @@ export function createProduct(input: {
   removeDir(staging);
   try {
     copyTemplate(resolveTemplateDir(), staging);
+    renameSync(
+      path.join(staging, "biome.template.json"),
+      path.join(staging, "biome.json"),
+    );
     replaceTokens(staging, {
       __PRODUCT_NAME__: input.productName,
       __PRODUCT_SLUG__: slug,
@@ -38,11 +35,7 @@ export function createProduct(input: {
     pinCodelitVersions(staging, loadPresetManifest());
     const managedRel = path.join("tooling", "platform", "config.ts");
     const managedPath = path.join(staging, managedRel);
-    const workflowRel = path.join(
-      ".github",
-      "workflows",
-      "platform-conformance.yml",
-    );
+    const workflowRel = path.join(".github", "workflows", "platform-conformance.yml");
     const workflowPath = path.join(staging, workflowRel);
     const preset = loadPresetManifest();
     writeManifest(staging, {
@@ -72,7 +65,7 @@ function validateGeneratedMetadata(root: string): void {
   const files = listFiles(root);
   const required = [
     "package.json",
-    "pnpm-workspace.yaml",
+    "biome.json",
     "apps/api/package.json",
     "apps/web/package.json",
     "packages/api-contract/package.json",
@@ -92,15 +85,14 @@ function validateGeneratedMetadata(root: string): void {
     )
       continue;
     const content = readFileSync(path.join(root, file), "utf8");
-    if (content.includes("__PRODUCT_"))
-      throw new Error("create_tokens_unresolved");
+    if (content.includes("__PRODUCT_")) throw new Error("create_tokens_unresolved");
   }
   const packageJson = JSON.parse(
     readFileSync(path.join(root, "package.json"), "utf8"),
   ) as {
     packageManager?: string;
   };
-  if (packageJson.packageManager !== "pnpm@10.22.0") {
+  if (packageJson.packageManager !== "bun@1.4.1") {
     throw new Error("create_metadata_invalid");
   }
 }
@@ -135,10 +127,7 @@ function pinCodelitVersions(
           changed = true;
           continue;
         }
-        if (
-          !name.startsWith("@codelitdev/") ||
-          !spec.startsWith("workspace:")
-        ) {
+        if (!name.startsWith("@codelitdev/") || !spec.startsWith("workspace:")) {
           continue;
         }
         const pin = packagePin;
