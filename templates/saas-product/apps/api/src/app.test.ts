@@ -473,6 +473,55 @@ describe.serial("reference API adapters", () => {
     const openapi = await fetch(`http://127.0.0.1:${address.port}/openapi.json`);
     expect(openapi.status).toBe(200);
     expect((await openapi.json()).paths["/v1/notes"]).toBeDefined();
+    const protectedResource = await fetch(
+      `http://127.0.0.1:${address.port}/.well-known/oauth-protected-resource/mcp`,
+    );
+    expect(protectedResource.status).toBe(200);
+    expect(await protectedResource.json()).toMatchObject({
+      resource: runtime.auth.mcpResource,
+      authorization_servers: [runtime.auth.issuer],
+    });
+    const authorizationServer = await fetch(
+      `http://127.0.0.1:${address.port}/.well-known/oauth-authorization-server`,
+    );
+    expect(authorizationServer.status).toBe(200);
+    expect(await authorizationServer.json()).toMatchObject({
+      registration_endpoint: `${runtime.auth.issuer}/oauth2/register`,
+    });
+    const dcr = await fetch(
+      `http://127.0.0.1:${address.port}${runtime.auth.authBasePath}/oauth2/register`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          client_name: "local MCP client",
+          redirect_uris: ["http://127.0.0.1:33418"],
+          token_endpoint_auth_method: "none",
+          grant_types: ["authorization_code", "refresh_token"],
+          response_types: ["code"],
+          application_type: "native",
+          scope: "openid profile email data:read",
+        }),
+      },
+    );
+    expect(dcr.status).toBe(201);
+    expect(await dcr.json()).toMatchObject({
+      token_endpoint_auth_method: "none",
+    });
+    const mcpUnauthorized = await fetch(`http://127.0.0.1:${address.port}/mcp`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: {} },
+      }),
+    });
+    expect(mcpUnauthorized.status).toBe(401);
+    expect(mcpUnauthorized.headers.get("www-authenticate")).toBe(
+      `Bearer resource_metadata="${runtime.auth.publicApiUrl}/.well-known/oauth-protected-resource/mcp"`,
+    );
     await new Promise<void>((resolve) => server.close(() => resolve()));
     await runtime.close();
   });

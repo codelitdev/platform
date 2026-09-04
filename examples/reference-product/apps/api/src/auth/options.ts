@@ -6,6 +6,8 @@ import { jwt } from "better-auth/plugins/jwt";
 export const AUTH_BASE_PATH = "/api/auth";
 export const AUTH_SECRET_MIN_LENGTH = 32;
 
+export const MCP_SCOPES_SUPPORTED = ["data:read"] as const;
+
 export type ReferenceAuthUrls = {
   publicApiUrl: string;
   webOrigin: string;
@@ -35,6 +37,8 @@ export function oauthProviderInput(urls: ReturnType<typeof authUrls>) {
     consentPage: `${urls.publicApiUrl}/oauth/consent`,
     scopes: ["openid", "profile", "email", "offline_access", "data:read"],
     validAudiences: [urls.restResource, urls.mcpResource],
+    allowDynamicClientRegistration: true,
+    allowUnauthenticatedDynamicClientRegistration: true,
     clientRegistrationDefaultScopes: ["openid", "profile", "email"],
     clientRegistrationAllowedScopes: ["offline_access", "data:read"],
   });

@@ -1,10 +1,11 @@
 import { createOAuthPagesRouter } from "@codelitdev/oauth-server-kit/express";
+import { createMcpOAuthDiscoveryRoutes } from "@codelitdev/oauth-server-kit/mcp";
 import { readOrCreateRequestId } from "@codelitdev/platform";
 import { contract } from "@reference-product/api-contract";
 import { createExpressEndpoints, initServer } from "@ts-rest/express";
 import { toNodeHandler } from "better-auth/node";
 import express, { type Express } from "express";
-import { AUTH_BASE_PATH } from "./auth/options.js";
+import { AUTH_BASE_PATH, MCP_SCOPES_SUPPORTED } from "./auth/options.js";
 import type { DispatchDeps } from "./deps.js";
 import { dispatch } from "./dispatch.js";
 
@@ -44,6 +45,15 @@ export function createExpressApp(deps: DispatchDeps): Express {
     }
     next();
   });
+  app.use(
+    createMcpOAuthDiscoveryRoutes({
+      auth: deps.auth.auth,
+      oauthResourceClient: deps.auth.oauthResourceClient,
+      resourceUrl: deps.auth.mcpResource,
+      scopesSupported: [...MCP_SCOPES_SUPPORTED],
+      allowedOrigins: "*",
+    }),
+  );
   app.all(`${AUTH_BASE_PATH}/*`, toNodeHandler(deps.auth.auth));
   app.use(
     createOAuthPagesRouter({
