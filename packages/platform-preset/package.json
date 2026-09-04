@@ -1,6 +1,6 @@
 {
   "name": "@codelitdev/platform-preset",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "description": "Compatibility bill of materials for CodeLit Platform packages",
   "author": "CodeLit",
   "type": "module",

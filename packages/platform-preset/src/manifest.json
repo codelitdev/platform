@@ -1,54 +1,54 @@
 {
   "schemaVersion": 1,
-  "presetVersion": "0.1.0",
+  "presetVersion": "0.1.0-alpha.1",
   "runtime": {
     "bun": "1.4.1"
   },
   "packages": {
     "@codelitdev/platform": {
-      "recommended": "0.1.0",
-      "supported": ">=0.1.0 <2",
-      "minimumSecure": "0.1.0"
+      "recommended": "0.1.0-alpha.0",
+      "supported": ">=0.1.0-alpha.0 <2",
+      "minimumSecure": "0.1.0-alpha.0"
     },
     "@codelitdev/observability": {
-      "recommended": "0.1.0",
-      "supported": ">=0.1.0 <2",
-      "minimumSecure": "0.1.0"
+      "recommended": "0.1.0-alpha.0",
+      "supported": ">=0.1.0-alpha.0 <2",
+      "minimumSecure": "0.1.0-alpha.0"
     },
     "@codelitdev/mcp-server-kit": {
-      "recommended": "0.1.0",
-      "supported": ">=0.1.0 <2",
-      "minimumSecure": "0.1.0"
+      "recommended": "0.1.0-alpha.0",
+      "supported": ">=0.1.0-alpha.0 <2",
+      "minimumSecure": "0.1.0-alpha.0"
     },
     "@codelitdev/platform-conformance": {
-      "recommended": "0.1.0",
-      "supported": ">=0.1.0 <2",
-      "minimumSecure": "0.1.0"
+      "recommended": "0.1.0-alpha.0",
+      "supported": ">=0.1.0-alpha.0 <2",
+      "minimumSecure": "0.1.0-alpha.0"
     },
     "@codelitdev/platform-cli": {
-      "recommended": "0.1.0",
-      "supported": ">=0.1.0 <2",
-      "minimumSecure": "0.1.0"
+      "recommended": "0.1.0-alpha.0",
+      "supported": ">=0.1.0-alpha.0 <2",
+      "minimumSecure": "0.1.0-alpha.0"
     },
     "@codelitdev/platform-preset": {
-      "recommended": "0.1.0",
-      "supported": ">=0.1.0 <1",
-      "minimumSecure": "0.1.0"
+      "recommended": "0.1.0-alpha.1",
+      "supported": ">=0.1.0-alpha.0 <1",
+      "minimumSecure": "0.1.0-alpha.1"
     },
     "@codelitdev/billing": {
-      "recommended": "0.1.0",
-      "supported": ">=0.1.0 <1",
-      "minimumSecure": "0.1.0"
+      "recommended": "0.1.0-alpha.4",
+      "supported": ">=0.1.0-alpha.4 <1",
+      "minimumSecure": "0.1.0-alpha.4"
     },
     "@codelitdev/oauth-server-kit": {
-      "recommended": "0.1.1",
-      "supported": ">=0.1.1 <1",
-      "minimumSecure": "0.1.1"
+      "recommended": "0.1.0-alpha.2",
+      "supported": ">=0.1.0-alpha.2 <1",
+      "minimumSecure": "0.1.0-alpha.2"
     },
     "@codelitdev/design-system": {
-      "recommended": "0.1.0",
-      "supported": ">=0.1.0 <1",
-      "minimumSecure": "0.1.0"
+      "recommended": "0.1.0-alpha.7",
+      "supported": ">=0.1.0-alpha.7 <1",
+      "minimumSecure": "0.1.0-alpha.7"
     }
   },
   "external": {

@@ -1,6 +1,6 @@
 {
   "name": "@codelitdev/platform-conformance",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.0",
   "description": "Shared Platform composition suites for product adapters",
   "author": "CodeLit",
   "type": "module",
@@ -27,7 +27,7 @@
     "tag": "latest"
   },
   "peerDependencies": {
-    "@codelitdev/platform": ">=0.1.0"
+    "@codelitdev/platform": ">=0.1.0-alpha.0"
   },
   "devDependencies": {
     "@codelitdev/platform": "workspace:*",

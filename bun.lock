@@ -78,7 +78,7 @@
     },
     "packages/billing": {
       "name": "@codelitdev/billing",
-      "version": "0.1.0",
+      "version": "0.1.0-alpha.4",
       "bin": {
         "codelit-billing": "./dist/cli/bin.js",
       },
@@ -104,7 +104,7 @@
     },
     "packages/design-system": {
       "name": "@codelitdev/design-system",
-      "version": "0.1.0",
+      "version": "0.1.0-alpha.7",
       "devDependencies": {
         "@types/react": "^19.2.17",
         "@types/react-dom": "^19.2.5",
@@ -122,7 +122,7 @@
     },
     "packages/mcp-server-kit": {
       "name": "@codelitdev/mcp-server-kit",
-      "version": "0.1.0",
+      "version": "0.1.0-alpha.0",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.30.0",
         "zod": "^3.25.76",
@@ -139,7 +139,7 @@
     },
     "packages/oauth-server-kit": {
       "name": "@codelitdev/oauth-server-kit",
-      "version": "0.1.1",
+      "version": "0.1.0-alpha.2",
       "devDependencies": {
         "@better-auth/core": "1.7.2",
         "@better-auth/oauth-provider": "1.7.2",
@@ -163,7 +163,7 @@
     },
     "packages/observability": {
       "name": "@codelitdev/observability",
-      "version": "0.1.0",
+      "version": "0.1.0-alpha.0",
       "dependencies": {
         "pino": "^9.6.0",
       },
@@ -188,7 +188,7 @@
     },
     "packages/platform": {
       "name": "@codelitdev/platform",
-      "version": "0.1.0",
+      "version": "0.1.0-alpha.0",
       "devDependencies": {
         "@types/bun": "^1.4.1",
         "@types/node": "^22.14.1",
@@ -197,7 +197,7 @@
     },
     "packages/platform-cli": {
       "name": "@codelitdev/platform-cli",
-      "version": "0.1.0",
+      "version": "0.1.0-alpha.1",
       "bin": {
         "codelit-platform": "./dist/bin.js",
       },
@@ -212,7 +212,7 @@
     },
     "packages/platform-conformance": {
       "name": "@codelitdev/platform-conformance",
-      "version": "0.1.0",
+      "version": "0.1.0-alpha.0",
       "devDependencies": {
         "@codelitdev/platform": "workspace:*",
         "@types/bun": "^1.4.1",
@@ -225,7 +225,7 @@
     },
     "packages/platform-preset": {
       "name": "@codelitdev/platform-preset",
-      "version": "0.1.0",
+      "version": "0.1.0-alpha.1",
       "devDependencies": {
         "@types/bun": "^1.4.1",
         "@types/node": "^22.14.1",
