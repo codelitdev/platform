@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+packages/*/public/r/
+packages/*/.design-sync/
+packages/*/docs/.source/
+packages/**/*.generated.ts
+packages/**/migrations/

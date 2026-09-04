@@ -1,0 +1,2 @@
+ALTER TABLE "billing_price_entries" ADD COLUMN "provider_trial_days" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "billing_price_entries" ADD CONSTRAINT "billing_price_entries_trial_days_check" CHECK ("billing_price_entries"."provider_trial_days" >= 0);

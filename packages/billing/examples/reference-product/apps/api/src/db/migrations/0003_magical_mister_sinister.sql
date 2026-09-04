@@ -1,0 +1,1 @@
+ALTER TABLE "billing_reconciliation_jobs" ADD CONSTRAINT "billing_reconciliation_jobs_operation_check" CHECK ("billing_reconciliation_jobs"."operation" IN ('reconcile', 'cancellation'));

@@ -1,0 +1,23 @@
+{
+    "name": "__PRODUCT_SLUG__",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "packageManager": "pnpm@10.22.0",
+    "pnpm": {
+        "overrides": {
+            "esbuild": "0.28.2",
+            "postcss": "8.5.28",
+            "qs": "6.16.0",
+            "ts-deepmerge": "8.0.0"
+        }
+    },
+    "scripts": {
+        "lint": "pnpm -r --if-present typecheck",
+        "typecheck": "pnpm -r --if-present typecheck",
+        "test": "pnpm -r --if-present test",
+        "build": "pnpm -r --if-present build",
+        "generate:check": "pnpm --filter @__PRODUCT_SLUG__/api check:drift",
+        "migrate": "node --import tsx apps/api/scripts/migrate.mjs"
+    }
+}

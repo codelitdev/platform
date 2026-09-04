@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "tabs",
+  "title": "Tabs",
+  "description": "CodeLit segmented tabs — muted pill group; the active trigger lifts onto a card surface.",
+  "dependencies": [
+    "radix-ui"
+  ],
+  "files": [
+    {
+      "path": "registry/codelit/ui/tabs.tsx",
+      "content": "import * as React from \"react\";\nimport { Tabs as TabsPrimitive } from \"radix-ui\";\n\nimport { cn } from \"@/lib/utils\";\n\n// CodeLit tabs — mirrors `.cl-tabs` (segmented). A muted pill group; the active\n// trigger lifts onto a card surface with a soft shadow.\nfunction Tabs({\n    className,\n    ...props\n}: React.ComponentProps<typeof TabsPrimitive.Root>) {\n    return (\n        <TabsPrimitive.Root\n            data-slot=\"tabs\"\n            className={cn(\"flex flex-col gap-2\", className)}\n            {...props}\n        />\n    );\n}\n\nfunction TabsList({\n    className,\n    ...props\n}: React.ComponentProps<typeof TabsPrimitive.List>) {\n    return (\n        <TabsPrimitive.List\n            data-slot=\"tabs-list\"\n            className={cn(\n                \"inline-flex w-fit items-center gap-0.5 rounded-[var(--radius)] bg-muted p-[3px]\",\n                className,\n            )}\n            {...props}\n        />\n    );\n}\n\nfunction TabsTrigger({\n    className,\n    ...props\n}: React.ComponentProps<typeof TabsPrimitive.Trigger>) {\n    return (\n        <TabsPrimitive.Trigger\n            data-slot=\"tabs-trigger\"\n            className={cn(\n                \"inline-flex items-center justify-center gap-1.5 rounded-[7px] px-3.5 py-[7px] text-[0.8125rem] font-semibold whitespace-nowrap text-muted-foreground outline-none transition-[background-color,color,box-shadow] hover:text-foreground focus-visible:shadow-[var(--shadow-focus)] disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-[var(--shadow-card)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4\",\n                className,\n            )}\n            {...props}\n        />\n    );\n}\n\nfunction TabsContent({\n    className,\n    ...props\n}: React.ComponentProps<typeof TabsPrimitive.Content>) {\n    return (\n        <TabsPrimitive.Content\n            data-slot=\"tabs-content\"\n            className={cn(\"flex-1 outline-none\", className)}\n            {...props}\n        />\n    );\n}\n\nexport { Tabs, TabsList, TabsTrigger, TabsContent };\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "input",
+  "title": "Input",
+  "description": "CodeLit text input with accent-wash focus ring and aria-invalid error state.",
+  "files": [
+    {
+      "path": "registry/codelit/ui/input.tsx",
+      "content": "import * as React from \"react\";\n\nimport { cn } from \"@/lib/utils\";\n\n// CodeLit text input — mirrors `.cl-input`. Focus shows an accent-wash ring;\n// set `aria-invalid` for the destructive error state. Pair with `label` and a\n// helper/error line for a full field.\nfunction Input({ className, type, ...props }: React.ComponentProps<\"input\">) {\n    return (\n        <input\n            type={type}\n            data-slot=\"input\"\n            className={cn(\n                \"h-9 w-full min-w-0 rounded-[var(--radius)] border border-input bg-card px-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:shadow-[0_0_0_3px_var(--primary-soft)] disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-50 aria-invalid:border-destructive aria-invalid:focus-visible:shadow-[0_0_0_3px_var(--destructive-soft)]\",\n                className,\n            )}\n            {...props}\n        />\n    );\n}\n\nexport { Input };\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

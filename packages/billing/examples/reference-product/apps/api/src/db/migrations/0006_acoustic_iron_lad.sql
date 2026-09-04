@@ -1,0 +1,1 @@
+ALTER TABLE "billing_checkout_attempts" ADD COLUMN "consumer_reference" text;

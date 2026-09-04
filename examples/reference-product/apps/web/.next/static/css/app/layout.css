@@ -1,0 +1,620 @@
+/*!*********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!../../../../packages/design-system/src/tokens/fonts.css ***!
+  \*********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/* CodeLit — webfonts (Google Fonts CDN; no binaries vendored) */
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Spline+Sans+Mono:wght@400;500;600&display=swap');
+
+/*!**********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!../../../../packages/design-system/src/tokens/colors.css ***!
+  \**********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/* CodeLit — color tokens. shadcn/ui variable convention: :root = light, .dark = dark. */
+
+:root {
+  /* Warm neutral ramp (amber-toned, chroma <= 0.015) */
+  --neutral-50: oklch(0.985 0.004 85);
+  --neutral-100: oklch(0.955 0.008 82);
+  --neutral-200: oklch(0.92 0.01 80);
+  --neutral-300: oklch(0.87 0.012 80);
+  --neutral-400: oklch(0.7 0.015 75);
+  --neutral-500: oklch(0.55 0.018 70);
+  --neutral-600: oklch(0.45 0.018 68);
+  --neutral-700: oklch(0.35 0.016 64);
+  --neutral-800: oklch(0.27 0.014 62);
+  --neutral-900: oklch(0.22 0.014 60);
+
+  /* Brand + product accents — shared L/C, hue varies */
+  --brand-amber: oklch(0.66 0.14 60);
+  --accent-courselit: oklch(0.6 0.14 30);
+  --accent-medialit: oklch(0.6 0.14 300);
+  --accent-sendlit: oklch(0.6 0.14 150);
+  --accent-frontlit: oklch(0.6 0.14 230);
+
+  /* shadcn semantic — light */
+  --background: oklch(0.975 0.006 80);
+  --foreground: oklch(0.24 0.02 60);
+  --card: oklch(0.995 0.003 85);
+  --card-foreground: oklch(0.24 0.02 60);
+  --popover: oklch(0.995 0.003 85);
+  --popover-foreground: oklch(0.24 0.02 60);
+  --primary: var(--brand-amber);
+  --primary-foreground: oklch(0.99 0.005 85);
+  --primary-soft: oklch(0.66 0.14 60 / 0.13);
+  --primary-hover: oklch(0.61 0.14 60);
+  --secondary: oklch(0.94 0.009 80);
+  --secondary-foreground: oklch(0.3 0.018 62);
+  --muted: oklch(0.94 0.009 80);
+  --muted-foreground: oklch(0.5 0.018 70);
+  --accent: oklch(0.94 0.009 80);
+  --accent-foreground: oklch(0.3 0.018 62);
+  --destructive: oklch(0.55 0.17 27);
+  --destructive-foreground: oklch(0.99 0.005 85);
+  --destructive-soft: oklch(0.55 0.17 27 / 0.12);
+  --success: oklch(0.56 0.13 150);
+  --success-soft: oklch(0.56 0.13 150 / 0.12);
+  --warning: oklch(0.66 0.13 75);
+  --warning-soft: oklch(0.66 0.13 75 / 0.15);
+  --border: oklch(0.9 0.012 80);
+  --input: oklch(0.87 0.012 80);
+  --ring: var(--primary);
+
+  --scrim: oklch(0.2 0.02 60 / 0.4);
+}
+
+.dark {
+  --background: oklch(0.2 0.014 60);
+  --foreground: oklch(0.93 0.008 80);
+  --card: oklch(0.24 0.015 60);
+  --card-foreground: oklch(0.93 0.008 80);
+  --popover: oklch(0.26 0.015 60);
+  --popover-foreground: oklch(0.93 0.008 80);
+  --primary: oklch(0.72 0.13 60);
+  --primary-foreground: oklch(0.2 0.04 60);
+  --primary-soft: oklch(0.72 0.13 60 / 0.16);
+  --primary-hover: oklch(0.77 0.13 60);
+  --secondary: oklch(0.29 0.015 62);
+  --secondary-foreground: oklch(0.88 0.01 80);
+  --muted: oklch(0.28 0.015 62);
+  --muted-foreground: oklch(0.66 0.015 75);
+  --accent: oklch(0.29 0.015 62);
+  --accent-foreground: oklch(0.88 0.01 80);
+  --destructive: oklch(0.62 0.17 27);
+  --destructive-foreground: oklch(0.99 0.005 85);
+  --destructive-soft: oklch(0.62 0.17 27 / 0.18);
+  --success: oklch(0.66 0.13 150);
+  --success-soft: oklch(0.66 0.13 150 / 0.16);
+  --warning: oklch(0.72 0.13 75);
+  --warning-soft: oklch(0.72 0.13 75 / 0.18);
+  --border: oklch(0.32 0.015 64);
+  --input: oklch(0.36 0.015 64);
+  --ring: var(--primary);
+
+  --scrim: oklch(0.1 0.01 60 / 0.55);
+}
+
+/*!************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!../../../../packages/design-system/src/tokens/products.css ***!
+  \************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/* CodeLit — per-product accent scopes.
+   Usage: <body data-product="courselit"> (optionally + class="dark").
+   No attribute = CodeLit amber. Only the accent family changes. */
+
+[data-product="courselit"] {
+  --primary: oklch(0.6 0.14 30);
+  --primary-foreground: oklch(0.99 0.005 85);
+  --primary-soft: oklch(0.6 0.14 30 / 0.12);
+  --primary-hover: oklch(0.55 0.14 30);
+  --ring: oklch(0.6 0.14 30);
+}
+.dark[data-product="courselit"], .dark [data-product="courselit"] {
+  --primary: oklch(0.72 0.13 30);
+  --primary-foreground: oklch(0.2 0.04 30);
+  --primary-soft: oklch(0.72 0.13 30 / 0.16);
+  --primary-hover: oklch(0.77 0.13 30);
+  --ring: oklch(0.72 0.13 30);
+}
+
+[data-product="medialit"] {
+  --primary: oklch(0.6 0.14 300);
+  --primary-foreground: oklch(0.99 0.005 85);
+  --primary-soft: oklch(0.6 0.14 300 / 0.12);
+  --primary-hover: oklch(0.55 0.14 300);
+  --ring: oklch(0.6 0.14 300);
+}
+.dark[data-product="medialit"], .dark [data-product="medialit"] {
+  --primary: oklch(0.72 0.13 300);
+  --primary-foreground: oklch(0.2 0.04 300);
+  --primary-soft: oklch(0.72 0.13 300 / 0.16);
+  --primary-hover: oklch(0.77 0.13 300);
+  --ring: oklch(0.72 0.13 300);
+}
+
+[data-product="sendlit"] {
+  --primary: oklch(0.6 0.14 150);
+  --primary-foreground: oklch(0.99 0.005 85);
+  --primary-soft: oklch(0.6 0.14 150 / 0.12);
+  --primary-hover: oklch(0.55 0.14 150);
+  --ring: oklch(0.6 0.14 150);
+}
+.dark[data-product="sendlit"], .dark [data-product="sendlit"] {
+  --primary: oklch(0.72 0.13 150);
+  --primary-foreground: oklch(0.2 0.04 150);
+  --primary-soft: oklch(0.72 0.13 150 / 0.16);
+  --primary-hover: oklch(0.77 0.13 150);
+  --ring: oklch(0.72 0.13 150);
+}
+
+[data-product="frontlit"] {
+  --primary: oklch(0.6 0.14 230);
+  --primary-foreground: oklch(0.99 0.005 85);
+  --primary-soft: oklch(0.6 0.14 230 / 0.12);
+  --primary-hover: oklch(0.55 0.14 230);
+  --ring: oklch(0.6 0.14 230);
+}
+.dark[data-product="frontlit"], .dark [data-product="frontlit"] {
+  --primary: oklch(0.72 0.13 230);
+  --primary-foreground: oklch(0.2 0.04 230);
+  --primary-soft: oklch(0.72 0.13 230 / 0.16);
+  --primary-hover: oklch(0.77 0.13 230);
+  --ring: oklch(0.72 0.13 230);
+}
+
+/*!**************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!../../../../packages/design-system/src/tokens/typography.css ***!
+  \**************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/* CodeLit — typography tokens. One workhorse sans + one mono. */
+
+:root {
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Spline Sans Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Type scale */
+  --text-display: 800 2.25rem/1.12 var(--font-sans);   /* 36px, -0.02em */
+  --text-h1: 700 1.75rem/1.2 var(--font-sans);          /* 28px, -0.02em */
+  --text-h2: 700 1.375rem/1.25 var(--font-sans);        /* 22px, -0.015em */
+  --text-h3: 600 1.125rem/1.3 var(--font-sans);         /* 18px */
+  --text-body: 400 0.9375rem/1.55 var(--font-sans);     /* 15px */
+  --text-body-sm: 400 0.875rem/1.5 var(--font-sans);    /* 14px */
+  --text-label: 600 0.8125rem/1.3 var(--font-sans);     /* 13px */
+  --text-caption: 400 0.75rem/1.4 var(--font-sans);     /* 12px */
+  --text-code: 400 0.8125rem/1.5 var(--font-mono);      /* 13px */
+  --text-eyebrow: 500 0.6875rem/1.3 var(--font-mono);   /* 11px mono, letter-spacing 0.08em, sentence case */
+
+  --tracking-tight: -0.02em;
+  --tracking-heading: -0.015em;
+  --tracking-eyebrow: 0.08em;
+}
+
+body {
+  margin: 0;
+  font: var(--text-body);
+  color: var(--foreground);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* No global `a` styling — this stylesheet is imported by full apps where bare
+   <a>/<Link> are routinely used for navigation and clickable cards, and a
+   blanket hover-underline breaks that UX. Opt in explicitly with .cl-link for
+   inline text links (prose, footnotes, etc.); interactive apps should use the
+   Button `link` variant / registry Button instead. */
+.cl-link { color: var(--primary); text-decoration: none; }
+.cl-link:hover { color: var(--primary-hover); text-decoration: underline; }
+
+code, kbd, pre { font: var(--text-code); }
+
+/*!**********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!../../../../packages/design-system/src/tokens/layout.css ***!
+  \**********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/* CodeLit — spacing, radii, shadows, motion. 4px grid. */
+
+:root {
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Radii */
+  --radius: 0.625rem;      /* 10px — controls, inputs, buttons */
+  --radius-sm: 6px;        /* chips, code spans, small tiles */
+  --radius-lg: 16px;       /* cards, dialogs */
+  --radius-full: 999px;    /* pills, badges, avatars */
+
+  /* Shadows — warm-tinted, soft */
+  --shadow-card: 0 2px 12px oklch(0.3 0.02 60 / 0.06);
+  --shadow-raised: 0 4px 20px oklch(0.3 0.02 60 / 0.1);
+  --shadow-popover: 0 8px 32px oklch(0.3 0.02 60 / 0.14);
+  --shadow-focus: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+}
+
+.dark {
+  --shadow-card: 0 2px 12px oklch(0 0 0 / 0.25);
+  --shadow-raised: 0 4px 20px oklch(0 0 0 / 0.35);
+  --shadow-popover: 0 8px 32px oklch(0 0 0 / 0.45);
+}
+
+/*!*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!../../../../packages/design-system/src/components.css ***!
+  \*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/* CodeLit — component class styles (backing the React primitives in components/core). */
+
+/* ---------- Button ---------- */
+.cl-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: 600 0.875rem/1 var(--font-sans);
+  border-radius: var(--radius); border: 1px solid transparent;
+  cursor: pointer; white-space: nowrap;
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.cl-btn:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.cl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.cl-btn--md { height: 36px; padding: 0 16px; }
+.cl-btn--sm { height: 30px; padding: 0 12px; font-size: 0.8125rem; }
+.cl-btn--lg { height: 42px; padding: 0 20px; font-size: 0.9375rem; }
+.cl-btn--primary { background: var(--primary); color: var(--primary-foreground); }
+.cl-btn--primary:hover:not(:disabled) { background: var(--primary-hover); }
+.cl-btn--secondary { background: var(--secondary); color: var(--secondary-foreground); }
+.cl-btn--secondary:hover:not(:disabled) { background: var(--border); }
+.cl-btn--outline { background: transparent; color: var(--foreground); border-color: var(--input); }
+.cl-btn--outline:hover:not(:disabled) { background: var(--muted); }
+.cl-btn--ghost { background: transparent; color: var(--foreground); }
+.cl-btn--ghost:hover:not(:disabled) { background: var(--muted); }
+.cl-btn--destructive { background: var(--destructive); color: var(--destructive-foreground); }
+.cl-btn--destructive:hover:not(:disabled) { filter: brightness(0.92); }
+.cl-btn--soft { background: var(--primary-soft); color: var(--primary); }
+.cl-btn--soft:hover:not(:disabled) { background: color-mix(in oklch, var(--primary-soft), var(--primary) 10%); }
+
+/* ---------- IconButton ---------- */
+.cl-iconbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius); border: 1px solid transparent;
+  background: transparent; color: var(--muted-foreground); cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.cl-iconbtn--md { width: 34px; height: 34px; }
+.cl-iconbtn--sm { width: 28px; height: 28px; }
+.cl-iconbtn:hover { background: var(--muted); color: var(--foreground); }
+.cl-iconbtn:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.cl-iconbtn--outline { border-color: var(--input); }
+
+/* ---------- Badge ---------- */
+.cl-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 600 0.75rem/1 var(--font-sans);
+  padding: 4px 10px; border-radius: var(--radius-full);
+}
+.cl-badge--default { background: var(--primary-soft); color: var(--primary); }
+.cl-badge--neutral { background: var(--muted); color: var(--muted-foreground); }
+.cl-badge--success { background: var(--success-soft); color: var(--success); }
+.cl-badge--warning { background: var(--warning-soft); color: var(--warning); }
+.cl-badge--destructive { background: var(--destructive-soft); color: var(--destructive); }
+.cl-badge--outline { background: transparent; color: var(--muted-foreground); box-shadow: inset 0 0 0 1px var(--border); }
+.cl-badge__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* ---------- Card ---------- */
+.cl-card {
+  background: var(--card); color: var(--card-foreground);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.cl-card__header { display: flex; flex-direction: column; gap: 4px; padding: 20px 20px 0; }
+.cl-card__title { font: 600 1rem/1.3 var(--font-sans); margin: 0; }
+.cl-card__description { font: 400 0.875rem/1.5 var(--font-sans); color: var(--muted-foreground); margin: 0; }
+.cl-card__content { padding: 20px; }
+.cl-card__footer { display: flex; align-items: center; gap: 10px; padding: 0 20px 20px; }
+
+/* ---------- Input / Textarea ---------- */
+.cl-field { display: flex; flex-direction: column; gap: 6px; }
+.cl-field__label { font: var(--text-label); color: var(--foreground); }
+.cl-field__hint { font: var(--text-caption); color: var(--muted-foreground); }
+.cl-field__error { font: var(--text-caption); color: var(--destructive); }
+.cl-input {
+  height: 36px; padding: 0 12px; width: 100%; box-sizing: border-box;
+  font: 400 0.875rem/1 var(--font-sans); color: var(--foreground);
+  background: var(--card); border: 1px solid var(--input); border-radius: var(--radius);
+  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.cl-input::placeholder { color: var(--muted-foreground); }
+.cl-input:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px var(--primary-soft); }
+.cl-input:disabled { opacity: 0.5; cursor: not-allowed; background: var(--muted); }
+.cl-input--invalid { border-color: var(--destructive); }
+.cl-input--invalid:focus { border-color: var(--destructive); box-shadow: 0 0 0 3px var(--destructive-soft); }
+textarea.cl-input { height: auto; min-height: 80px; padding: 10px 12px; line-height: 1.5; resize: vertical; }
+
+/* ---------- Select ---------- */
+.cl-select { position: relative; display: inline-flex; width: 100%; }
+.cl-select select {
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none; width: 100%; height: 36px; padding: 0 32px 0 12px;
+  font: 400 0.875rem/1 var(--font-sans); color: var(--foreground);
+  background: var(--card); border: 1px solid var(--input); border-radius: var(--radius); cursor: pointer;
+}
+.cl-select select:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px var(--primary-soft); }
+.cl-select__chevron { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted-foreground); display: flex; }
+
+/* ---------- Checkbox / Radio ---------- */
+.cl-check { display: inline-flex; align-items: flex-start; gap: 10px; cursor: pointer; font: var(--text-body-sm); }
+.cl-check input { position: absolute; opacity: 0; width: 0; height: 0; }
+.cl-check__box {
+  flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 5px;
+  border: 1.5px solid var(--input); background: var(--card);
+  display: grid; place-items: center; color: var(--primary-foreground);
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+.cl-check__box--radio { border-radius: 50%; }
+.cl-check input:checked + .cl-check__box { background: var(--primary); border-color: var(--primary); }
+.cl-check input:focus-visible + .cl-check__box { box-shadow: var(--shadow-focus); }
+.cl-check__radio-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary-foreground); opacity: 0; }
+.cl-check input:checked + .cl-check__box .cl-check__radio-dot { opacity: 1; }
+.cl-check__label { color: var(--foreground); }
+.cl-check__sub { display: block; font: var(--text-caption); color: var(--muted-foreground); margin-top: 2px; }
+.cl-check--disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- Switch ---------- */
+.cl-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font: var(--text-body-sm); }
+.cl-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.cl-switch__track {
+  flex: none; width: 36px; height: 21px; border-radius: var(--radius-full);
+  background: var(--input); position: relative;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.cl-switch__thumb {
+  position: absolute; top: 2.5px; left: 2.5px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--card); box-shadow: 0 1px 3px oklch(0.3 0.02 60 / 0.3);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.cl-switch input:checked + .cl-switch__track { background: var(--primary); }
+.cl-switch input:checked + .cl-switch__track .cl-switch__thumb { transform: translateX(15px); }
+.cl-switch input:focus-visible + .cl-switch__track { box-shadow: var(--shadow-focus); }
+
+/* ---------- Tabs ---------- */
+.cl-tabs__list {
+  display: inline-flex; gap: 2px; padding: 3px;
+  background: var(--muted); border-radius: var(--radius);
+}
+.cl-tabs__trigger {
+  font: 600 0.8125rem/1 var(--font-sans); color: var(--muted-foreground);
+  padding: 7px 14px; border-radius: 7px; border: none; background: transparent; cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.cl-tabs__trigger:hover { color: var(--foreground); }
+.cl-tabs__trigger[data-active="true"] { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-card); }
+.cl-tabs__list--underline { background: transparent; padding: 0; gap: 4px; border-bottom: 1px solid var(--border); border-radius: 0; }
+.cl-tabs__list--underline .cl-tabs__trigger { border-radius: 0; padding: 10px 12px; margin-bottom: -1px; border-bottom: 2px solid transparent; }
+.cl-tabs__list--underline .cl-tabs__trigger[data-active="true"] { background: transparent; box-shadow: none; border-bottom-color: var(--primary); color: var(--foreground); }
+
+/* ---------- Dialog ---------- */
+.cl-dialog__scrim {
+  position: fixed; inset: 0; background: var(--scrim);
+  display: grid; place-items: center; z-index: 50; padding: 24px;
+}
+.cl-dialog {
+  background: var(--card); color: var(--card-foreground);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover); width: 100%; max-width: 440px;
+  padding: 24px; box-sizing: border-box;
+}
+.cl-dialog__title { font: 600 1.125rem/1.3 var(--font-sans); margin: 0 0 6px; }
+.cl-dialog__description { font: var(--text-body-sm); color: var(--muted-foreground); margin: 0 0 20px; }
+.cl-dialog__footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+/* ---------- Toast ---------- */
+.cl-toast {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: var(--popover); color: var(--popover-foreground);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover); padding: 14px 16px; width: 340px; box-sizing: border-box;
+}
+.cl-toast__icon { flex: none; display: flex; margin-top: 1px; color: var(--primary); }
+.cl-toast--success .cl-toast__icon { color: var(--success); }
+.cl-toast--destructive .cl-toast__icon { color: var(--destructive); }
+.cl-toast__title { font: 600 0.875rem/1.3 var(--font-sans); margin: 0; }
+.cl-toast__description { font: var(--text-caption); color: var(--muted-foreground); margin: 2px 0 0; }
+
+/* ---------- Tooltip ---------- */
+.cl-tooltip-wrap { position: relative; display: inline-flex; }
+.cl-tooltip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: var(--foreground); color: var(--background);
+  font: 500 0.75rem/1.3 var(--font-sans); padding: 6px 10px; border-radius: var(--radius-sm);
+  white-space: nowrap; pointer-events: none; z-index: 60;
+}
+
+/* ---------- Loader ---------- */
+/* CodeLit — cl-loader: draw-in animation for <Loader> (src/components/feedback/Loader.tsx).
+   Each path sets stroke-dasharray:200 (safely larger than any real path length,
+   so it never falls back to a repeating dash pattern) and animation:cl-draw. */
+@keyframes cl-draw {
+  0%, 100% { stroke-dashoffset: 200; }
+  50% { stroke-dashoffset: 0; }
+}
+.cl-loader__path {
+  animation: cl-draw 1.8s ease-in-out infinite;
+}
+
+/*!***************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!../../../../packages/design-system/src/styles.css ***!
+  \***************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+
+
+/*!*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!../../../../node_modules/.pnpm/next@15.5.25_@babel+core@7.29.7_supports-color@7.2.0__@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./app/globals.css ***!
+  \*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+:root {
+  --ink: #182230;
+  --muted: #667085;
+  --line: #e4e7ec;
+  --surface: #ffffff;
+  --canvas: #f5f7fa;
+  --accent: #c9781e;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  min-height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+a {
+  color: #9a5a12;
+}
+main {
+  width: min(100% - 32px, 980px);
+  margin: 0 auto;
+  padding: 48px 0;
+}
+.page-shell {
+  display: grid;
+  grid-gap: 28px;
+  gap: 28px;
+}
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 40px);
+  letter-spacing: -0.03em;
+}
+h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.subtitle {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+.card {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(16 24 40 / 5%);
+}
+.stack {
+  display: grid;
+  grid-gap: 18px;
+  gap: 18px;
+}
+.toolbar,
+form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+label {
+  display: grid;
+  grid-gap: 7px;
+  gap: 7px;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 600;
+}
+input,
+select,
+textarea {
+  min-height: 42px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 3px solid rgb(201 120 30 / 18%);
+  border-color: var(--accent);
+}
+.field {
+  flex: 1 1 220px;
+}
+.muted {
+  color: var(--muted);
+}
+.note-list {
+  display: grid;
+  grid-gap: 12px;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.note-item {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fcfcfd;
+}
+.note-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+.auth-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding-block: 24px;
+}
+.auth-card {
+  width: min(100%, 460px);
+}
+.auth-card form {
+  display: grid;
+  align-items: stretch;
+}
+.auth-card details {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.auth-card summary {
+  cursor: pointer;
+  color: #9a5a12;
+  font-weight: 700;
+}
+.auth-card small {
+  color: var(--muted);
+}
+

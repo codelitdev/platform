@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "switch",
+  "title": "Switch",
+  "description": "CodeLit toggle switch — 36×21 track that turns the product accent when on.",
+  "dependencies": [
+    "radix-ui"
+  ],
+  "files": [
+    {
+      "path": "registry/codelit/ui/switch.tsx",
+      "content": "import * as React from \"react\";\nimport { Switch as SwitchPrimitive } from \"radix-ui\";\n\nimport { cn } from \"@/lib/utils\";\n\n// CodeLit switch — mirrors `.cl-switch`. 36×21 track that turns the product\n// accent when on, with a raised card-colored thumb.\nfunction Switch({\n    className,\n    ...props\n}: React.ComponentProps<typeof SwitchPrimitive.Root>) {\n    return (\n        <SwitchPrimitive.Root\n            data-slot=\"switch\"\n            className={cn(\n                \"peer inline-flex h-[21px] w-9 shrink-0 items-center rounded-full bg-input p-[2.5px] outline-none transition-colors focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary\",\n                className,\n            )}\n            {...props}\n        >\n            <SwitchPrimitive.Thumb className=\"pointer-events-none block size-4 rounded-full bg-card shadow-[0_1px_3px_oklch(0.3_0.02_60/0.3)] transition-transform data-[state=checked]:translate-x-[15px] data-[state=unchecked]:translate-x-0\" />\n        </SwitchPrimitive.Root>\n    );\n}\n\nexport { Switch };\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

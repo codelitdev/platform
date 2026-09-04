@@ -1,0 +1,25 @@
+{
+  "projectId": "9e6145b9-ae78-4bbe-90d2-9c31d6108609",
+  "shape": "package",
+  "pkg": "@codelitdev/design-system",
+  "cssEntry": ".design-sync/.cache/compiled-styles.css",
+  "readmeHeader": ".design-sync/conventions.md",
+  "docsMap": {
+    "Button": "src/components/actions/Button.prompt.md",
+    "IconButton": "src/components/actions/IconButton.prompt.md",
+    "Badge": "src/components/display/Badge.prompt.md",
+    "Card": "src/components/display/Card.prompt.md",
+    "Tabs": "src/components/display/Tabs.prompt.md",
+    "Dialog": "src/components/feedback/Dialog.prompt.md",
+    "Toast": "src/components/feedback/Toast.prompt.md",
+    "Tooltip": "src/components/feedback/Tooltip.prompt.md",
+    "Checkbox": "src/components/forms/Checkbox.prompt.md",
+    "Input": "src/components/forms/Input.prompt.md",
+    "Radio": "src/components/forms/Radio.prompt.md",
+    "Select": "src/components/forms/Select.prompt.md",
+    "Switch": "src/components/forms/Switch.prompt.md"
+  },
+  "overrides": {
+    "Dialog": { "cardMode": "single", "viewport": "480x420" }
+  }
+}

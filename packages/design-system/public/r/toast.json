@@ -1,0 +1,18 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "toast",
+  "title": "Toast",
+  "description": "CodeLit notification card — default/success/destructive with a leading icon. Presentational; drive with your own toast queue.",
+  "dependencies": [
+    "class-variance-authority",
+    "lucide-react"
+  ],
+  "files": [
+    {
+      "path": "registry/codelit/ui/toast.tsx",
+      "content": "import * as React from \"react\";\nimport { cva, type VariantProps } from \"class-variance-authority\";\nimport { InfoIcon, CheckCircle2Icon, AlertCircleIcon } from \"lucide-react\";\n\nimport { cn } from \"@/lib/utils\";\n\n// CodeLit toast — mirrors `.cl-toast`. A presentational notification card; render\n// it inside your app's toast stack / a fixed bottom-right region. For a full\n// toaster, drive these with your queue of choice (e.g. sonner) or render directly.\nconst toastIconVariants = cva(\"mt-0.5 flex shrink-0 [&_svg]:size-4\", {\n    variants: {\n        variant: {\n            default: \"text-primary\",\n            success: \"text-[var(--success)]\",\n            destructive: \"text-destructive\",\n        },\n    },\n    defaultVariants: { variant: \"default\" },\n});\n\nconst icons = {\n    default: InfoIcon,\n    success: CheckCircle2Icon,\n    destructive: AlertCircleIcon,\n} as const;\n\nfunction Toast({\n    className,\n    variant = \"default\",\n    title,\n    description,\n    icon,\n    ...props\n}: Omit<React.ComponentProps<\"div\">, \"title\"> &\n    VariantProps<typeof toastIconVariants> & {\n        title?: React.ReactNode;\n        description?: React.ReactNode;\n        icon?: React.ReactNode;\n    }) {\n    const Icon = icons[variant ?? \"default\"];\n    return (\n        <div\n            data-slot=\"toast\"\n            role=\"status\"\n            className={cn(\n                \"flex w-[340px] items-start gap-3 rounded-[var(--radius-lg)] border bg-popover p-[14px_16px] text-popover-foreground shadow-[var(--shadow-popover)]\",\n                className,\n            )}\n            {...props}\n        >\n            <span className={cn(toastIconVariants({ variant }))}>\n                {icon ?? <Icon />}\n            </span>\n            <div className=\"min-w-0 flex-1\">\n                {title && (\n                    <p className=\"text-sm font-semibold\">{title}</p>\n                )}\n                {description && (\n                    <p className=\"mt-0.5 text-xs text-muted-foreground\">\n                        {description}\n                    </p>\n                )}\n            </div>\n        </div>\n    );\n}\n\nexport { Toast };\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

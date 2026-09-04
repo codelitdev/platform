@@ -1,0 +1,49 @@
+{
+    "name": "@codelitdev/platform",
+    "version": "0.1.0-alpha.0",
+    "description": "Composition kernel for CodeLit Platform products",
+    "author": "CodeLit",
+    "type": "module",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/codelitdev/platform.git",
+        "directory": "packages/platform"
+    },
+    "homepage": "https://github.com/codelitdev/platform/tree/main/packages/platform#readme",
+    "bugs": {
+        "url": "https://github.com/codelitdev/platform/issues"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+        }
+    },
+    "files": ["dist"],
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:packed": "node scripts/packed-consumer.mjs",
+        "typecheck": "tsc -p tsconfig.test.json --noEmit",
+        "lint": "eslint . --quiet",
+        "prepublishOnly": "pnpm build"
+    },
+    "publishConfig": {
+        "access": "public",
+        "tag": "alpha"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@types/node": "^22.14.1",
+        "eslint": "^10.9.1",
+        "eslint-config-prettier": "^8.5.0",
+        "eslint-plugin-unused-imports": "^4.3.0",
+        "globals": "^17.11.0",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.68.0",
+        "vitest": "^4.1.9"
+    }
+}

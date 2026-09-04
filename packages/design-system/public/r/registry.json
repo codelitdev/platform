@@ -1,0 +1,132 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "codelit",
+  "homepage": "https://github.com/codelitdev/platform/tree/main/packages/design-system",
+  "items": [
+    {
+      "name": "button",
+      "type": "registry:ui",
+      "title": "Button",
+      "description": "CodeLit button — primary, secondary, outline, ghost, soft, and destructive variants in sm/md/lg. Styled from design-system tokens.",
+      "dependencies": ["class-variance-authority", "radix-ui"],
+      "files": [{ "path": "registry/codelit/ui/button.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "icon-button",
+      "type": "registry:ui",
+      "title": "Icon Button",
+      "description": "CodeLit icon-only square button for toolbars, table rows, and headers — ghost/outline, sm/md.",
+      "dependencies": ["class-variance-authority", "radix-ui"],
+      "files": [{ "path": "registry/codelit/ui/icon-button.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "dropdown-menu",
+      "type": "registry:ui",
+      "title": "Dropdown Menu",
+      "description": "CodeLit dropdown menu — matches the Select popover treatment (token-radius, popover shadow, muted item hover). Full Radix parts incl. checkbox/radio items and submenus.",
+      "dependencies": ["radix-ui", "lucide-react"],
+      "files": [{ "path": "registry/codelit/ui/dropdown-menu.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "badge",
+      "type": "registry:ui",
+      "title": "Badge",
+      "description": "CodeLit status pill on a soft color wash — default, neutral, success, warning, destructive, outline. Set `dot` for a status indicator.",
+      "dependencies": ["class-variance-authority"],
+      "files": [{ "path": "registry/codelit/ui/badge.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "card",
+      "type": "registry:ui",
+      "title": "Card",
+      "description": "CodeLit content surface — border, soft warm shadow, 16px radius. Compose with CardHeader/Title/Description/Content/Footer.",
+      "files": [{ "path": "registry/codelit/ui/card.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "input",
+      "type": "registry:ui",
+      "title": "Input",
+      "description": "CodeLit text input with accent-wash focus ring and aria-invalid error state.",
+      "files": [{ "path": "registry/codelit/ui/input.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "textarea",
+      "type": "registry:ui",
+      "title": "Textarea",
+      "description": "CodeLit multiline input — matches Input's treatment, vertical resize.",
+      "files": [{ "path": "registry/codelit/ui/textarea.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "label",
+      "type": "registry:ui",
+      "title": "Label",
+      "description": "CodeLit form label (13px semibold).",
+      "dependencies": ["radix-ui"],
+      "files": [{ "path": "registry/codelit/ui/label.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "checkbox",
+      "type": "registry:ui",
+      "title": "Checkbox",
+      "description": "CodeLit checkbox — 18px box, 5px radius, fills with the product accent when checked.",
+      "dependencies": ["radix-ui", "lucide-react"],
+      "files": [{ "path": "registry/codelit/ui/checkbox.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "radio-group",
+      "type": "registry:ui",
+      "title": "Radio Group",
+      "description": "CodeLit radio group — accent-filled selected item with a light center dot.",
+      "dependencies": ["radix-ui"],
+      "files": [{ "path": "registry/codelit/ui/radio-group.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "switch",
+      "type": "registry:ui",
+      "title": "Switch",
+      "description": "CodeLit toggle switch — 36×21 track that turns the product accent when on.",
+      "dependencies": ["radix-ui"],
+      "files": [{ "path": "registry/codelit/ui/switch.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "select",
+      "type": "registry:ui",
+      "title": "Select",
+      "description": "CodeLit Radix select — trigger matches Input, token-styled popover with checkmark items.",
+      "dependencies": ["radix-ui", "lucide-react"],
+      "files": [{ "path": "registry/codelit/ui/select.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "tabs",
+      "type": "registry:ui",
+      "title": "Tabs",
+      "description": "CodeLit segmented tabs — muted pill group; the active trigger lifts onto a card surface.",
+      "dependencies": ["radix-ui"],
+      "files": [{ "path": "registry/codelit/ui/tabs.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "dialog",
+      "type": "registry:ui",
+      "title": "Dialog",
+      "description": "CodeLit modal dialog on a warm scrim — 16px radius, popover shadow, close button.",
+      "dependencies": ["radix-ui", "lucide-react"],
+      "files": [{ "path": "registry/codelit/ui/dialog.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "tooltip",
+      "type": "registry:ui",
+      "title": "Tooltip",
+      "description": "CodeLit tooltip — small dark chip above the target on hover.",
+      "dependencies": ["radix-ui"],
+      "files": [{ "path": "registry/codelit/ui/tooltip.tsx", "type": "registry:ui" }]
+    },
+    {
+      "name": "toast",
+      "type": "registry:ui",
+      "title": "Toast",
+      "description": "CodeLit notification card — default/success/destructive with a leading icon. Presentational; drive with your own toast queue.",
+      "dependencies": ["class-variance-authority", "lucide-react"],
+      "files": [{ "path": "registry/codelit/ui/toast.tsx", "type": "registry:ui" }]
+    }
+  ]
+}

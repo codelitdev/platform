@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"../../../../packages/observability/dist/browser.js -> posthog-js\":{\"id\":\"../../../../packages/observability/dist/browser.js -> posthog-js\",\"files\":[\"static/chunks/_app-pages-browser_node_modules_pnpm_posthog-js_1_425_1__types_react_19_2_18_react_19_2_8_nod-19c446.js\"]}}"

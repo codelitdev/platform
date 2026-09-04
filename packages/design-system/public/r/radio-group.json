@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "radio-group",
+  "title": "Radio Group",
+  "description": "CodeLit radio group — accent-filled selected item with a light center dot.",
+  "dependencies": [
+    "radix-ui"
+  ],
+  "files": [
+    {
+      "path": "registry/codelit/ui/radio-group.tsx",
+      "content": "import * as React from \"react\";\nimport { RadioGroup as RadioGroupPrimitive } from \"radix-ui\";\n\nimport { cn } from \"@/lib/utils\";\n\n// CodeLit radio group — mirrors `.cl-check__box--radio`. The selected item fills\n// with the product accent and shows a light center dot.\nfunction RadioGroup({\n    className,\n    ...props\n}: React.ComponentProps<typeof RadioGroupPrimitive.Root>) {\n    return (\n        <RadioGroupPrimitive.Root\n            data-slot=\"radio-group\"\n            className={cn(\"grid gap-3\", className)}\n            {...props}\n        />\n    );\n}\n\nfunction RadioGroupItem({\n    className,\n    ...props\n}: React.ComponentProps<typeof RadioGroupPrimitive.Item>) {\n    return (\n        <RadioGroupPrimitive.Item\n            data-slot=\"radio-group-item\"\n            className={cn(\n                \"aspect-square size-[18px] shrink-0 rounded-full border-[1.5px] border-input bg-card outline-none transition-[background-color,border-color] focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:bg-primary\",\n                className,\n            )}\n            {...props}\n        >\n            <RadioGroupPrimitive.Indicator className=\"flex items-center justify-center\">\n                <span className=\"size-[7px] rounded-full bg-[var(--primary-foreground)]\" />\n            </RadioGroupPrimitive.Indicator>\n        </RadioGroupPrimitive.Item>\n    );\n}\n\nexport { RadioGroup, RadioGroupItem };\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

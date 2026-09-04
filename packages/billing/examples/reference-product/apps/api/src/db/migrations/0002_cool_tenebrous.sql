@@ -1,0 +1,1 @@
+ALTER TABLE "billing_reconciliation_jobs" ADD COLUMN "operation" text DEFAULT 'reconcile' NOT NULL;

@@ -1,0 +1,118 @@
+{
+    "name": "@codelitdev/billing",
+    "version": "0.1.0-alpha.3",
+    "description": "Provider-neutral billing engine for CodeLit products",
+    "author": "CodeLit",
+    "type": "module",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/codelitdev/platform.git",
+        "directory": "packages/billing"
+    },
+    "homepage": "https://github.com/codelitdev/platform/tree/main/packages/billing#readme",
+    "bugs": {
+        "url": "https://github.com/codelitdev/platform/issues"
+    },
+    "bin": {
+        "codelit-billing": "./dist/cli/bin.js"
+    },
+    "exports": {
+        "./core": {
+            "types": "./dist/core/index.d.ts",
+            "import": "./dist/core/index.js",
+            "default": "./dist/core/index.js"
+        },
+        "./catalog": {
+            "types": "./dist/catalog/index.d.ts",
+            "import": "./dist/catalog/index.js",
+            "default": "./dist/catalog/index.js"
+        },
+        "./config": {
+            "types": "./dist/config/index.d.ts",
+            "import": "./dist/config/index.js",
+            "default": "./dist/config/index.js"
+        },
+        "./drizzle": {
+            "types": "./dist/adapters/drizzle/index.d.ts",
+            "import": "./dist/adapters/drizzle/index.js",
+            "default": "./dist/adapters/drizzle/index.js"
+        },
+        "./workflows": {
+            "types": "./dist/workflows/index.d.ts",
+            "import": "./dist/workflows/index.js",
+            "default": "./dist/workflows/index.js"
+        },
+        "./operations": {
+            "types": "./dist/operations/index.d.ts",
+            "import": "./dist/operations/index.js",
+            "default": "./dist/operations/index.js"
+        },
+        "./providers": {
+            "types": "./dist/providers/index.d.ts",
+            "import": "./dist/providers/index.js",
+            "default": "./dist/providers/index.js"
+        },
+        "./providers/dodo": {
+            "types": "./dist/providers/dodo/index.d.ts",
+            "import": "./dist/providers/dodo/index.js",
+            "default": "./dist/providers/dodo/index.js"
+        },
+        "./testing": {
+            "types": "./dist/testing/index.d.ts",
+            "import": "./dist/testing/index.js",
+            "default": "./dist/testing/index.js"
+        }
+    },
+    "files": [
+        "dist",
+        "docs/architecture.md",
+        "docs/decisions",
+        "docs/runbooks.md"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:packed": "node scripts/packed-consumer.mjs",
+        "typecheck": "tsc -p tsconfig.test.json --noEmit",
+        "lint": "eslint . --quiet",
+        "lint-staged": "lint-staged",
+        "prettier": "prettier --write .",
+        "generate": "tsx src/cli/bin.ts generate",
+        "prepublishOnly": "pnpm build"
+    },
+    "publishConfig": {
+        "access": "public",
+        "tag": "alpha"
+    },
+    "dependencies": {
+        "drizzle-orm": "^0.45.2",
+        "nanoid": "^5.1.6",
+        "tsx": "^4.20.6",
+        "zod": "^3.25.76"
+    },
+    "peerDependencies": {
+        "dodopayments": "^2.48.0"
+    },
+    "peerDependenciesMeta": {
+        "dodopayments": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@electric-sql/pglite": "^0.2.17",
+        "@eslint/js": "^10.0.1",
+        "@types/node": "^22.14.1",
+        "dodopayments": "^2.48.0",
+        "drizzle-kit": "^0.31.4",
+        "eslint": "^10.9.1",
+        "eslint-config-prettier": "^8.5.0",
+        "eslint-plugin-unused-imports": "^4.3.0",
+        "globals": "^17.11.0",
+        "prettier": "^3.0.2",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.68.0",
+        "vitest": "^4.1.9"
+    }
+}

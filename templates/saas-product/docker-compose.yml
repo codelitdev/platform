@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: __PRODUCT_SLUG__
+      POSTGRES_PASSWORD: __PRODUCT_SLUG__
+      POSTGRES_DB: __PRODUCT_SLUG__
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U __PRODUCT_SLUG__ -d __PRODUCT_SLUG__"]
+      interval: 5s
+      timeout: 5s
+      retries: 10

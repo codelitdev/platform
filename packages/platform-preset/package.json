@@ -1,0 +1,39 @@
+{
+    "name": "@codelitdev/platform-preset",
+    "version": "1.0.0-alpha.0",
+    "description": "Compatibility bill of materials for CodeLit Platform packages",
+    "author": "CodeLit",
+    "type": "module",
+    "license": "MIT",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+        },
+        "./manifest.json": "./dist/manifest.json"
+    },
+    "files": ["dist"],
+    "scripts": {
+        "build": "tsc -p tsconfig.json && node -e \"import('node:fs').then(fs=>fs.copyFileSync('src/manifest.json','dist/manifest.json'))\"",
+        "test": "vitest run",
+        "test:packed": "node scripts/packed-consumer.mjs",
+        "typecheck": "tsc -p tsconfig.test.json --noEmit",
+        "lint": "eslint . --quiet"
+    },
+    "publishConfig": {
+        "access": "public",
+        "tag": "alpha"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@types/node": "^22.14.1",
+        "eslint": "^10.9.1",
+        "eslint-config-prettier": "^8.5.0",
+        "eslint-plugin-unused-imports": "^4.3.0",
+        "globals": "^17.11.0",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.68.0",
+        "vitest": "^4.1.9"
+    }
+}

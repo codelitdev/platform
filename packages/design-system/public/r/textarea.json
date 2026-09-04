@@ -1,0 +1,14 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "textarea",
+  "title": "Textarea",
+  "description": "CodeLit multiline input — matches Input's treatment, vertical resize.",
+  "files": [
+    {
+      "path": "registry/codelit/ui/textarea.tsx",
+      "content": "import * as React from \"react\";\n\nimport { cn } from \"@/lib/utils\";\n\n// CodeLit textarea — the multiline form of `.cl-input`. Same border/focus\n// treatment; vertical resize, 80px min height.\nfunction Textarea({ className, ...props }: React.ComponentProps<\"textarea\">) {\n    return (\n        <textarea\n            data-slot=\"textarea\"\n            className={cn(\n                \"min-h-20 w-full resize-y rounded-[var(--radius)] border border-input bg-card px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:shadow-[0_0_0_3px_var(--primary-soft)] disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-50 aria-invalid:border-destructive aria-invalid:focus-visible:shadow-[0_0_0_3px_var(--destructive-soft)]\",\n                className,\n            )}\n            {...props}\n        />\n    );\n}\n\nexport { Textarea };\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

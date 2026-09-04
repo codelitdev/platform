@@ -1,0 +1,14 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "card",
+  "title": "Card",
+  "description": "CodeLit content surface — border, soft warm shadow, 16px radius. Compose with CardHeader/Title/Description/Content/Footer.",
+  "files": [
+    {
+      "path": "registry/codelit/ui/card.tsx",
+      "content": "import * as React from \"react\";\n\nimport { cn } from \"@/lib/utils\";\n\n// CodeLit card — mirrors the design system's `.cl-card` spec: border + soft warm\n// shadow + 16px radius. Compose with the sub-parts, or pass only children for a\n// plain surface. Values resolve from design-system tokens\n// (@codelitdev/design-system/styles.css).\nfunction Card({ className, ...props }: React.ComponentProps<\"div\">) {\n    return (\n        <div\n            data-slot=\"card\"\n            className={cn(\n                \"rounded-[var(--radius-lg)] border bg-card text-card-foreground shadow-[var(--shadow-card)]\",\n                className,\n            )}\n            {...props}\n        />\n    );\n}\n\nfunction CardHeader({ className, ...props }: React.ComponentProps<\"div\">) {\n    return (\n        <div\n            data-slot=\"card-header\"\n            className={cn(\"flex flex-col gap-1 px-5 pt-5\", className)}\n            {...props}\n        />\n    );\n}\n\nfunction CardTitle({ className, ...props }: React.ComponentProps<\"div\">) {\n    return (\n        <div\n            data-slot=\"card-title\"\n            className={cn(\"text-base leading-tight font-semibold\", className)}\n            {...props}\n        />\n    );\n}\n\nfunction CardDescription({ className, ...props }: React.ComponentProps<\"div\">) {\n    return (\n        <div\n            data-slot=\"card-description\"\n            className={cn(\"text-sm text-muted-foreground\", className)}\n            {...props}\n        />\n    );\n}\n\nfunction CardContent({ className, ...props }: React.ComponentProps<\"div\">) {\n    return (\n        <div data-slot=\"card-content\" className={cn(\"p-5\", className)} {...props} />\n    );\n}\n\nfunction CardFooter({ className, ...props }: React.ComponentProps<\"div\">) {\n    return (\n        <div\n            data-slot=\"card-footer\"\n            className={cn(\"flex items-center gap-2.5 px-5 pb-5\", className)}\n            {...props}\n        />\n    );\n}\n\nexport {\n    Card,\n    CardHeader,\n    CardTitle,\n    CardDescription,\n    CardContent,\n    CardFooter,\n};\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

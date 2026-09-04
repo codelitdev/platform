@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "tooltip",
+  "title": "Tooltip",
+  "description": "CodeLit tooltip — small dark chip above the target on hover.",
+  "dependencies": [
+    "radix-ui"
+  ],
+  "files": [
+    {
+      "path": "registry/codelit/ui/tooltip.tsx",
+      "content": "import * as React from \"react\";\nimport { Tooltip as TooltipPrimitive } from \"radix-ui\";\n\nimport { cn } from \"@/lib/utils\";\n\n// CodeLit tooltip — mirrors `.cl-tooltip`. Small dark chip above the target.\nfunction TooltipProvider({\n    delayDuration = 200,\n    ...props\n}: React.ComponentProps<typeof TooltipPrimitive.Provider>) {\n    return (\n        <TooltipPrimitive.Provider\n            data-slot=\"tooltip-provider\"\n            delayDuration={delayDuration}\n            {...props}\n        />\n    );\n}\n\nfunction Tooltip(props: React.ComponentProps<typeof TooltipPrimitive.Root>) {\n    return (\n        <TooltipProvider>\n            <TooltipPrimitive.Root data-slot=\"tooltip\" {...props} />\n        </TooltipProvider>\n    );\n}\n\nfunction TooltipTrigger(\n    props: React.ComponentProps<typeof TooltipPrimitive.Trigger>,\n) {\n    return <TooltipPrimitive.Trigger data-slot=\"tooltip-trigger\" {...props} />;\n}\n\nfunction TooltipContent({\n    className,\n    sideOffset = 6,\n    children,\n    ...props\n}: React.ComponentProps<typeof TooltipPrimitive.Content>) {\n    return (\n        <TooltipPrimitive.Portal>\n            <TooltipPrimitive.Content\n                data-slot=\"tooltip-content\"\n                sideOffset={sideOffset}\n                className={cn(\n                    \"z-50 w-fit rounded-[var(--radius-sm)] bg-foreground px-2.5 py-1.5 text-xs font-medium text-background data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95\",\n                    className,\n                )}\n                {...props}\n            >\n                {children}\n            </TooltipPrimitive.Content>\n        </TooltipPrimitive.Portal>\n    );\n}\n\nexport { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

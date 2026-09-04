@@ -1,0 +1,18 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "checkbox",
+  "title": "Checkbox",
+  "description": "CodeLit checkbox — 18px box, 5px radius, fills with the product accent when checked.",
+  "dependencies": [
+    "radix-ui",
+    "lucide-react"
+  ],
+  "files": [
+    {
+      "path": "registry/codelit/ui/checkbox.tsx",
+      "content": "import * as React from \"react\";\nimport { Checkbox as CheckboxPrimitive } from \"radix-ui\";\nimport { CheckIcon } from \"lucide-react\";\n\nimport { cn } from \"@/lib/utils\";\n\n// CodeLit checkbox — mirrors `.cl-check__box`. 18px box with a 5px radius that\n// fills with the product accent when checked.\nfunction Checkbox({\n    className,\n    ...props\n}: React.ComponentProps<typeof CheckboxPrimitive.Root>) {\n    return (\n        <CheckboxPrimitive.Root\n            data-slot=\"checkbox\"\n            className={cn(\n                \"peer size-[18px] shrink-0 rounded-[5px] border-[1.5px] border-input bg-card outline-none transition-[background-color,border-color] focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground\",\n                className,\n            )}\n            {...props}\n        >\n            <CheckboxPrimitive.Indicator className=\"flex items-center justify-center text-current\">\n                <CheckIcon className=\"size-3.5\" strokeWidth={3.5} />\n            </CheckboxPrimitive.Indicator>\n        </CheckboxPrimitive.Root>\n    );\n}\n\nexport { Checkbox };\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

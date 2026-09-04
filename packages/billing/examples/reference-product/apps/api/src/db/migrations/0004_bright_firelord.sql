@@ -1,0 +1,2 @@
+ALTER TABLE "billing_reconciliation_jobs" DROP CONSTRAINT "billing_reconciliation_jobs_operation_check";--> statement-breakpoint
+ALTER TABLE "billing_reconciliation_jobs" ADD CONSTRAINT "billing_reconciliation_jobs_operation_check" CHECK ("billing_reconciliation_jobs"."operation" = 'reconcile' OR ("billing_reconciliation_jobs"."operation" = 'cancellation' AND "billing_reconciliation_jobs"."subscription_id" IS NOT NULL));

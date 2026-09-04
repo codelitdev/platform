@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "badge",
+  "title": "Badge",
+  "description": "CodeLit status pill on a soft color wash — default, neutral, success, warning, destructive, outline. Set `dot` for a status indicator.",
+  "dependencies": [
+    "class-variance-authority"
+  ],
+  "files": [
+    {
+      "path": "registry/codelit/ui/badge.tsx",
+      "content": "import * as React from \"react\";\nimport { cva, type VariantProps } from \"class-variance-authority\";\n\nimport { cn } from \"@/lib/utils\";\n\n// CodeLit badge — mirrors the design system's `.cl-badge` spec: a rounded pill on a\n// soft color wash. Set `dot` for a leading status dot in the current text color.\n// Soft washes resolve from design-system tokens (@codelitdev/design-system/styles.css).\nconst badgeVariants = cva(\n    \"inline-flex w-fit shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold [&>svg]:pointer-events-none [&>svg]:size-3\",\n    {\n        variants: {\n            variant: {\n                default: \"bg-[var(--primary-soft)] text-primary\",\n                neutral: \"bg-muted text-muted-foreground\",\n                success: \"bg-[var(--success-soft)] text-[var(--success)]\",\n                warning: \"bg-[var(--warning-soft)] text-[var(--warning)]\",\n                destructive: \"bg-[var(--destructive-soft)] text-destructive\",\n                outline:\n                    \"text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]\",\n            },\n        },\n        defaultVariants: {\n            variant: \"default\",\n        },\n    },\n);\n\nfunction Badge({\n    className,\n    variant,\n    dot = false,\n    children,\n    ...props\n}: React.ComponentProps<\"span\"> &\n    VariantProps<typeof badgeVariants> & {\n        dot?: boolean;\n    }) {\n    return (\n        <span\n            data-slot=\"badge\"\n            className={cn(badgeVariants({ variant, className }))}\n            {...props}\n        >\n            {dot && (\n                <span aria-hidden className=\"size-1.5 rounded-full bg-current\" />\n            )}\n            {children}\n        </span>\n    );\n}\n\nexport { Badge, badgeVariants };\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

@@ -1,0 +1,52 @@
+{
+  "name": "@codelitdev/design-system",
+  "version": "0.1.0-alpha.6",
+  "description": "Shared CodeLit design tokens, Tailwind preset, and React primitives for CourseLit, MediaLit, SendLit, and FrontLit.",
+  "license": "Apache-2.0",
+  "author": "CodeLit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codelitdev/platform.git",
+    "directory": "packages/design-system"
+  },
+  "homepage": "https://github.com/codelitdev/platform/tree/main/packages/design-system#readme",
+  "bugs": {
+    "url": "https://github.com/codelitdev/platform/issues"
+  },
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "check": "tsc --noEmit && esbuild src/index.ts --bundle --platform=browser --format=esm --jsx=automatic --external:react --external:react-dom --outfile=/tmp/design-system-check.js",
+    "registry:build": "shadcn build"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css",
+    "./tailwind-preset": "./tailwind-preset.js",
+    "./assets/*": "./src/assets/*"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha"
+  },
+  "files": [
+    "src",
+    "tailwind-preset.js",
+    "README.md",
+    "NOTICE"
+  ],
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.5",
+    "esbuild": "^0.28.1",
+    "lucide-react": "^0.544.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "shadcn": "^4.14.0",
+    "typescript": "^5.9.3"
+  }
+}

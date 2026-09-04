@@ -1,0 +1,12 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "rangeStrategy": "pin",
+  "packageRules": [
+    {
+      "description": "Keep the CodeLit Platform stack together",
+      "matchPackageNames": ["@codelitdev/**"],
+      "groupName": "codelitdev platform packages"
+    }
+  ]
+}

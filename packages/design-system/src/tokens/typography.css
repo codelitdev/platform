@@ -1,0 +1,40 @@
+/* CodeLit — typography tokens. One workhorse sans + one mono. */
+
+:root {
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Spline Sans Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Type scale */
+  --text-display: 800 2.25rem/1.12 var(--font-sans);   /* 36px, -0.02em */
+  --text-h1: 700 1.75rem/1.2 var(--font-sans);          /* 28px, -0.02em */
+  --text-h2: 700 1.375rem/1.25 var(--font-sans);        /* 22px, -0.015em */
+  --text-h3: 600 1.125rem/1.3 var(--font-sans);         /* 18px */
+  --text-body: 400 0.9375rem/1.55 var(--font-sans);     /* 15px */
+  --text-body-sm: 400 0.875rem/1.5 var(--font-sans);    /* 14px */
+  --text-label: 600 0.8125rem/1.3 var(--font-sans);     /* 13px */
+  --text-caption: 400 0.75rem/1.4 var(--font-sans);     /* 12px */
+  --text-code: 400 0.8125rem/1.5 var(--font-mono);      /* 13px */
+  --text-eyebrow: 500 0.6875rem/1.3 var(--font-mono);   /* 11px mono, letter-spacing 0.08em, sentence case */
+
+  --tracking-tight: -0.02em;
+  --tracking-heading: -0.015em;
+  --tracking-eyebrow: 0.08em;
+}
+
+body {
+  margin: 0;
+  font: var(--text-body);
+  color: var(--foreground);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* No global `a` styling — this stylesheet is imported by full apps where bare
+   <a>/<Link> are routinely used for navigation and clickable cards, and a
+   blanket hover-underline breaks that UX. Opt in explicitly with .cl-link for
+   inline text links (prose, footnotes, etc.); interactive apps should use the
+   Button `link` variant / registry Button instead. */
+.cl-link { color: var(--primary); text-decoration: none; }
+.cl-link:hover { color: var(--primary-hover); text-decoration: underline; }
+
+code, kbd, pre { font: var(--text-code); }

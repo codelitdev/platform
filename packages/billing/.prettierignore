@@ -1,0 +1,15 @@
+# Build
+dist/
+**/dist/
+node_modules/
+
+# Generated artifacts
+examples/**/migrations/
+examples/**/*.generated.ts
+*.tgz
+
+# Tool caches and coverage
+.eslintcache
+coverage/
+pnpm-lock.yaml
+.github/
