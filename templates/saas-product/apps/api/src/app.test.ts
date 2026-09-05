@@ -473,6 +473,15 @@ describe.serial("reference API adapters", () => {
     const openapi = await fetch(`http://127.0.0.1:${address.port}/openapi.json`);
     expect(openapi.status).toBe(200);
     expect((await openapi.json()).paths["/v1/notes"]).toBeDefined();
+    const docs = await fetch(`http://127.0.0.1:${address.port}/docs`);
+    expect(docs.status).toBe(200);
+    expect(docs.headers.get("content-type")).toContain("text/html");
+    expect(await docs.text()).toContain("Swagger UI");
+    const docsInitializer = await fetch(
+      `http://127.0.0.1:${address.port}/docs/swagger-ui-init.js`,
+    );
+    expect(docsInitializer.status).toBe(200);
+    expect(await docsInitializer.text()).toContain('"/v1/notes"');
     const protectedResource = await fetch(
       `http://127.0.0.1:${address.port}/.well-known/oauth-protected-resource/mcp`,
     );

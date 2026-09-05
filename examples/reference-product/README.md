@@ -24,6 +24,9 @@ The API listens on `http://127.0.0.1:4000`. `SEED=1` in the example environment
 creates local demo users, tenants, credentials, notes, and billing data. Do
 not enable it for a production deployment.
 
+Open `http://127.0.0.1:4000/docs` for the interactive Swagger UI, or fetch the
+generated OpenAPI document from `http://127.0.0.1:4000/openapi.json`.
+
 In a second terminal, start the Next.js web app:
 
 ```bash

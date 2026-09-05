@@ -4,10 +4,12 @@ import { readOrCreateRequestId } from "@codelitdev/platform";
 import { contract } from "@reference-product/api-contract";
 import { createExpressEndpoints, initServer } from "@ts-rest/express";
 import { toNodeHandler } from "better-auth/node";
-import express, { type Express } from "express";
+import express, { type Express, type RequestHandler } from "express";
+import swaggerUi from "swagger-ui-express";
 import { AUTH_BASE_PATH, MCP_SCOPES_SUPPORTED } from "./auth/options.js";
 import type { DispatchDeps } from "./deps.js";
 import { dispatch } from "./dispatch.js";
+import { createOpenApiDocument } from "./openapi.js";
 
 export function createExpressApp(deps: DispatchDeps): Express {
   const app = express();
@@ -63,6 +65,21 @@ export function createExpressApp(deps: DispatchDeps): Express {
       defaultRedirectUrl: `${deps.auth.webOrigin}/`,
       loginMethods: [{ type: "email-otp" }],
     }),
+  );
+  // The Swagger typings can resolve a separate Express type version in a
+  // freshly generated workspace, so normalize its handlers at this boundary.
+  app.use(
+    "/docs",
+    ...(swaggerUi.serve as unknown as RequestHandler[]),
+    swaggerUi.setup(createOpenApiDocument(deps.auth.publicApiUrl), {
+      explorer: true,
+      swaggerOptions: {
+        persistAuthorization: true,
+        displayRequestDuration: true,
+        docExpansion: "none",
+        defaultModelsExpandDepth: -1,
+      },
+    }) as unknown as RequestHandler,
   );
   app.use(express.json({ limit: "32kb" }));
 
