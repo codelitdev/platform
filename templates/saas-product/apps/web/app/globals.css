@@ -141,16 +141,6 @@ textarea:focus {
   display: grid;
   align-items: stretch;
 }
-.auth-card details {
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid var(--line);
-}
-.auth-card summary {
-  cursor: pointer;
-  color: #9a5a12;
-  font-weight: 700;
-}
 .auth-card small {
   color: var(--muted);
 }

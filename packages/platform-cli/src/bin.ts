@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { createProduct } from "./create.js";
 import { doctor } from "./doctor.js";
+import { productNameFromTarget } from "./template.js";
 import { upgradeProduct } from "./upgrade.js";
 
 const [command, ...rest] = process.argv.slice(2);
@@ -11,7 +12,7 @@ try {
     if (!name) throw new Error("usage: codelit-platform create <dir>");
     const result = createProduct({
       targetDir: name,
-      productName: name,
+      productName: productNameFromTarget(name),
     });
     process.stdout.write(`created ${result.root}\n`);
   } else if (command === "doctor") {

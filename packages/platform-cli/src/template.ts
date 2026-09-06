@@ -20,3 +20,9 @@ export function slugify(name: string): string {
   if (!slug) throw new Error("product_name_invalid");
   return slug;
 }
+
+export function productNameFromTarget(targetDir: string): string {
+  const name = path.basename(path.resolve(targetDir));
+  if (!name) throw new Error("product_name_invalid");
+  return name;
+}

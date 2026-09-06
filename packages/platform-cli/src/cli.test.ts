@@ -8,6 +8,7 @@ import { createProduct } from "./create.js";
 import { doctor } from "./doctor.js";
 import { sha256File } from "./hash.js";
 import { readManifest } from "./manifest.js";
+import { productNameFromTarget } from "./template.js";
 import { upgradeProduct } from "./upgrade.js";
 
 function git(cwd: string, args: string[]) {
@@ -15,6 +16,11 @@ function git(cwd: string, args: string[]) {
 }
 
 describe("platform-cli", () => {
+  it("derives the product name from the target directory basename", () => {
+    expect(productNameFromTarget("/tmp/acme-school")).toBe("acme-school");
+    expect(productNameFromTarget("nested/My School")).toBe("My School");
+  });
+
   it("creates into an empty directory with metadata and product-owned paths", () => {
     const parent = mkdtempSync(path.join(tmpdir(), "cli-create-"));
     const target = path.join(parent, "acme");
@@ -28,6 +34,13 @@ describe("platform-cli", () => {
     expect(manifest.productOwnedGlobs).toEqual(["apps/**", "packages/api-contract/**"]);
     expect(manifest.managedFiles["tooling/platform/config.ts"]).toBe(
       sha256File(path.join(target, "tooling/platform/config.ts")),
+    );
+    const webTsconfig = JSON.parse(
+      readFileSync(path.join(target, "apps/web/tsconfig.json"), "utf8"),
+    ) as { include?: string[] };
+    expect(webTsconfig.include).toContain(".next/types/**/*.ts");
+    expect(readFileSync(path.join(target, "apps/web/next-env.d.ts"), "utf8")).toContain(
+      'reference path="./.next/types/routes.d.ts"',
     );
     const report = doctor(target);
     expect(report.issues).not.toContain("platform_manifest_invalid");

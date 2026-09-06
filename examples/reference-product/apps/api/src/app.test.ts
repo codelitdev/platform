@@ -534,4 +534,29 @@ describe.serial("reference API adapters", () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     await runtime.close();
   });
+
+  it("signs in with email OTP and rejects email-password credentials", async () => {
+    const clock = freezeRuntimeClock(new Date("2026-03-01T00:00:00.000Z"));
+    const runtime = await createPgliteRuntime({ clock });
+    const otp = await runtime.auth.auth.api.createVerificationOTP({
+      body: { email: "otp-user@example.com", type: "sign-in" },
+    });
+    const signedIn = await runtime.auth.auth.api.signInEmailOTP({
+      body: { email: "otp-user@example.com", otp, name: "OTP User" },
+      asResponse: true,
+    });
+    expect(signedIn.ok).toBe(true);
+    const password = await runtime.auth.auth.handler(
+      new Request(`${runtime.auth.issuer}/sign-in/email`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: "otp-user@example.com",
+          password: "reference-password-1",
+        }),
+      }),
+    );
+    expect(password.ok).toBe(false);
+    await runtime.close();
+  });
 });

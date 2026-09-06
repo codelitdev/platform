@@ -19,7 +19,7 @@ const options = {
   baseURL: publicApiUrl,
   basePath: "/api/auth",
   secret: "schema-generation-secret-at-least-32-chars",
-  emailAndPassword: { enabled: true },
+  emailAndPassword: { enabled: false },
   plugins: [
     jwt(),
     emailOTP({

@@ -58,13 +58,15 @@ export function referenceAuthOptions(input: {
     basePath: AUTH_BASE_PATH,
     secret: input.secret,
     trustedOrigins: [urls.webOrigin, urls.publicApiUrl],
-    emailAndPassword: { enabled: true },
+    emailAndPassword: { enabled: false },
     ...(input.database ? { database: input.database } : {}),
     plugins: [
       jwt(),
       emailOTP({
-        async sendVerificationOTP() {
-          /* Product mail is application-owned; OTP still issues locally. */
+        async sendVerificationOTP({ email, otp, type }) {
+          if ((process.env.NODE_ENV ?? "development") === "development") {
+            console.info(`[auth] ${type} OTP for ${email}: ${otp}`);
+          }
         },
       }),
       oauthProvider(oauthProviderInput(urls)),

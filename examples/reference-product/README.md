@@ -35,8 +35,9 @@ bun run --filter @reference-product/web dev
 ```
 
 The web app proxies API requests through its server-side BFF using `API_URL`.
-With `SEED=1`, open `/login` and use `owner@example.com` with password
-`reference-password-1` under “Local demo password sign-in”.
+Open `/login`, request a sign-in code for `owner@example.com` (or any email),
+and enter the OTP printed in the API process console. Password sign-in is not
+supported.
 
 ## Checks
 
