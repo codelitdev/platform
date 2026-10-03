@@ -50,6 +50,8 @@ application.
 
 - OAuth Dynamic Client Registration is disabled unless explicitly enabled.
 - Unauthenticated DCR requires a separate explicit opt-in.
+- MCP client metadata documents (CIMD) are configured through the product's
+  Better Auth plugins; see the integration guide for the secure fetch transport.
 - Issuer and audience/resource are verified for every bearer token.
 - Invalid explicit bearer tokens fail closed.
 - Ordinary-login redirects are restricted to configured origins.

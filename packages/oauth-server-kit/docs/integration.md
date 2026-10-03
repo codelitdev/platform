@@ -14,6 +14,8 @@ the public Better Auth URL including `basePath`—for example,
 import { betterAuth } from "better-auth";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { jwt } from "better-auth/plugins/jwt";
+import { cimd } from "@better-auth/cimd";
+import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { oauthProviderResourceClient } from "@better-auth/oauth-provider/resource-client";
 import { createOAuthProviderOptions } from "@codelitdev/oauth-server-kit/better-auth";
@@ -54,15 +56,47 @@ export const auth = betterAuth({
             // Product-specific OAuth hooks may be spread here. A team-selection
             // hook, for example, is product authorization logic—not kit API.
         }),
+        cimd({
+            fetchClientMetadataResource,
+            metadataProfile: "mcp-2026-07-28",
+            // VS Code's no-store document is fetched again during token exchange.
+            metadataFetchPolicy: { minimumFetchInterval: 0 },
+        }),
     ],
 });
 
 export const oauthResourceClient = oauthProviderResourceClient(auth);
 ```
 
-Keep DCR disabled for first-party clients. If an MCP client truly requires
-unauthenticated DCR, opt in deliberately, restrict registration scopes, and
-rate-limit the registration endpoint:
+### MCP client registration with CIMD
+
+Install a compatible `@better-auth/cimd` version in the product API. For Node
+24, use `1.7.7` or newer to include the pinned DNS lookup callback fix. Keep
+`better-auth` and `@better-auth/oauth-provider` on matching versions. The
+`cimd()` plugin resolves HTTPS client ID metadata documents, validates them,
+and adds
+`client_id_metadata_document_supported: true` to the authorization-server
+metadata. `createMcpOAuthDiscoveryRoutes` forwards that metadata from Better
+Auth; do not set the flag by hand. Keep the OAuth Provider and CIMD plugin in
+the product's Better Auth configuration so its resource, scopes, and client
+policy stay with the product. An MCP client using CIMD hosts a metadata
+document at its HTTPS `client_id` URL; the document's `client_id` must match
+that URL exactly.
+
+The example above uses Better Auth's secure Node transport. It pins a public
+DNS result to the TLS connection and rejects redirects. Bun can use that
+transport when its Node HTTPS compatibility preserves the custom DNS lookup
+and TLS identity; verify those properties on the deployed Bun version. Other
+runtimes need an equivalent transport. A DNS check followed by ordinary
+`fetch` can resolve the hostname again. The transport also handles
+discovery-owned resources such as client JWKS. Follow the
+[@better-auth/cimd transport requirements](https://better-auth.com/docs/plugins/cimd)
+when supplying a different fetcher.
+
+CIMD is the preferred MCP client registration method. Keep DCR disabled for
+first-party clients. If an older MCP client requires unauthenticated DCR, opt
+in deliberately, restrict registration scopes, and rate-limit the registration
+endpoint:
 
 ```ts
 createOAuthProviderOptions({
@@ -73,6 +107,14 @@ createOAuthProviderOptions({
     clientRegistrationAllowedScopes: ["data:read"],
 });
 ```
+
+Check the product's Better Auth database schema after a version upgrade, then
+verify the advertised CIMD flag and a complete MCP authorization flow. When
+supporting clients whose metadata uses `Cache-Control: no-store`, configure
+`metadataFetchPolicy.minimumFetchInterval` so authorization and token exchange
+can both retrieve the document; retain the plugin's concurrency and rate
+limits. Keep any client-specific metadata compatibility rules explicit in the
+product API.
 
 ## 2. Web app
 

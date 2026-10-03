@@ -792,6 +792,9 @@ Requirements:
   discovery without reflecting unnecessary application headers.
 - Dynamic Client Registration is opt-in per deployment. If enabled for public
   MCP clients, its risk and allowed scopes are configured by the product.
+- Products may add Better Auth's CIMD plugin for MCP client discovery. The
+  product supplies a secure metadata fetch transport; the OAuth Provider's
+  discovery response advertises CIMD support through this kit's metadata route.
 - Every MCP tool performs product authorization after authentication.
 - The kit never infers team access from an OAuth token.
 
