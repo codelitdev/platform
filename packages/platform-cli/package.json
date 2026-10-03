@@ -5,6 +5,15 @@
   "author": "CodeLit",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codelitdev/platform.git",
+    "directory": "packages/platform-cli"
+  },
+  "homepage": "https://github.com/codelitdev/platform/tree/main/packages/platform-cli#readme",
+  "bugs": {
+    "url": "https://github.com/codelitdev/platform/issues"
+  },
   "bin": {
     "codelit-platform": "./dist/bin.js"
   },

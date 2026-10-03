@@ -5,6 +5,15 @@
   "author": "CodeLit",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codelitdev/platform.git",
+    "directory": "packages/platform-conformance"
+  },
+  "homepage": "https://github.com/codelitdev/platform/tree/main/packages/platform-conformance#readme",
+  "bugs": {
+    "url": "https://github.com/codelitdev/platform/issues"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

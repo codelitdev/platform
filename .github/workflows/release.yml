@@ -62,5 +62,6 @@ jobs:
           push-git-tags: true
         env:
           # Publishing authenticates via npm trusted publishing (OIDC, id-token: write);
-          # no NPM_TOKEN secret is needed. Provenance is omitted because the repo is private.
+          # no NPM_TOKEN secret is needed.
           NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+          NPM_CONFIG_PROVENANCE: "true"
