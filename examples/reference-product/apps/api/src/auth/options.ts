@@ -6,7 +6,15 @@ import { jwt } from "better-auth/plugins/jwt";
 export const AUTH_BASE_PATH = "/api/auth";
 export const AUTH_SECRET_MIN_LENGTH = 32;
 
-export const MCP_SCOPES_SUPPORTED = ["data:read"] as const;
+export const DATA_READ_SCOPE = "data:read";
+export const DATA_WRITE_SCOPE = "data:write";
+// MCP clients request exactly these. `offline_access` gets them a refresh
+// token instead of a new consent every time the access token expires.
+export const MCP_SCOPES_SUPPORTED = [
+  DATA_READ_SCOPE,
+  DATA_WRITE_SCOPE,
+  "offline_access",
+] as const;
 
 export type ReferenceAuthUrls = {
   publicApiUrl: string;
@@ -35,12 +43,23 @@ export function oauthProviderInput(urls: ReturnType<typeof authUrls>) {
   return createOAuthProviderOptions({
     loginPage: `${urls.publicApiUrl}/oauth/login`,
     consentPage: `${urls.publicApiUrl}/oauth/consent`,
-    scopes: ["openid", "profile", "email", "offline_access", "data:read"],
+    scopes: [
+      "openid",
+      "profile",
+      "email",
+      "offline_access",
+      DATA_READ_SCOPE,
+      DATA_WRITE_SCOPE,
+    ],
     validAudiences: [urls.restResource, urls.mcpResource],
     allowDynamicClientRegistration: true,
     allowUnauthenticatedDynamicClientRegistration: true,
     clientRegistrationDefaultScopes: ["openid", "profile", "email"],
-    clientRegistrationAllowedScopes: ["offline_access", "data:read"],
+    clientRegistrationAllowedScopes: [
+      "offline_access",
+      DATA_READ_SCOPE,
+      DATA_WRITE_SCOPE,
+    ],
   });
 }
 

@@ -5,6 +5,11 @@ export type CredentialKind = "session" | "oauth" | "api_key" | "system";
 export interface PlatformCredential {
   kind: CredentialKind;
   credentialId?: string;
+  /**
+   * OAuth scopes granted to the token. Set only for `oauth` credentials;
+   * products narrow the principal's permissions to what these scopes allow.
+   */
+  scopes?: readonly string[];
 }
 
 export interface PlatformRequestContext<

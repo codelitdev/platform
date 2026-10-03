@@ -91,9 +91,10 @@ function pkce() {
   };
 }
 
-async function mintOAuthToken(
+export async function mintOAuthToken(
   runtime: Runtime,
   sessionCookie: string,
+  scope = "openid profile email offline_access data:read data:write",
 ): Promise<string> {
   const redirectUri = "com.example.__PRODUCT_SLUG__:/oauth/callback";
   const client = await runtime.auth.auth.api.createOAuthClient({
@@ -123,7 +124,7 @@ async function mintOAuthToken(
     client_id: client.client_id,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "openid profile email offline_access data:read",
+    scope,
     state: "state-123",
     code_challenge: proof.challenge,
     code_challenge_method: "S256",

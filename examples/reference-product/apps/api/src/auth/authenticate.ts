@@ -91,6 +91,7 @@ export async function authenticateHttpRequest(
       credential: {
         kind: "oauth",
         credentialId: resolved.identity.clientId,
+        scopes: resolved.identity.scopes,
       },
     };
   }

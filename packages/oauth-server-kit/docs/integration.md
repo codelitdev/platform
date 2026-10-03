@@ -45,12 +45,14 @@ export const auth = betterAuth({
                     "email",
                     "offline_access",
                     "data:read",
+                    "data:write",
                 ],
                 validAudiences: [restResource, mcpResource],
                 clientRegistrationDefaultScopes: ["openid", "profile", "email"],
                 clientRegistrationAllowedScopes: [
                     "offline_access",
                     "data:read",
+                    "data:write",
                 ],
             }),
             // Product-specific OAuth hooks may be spread here. A team-selection
@@ -104,7 +106,7 @@ createOAuthProviderOptions({
     allowDynamicClientRegistration: true,
     allowUnauthenticatedDynamicClientRegistration: true,
     clientRegistrationDefaultScopes: ["openid"],
-    clientRegistrationAllowedScopes: ["data:read"],
+    clientRegistrationAllowedScopes: ["data:read", "data:write"],
 });
 ```
 
@@ -231,7 +233,14 @@ app.use("/api", requireOAuth, tsRestRouter);
 `request.auth` is a neutral session/OAuth identity only after successful
 authentication. Map `request.auth.subject` to the product actor, interpret
 scopes, and return product-owned `403` responses after the package
-middleware:
+middleware.
+
+Scopes are only labels until the product enforces them, and the consent
+screen shows them to the user. Keep the actor's permissions that the token's
+granted scopes cover (for example, `data:read` for reads and `data:write`
+for writes), so a token approved as read-only cannot write even when the
+actor could. ADR 0008 describes the pattern; the template narrows tenant
+permissions this way.
 
 ```ts
 const actor = await productAccounts.findByAuthSubject(request.auth!.subject);
@@ -258,7 +267,9 @@ app.use(
         auth,
         oauthResourceClient,
         resourceUrl: mcpResource,
-        scopesSupported: ["data:read"],
+        // MCP clients request exactly these. Include offline_access so they
+        // receive a refresh token instead of asking for consent again.
+        scopesSupported: ["data:read", "data:write", "offline_access"],
         allowedOrigins: ["https://trusted-mcp-client.example.com"],
     }),
 );

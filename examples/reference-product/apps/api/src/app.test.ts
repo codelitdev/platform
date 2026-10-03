@@ -7,7 +7,7 @@ import * as schema from "./db/schema/index.js";
 import { dispatch } from "./dispatch.js";
 import { createExpressApp } from "./express-app.js";
 import { createPgliteRuntime, freezeRuntimeClock } from "./runtime.js";
-import { seedWorld } from "./seed.js";
+import { mintOAuthToken, seedWorld } from "./seed.js";
 
 describe.serial("reference API adapters", () => {
   it("does not run DDL when oauth-server-kit options and schema modules are imported", async () => {
@@ -250,6 +250,40 @@ describe.serial("reference API adapters", () => {
     expect(response.body).toMatchObject({
       items: [{ id: world.noteA.publicId }],
     });
+    await runtime.close();
+  });
+
+  it("limits an OAuth token to the data scopes it was granted", async () => {
+    const clock = freezeRuntimeClock(new Date("2026-03-01T00:00:00.000Z"));
+    const runtime = await createPgliteRuntime({ clock });
+    const world = await seedWorld(runtime, clock);
+    const readOnly = await mintOAuthToken(
+      runtime,
+      world.owner.sessionCookie,
+      "openid profile email data:read",
+    );
+    const headers = {
+      authorization: `Bearer ${readOnly}`,
+      "x-tenant-id": world.tenantA.publicId,
+    };
+    const list = await dispatch(runtime, { method: "GET", path: "/v1/notes", headers });
+    expect(list.status).toBe(200);
+    // The owner may write, but this token was only granted data:read.
+    const update = await dispatch(runtime, {
+      method: "PATCH",
+      path: `/v1/notes/${world.noteA.publicId}`,
+      headers,
+      body: { title: "read-only token" },
+    });
+    expect(update.status).toBe(403);
+    expect(update.body).toMatchObject({ code: "forbidden" });
+    const fullAccess = await dispatch(runtime, {
+      method: "PATCH",
+      path: `/v1/notes/${world.noteA.publicId}`,
+      headers: { ...headers, authorization: `Bearer ${world.owner.oauthToken}` },
+      body: { title: "read-write token" },
+    });
+    expect(fullAccess.status).toBe(200);
     await runtime.close();
   });
 
