@@ -1,6 +1,6 @@
 {
   "name": "@codelitdev/platform-conformance",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Shared HTTP conformance suites for CodeLit Platform products",
   "author": "CodeLit",
   "type": "module",
@@ -37,7 +37,7 @@
     "tag": "latest"
   },
   "peerDependencies": {
-    "@codelitdev/platform": ">=0.1.0-alpha.0"
+    "@codelitdev/platform": ">=0.2.0"
   },
   "devDependencies": {
     "@codelitdev/platform": "workspace:*",
