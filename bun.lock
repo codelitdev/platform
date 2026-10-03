@@ -82,7 +82,7 @@
       "name": "@codelitdev/billing",
       "version": "0.1.0-alpha.4",
       "bin": {
-        "codelit-billing": "./dist/cli/bin.js",
+        "codelit-billing": "./bin/codelit-billing.js",
       },
       "dependencies": {
         "drizzle-orm": "^0.45.2",

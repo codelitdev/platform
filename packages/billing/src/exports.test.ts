@@ -26,7 +26,7 @@ describe("public exports", () => {
       expect(pkg.exports[key].import.startsWith("./dist/")).toBe(true);
       expect(pkg.exports[key].import).not.toContain("/src/");
     }
-    expect(pkg.bin["codelit-billing"]).toBe("./dist/cli/bin.js");
+    expect(pkg.bin["codelit-billing"]).toBe("./bin/codelit-billing.js");
     expect(JSON.stringify(pkg.exports)).not.toContain("src/");
   });
 });

@@ -26,6 +26,11 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22.14.0
+          registry-url: https://registry.npmjs.org
+
+      # npm trusted publishing (OIDC) requires npm >= 11.5.1.
+      - name: Upgrade npm
+        run: npm install -g npm@^11.5.1
 
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -46,17 +51,6 @@ jobs:
       - name: Verify workspace
         run: bun run verify
 
-      - name: Configure npm authentication
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          npmrc_path="$RUNNER_TEMP/codelit-npmrc"
-          printf '%s\n' \
-            '@codelitdev:registry=https://registry.npmjs.org/' \
-            '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}' \
-            'always-auth=true' > "$npmrc_path"
-          echo "NPM_CONFIG_USERCONFIG=$npmrc_path" >> "$GITHUB_ENV"
-
       - name: Create release PR or publish packages
         uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
         with:
@@ -67,7 +61,6 @@ jobs:
           commit-message: Release Platform packages
           push-git-tags: true
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Publishing authenticates via npm trusted publishing (OIDC, id-token: write);
+          # no NPM_TOKEN secret is needed. Provenance is omitted because the repo is private.
           NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
-          NPM_CONFIG_PROVENANCE: "true"
