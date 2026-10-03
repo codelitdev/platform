@@ -247,6 +247,15 @@ describe("createMcpOAuthDiscoveryRoutes", () => {
     [
       {
         auth: {
+          options: { baseURL: { allowedHosts: ["app.example.com"] } },
+          api: baseOptions.auth.api,
+        },
+      },
+      "auth.options.baseURL must be a static URL string",
+    ],
+    [
+      {
+        auth: {
           options: { baseURL: "relative" },
           api: baseOptions.auth.api,
         },

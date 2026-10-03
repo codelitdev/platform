@@ -13,7 +13,11 @@ import type { OAuthResourceClient } from "./types";
 
 export interface BetterAuthMetadataApi {
   options: {
-    baseURL?: string;
+    /**
+     * Better Auth 1.7 also accepts a dynamic base URL config; discovery
+     * metadata needs one static origin, so only a string is accepted.
+     */
+    baseURL?: unknown;
     basePath?: string;
   };
   api: {
@@ -65,12 +69,16 @@ function normalizeOptions(
   if (process.env.NODE_ENV === "production" && resource.protocol !== "https:") {
     throw new Error("resourceUrl must use https in production");
   }
-  if (!options.auth.options.baseURL) {
+  const baseURL = options.auth.options.baseURL;
+  if (!baseURL) {
     throw new Error("auth.options.baseURL must be configured");
+  }
+  if (typeof baseURL !== "string") {
+    throw new Error("auth.options.baseURL must be a static URL string");
   }
   let authorizationServerBase: URL;
   try {
-    authorizationServerBase = new URL(options.auth.options.baseURL);
+    authorizationServerBase = new URL(baseURL);
   } catch {
     throw new Error("auth.options.baseURL must be an absolute URL");
   }

@@ -1,4 +1,7 @@
-name: Platform conformance
+# Product-owned: edit freely. `platform-cli sync` never touches this file.
+# Steps match what template-smoke verifies on a fresh product. Add
+# `bun run format:check` after formatting the product once with `bun run format`.
+name: Code quality
 
 on:
   pull_request:
@@ -9,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -22,8 +25,7 @@ jobs:
       - run: bun install
         if: ${{ !hashFiles('bun.lock') }}
       - run: bun install --frozen-lockfile
-      # Pinned to the CLI release that wrote this file. `sync` moves it.
-      - run: bunx @codelitdev/platform-cli@__PLATFORM_CLI_VERSION__ doctor
-      - run: bun run --filter "*/api" check:drift
-      # Fails when the API package has no `test:conformance` script.
-      - run: bun run --filter "*/api" test:conformance
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run build

@@ -50,6 +50,29 @@ describe("credential extraction and transport mapping", () => {
     expect(selected.kind).toBe("ambiguous");
   });
 
+  it("rejects a malformed Authorization header instead of falling back", () => {
+    for (const authorization of [
+      "Basic dXNlcjpwYXNz",
+      "Bearer",
+      "Bearer a b",
+      "tok_1",
+    ]) {
+      for (const selected of [
+        selectHttpCredential({
+          authorization,
+          cookie: "better-auth.session_token=sess_1",
+        }),
+        selectMcpCredential({ authorization, "x-api-key": "key_1" }),
+      ]) {
+        expect(selected.kind).toBe("malformed");
+        if (selected.kind !== "malformed") throw new Error(authorization);
+        expect(selected.error.code).toBe("unauthenticated");
+      }
+    }
+    expect(selectHttpCredential({ authorization: "  " }).kind).toBe("absent");
+    expect(selectHttpCredential({ authorization: "bearer tok_1" }).kind).toBe("single");
+  });
+
   it("MCP accepts bearer or API key, not sessions, and never emits system", () => {
     const withCookie = extractMcpCredentials({
       cookie: "better-auth.session_token=sess_1",

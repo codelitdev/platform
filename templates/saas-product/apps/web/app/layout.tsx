@@ -6,7 +6,7 @@ import { BrowserObservabilityProvider } from "../components/browser-observabilit
 import { getBrowserObservabilityConfig } from "../lib/observability-config";
 
 export const metadata = {
-  title: "Reference product",
+  title: "__PRODUCT_SLUG__",
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

@@ -37,7 +37,7 @@ export async function authenticateHttpRequest(
   if (selected.kind === "absent") {
     return mapTransportAuthentication({ kind: "absent" }, { transport: "http" });
   }
-  if (selected.kind === "ambiguous") {
+  if (selected.kind === "ambiguous" || selected.kind === "malformed") {
     return { kind: "rejected", error: selected.error };
   }
   const presented = selected.credential;
@@ -143,7 +143,7 @@ export async function authenticateMcpRequest(
   if (selected.kind === "absent") {
     return mapTransportAuthentication({ kind: "absent" }, { transport: "mcp" });
   }
-  if (selected.kind === "ambiguous") {
+  if (selected.kind === "ambiguous" || selected.kind === "malformed") {
     return { kind: "rejected", error: selected.error };
   }
   if (selected.credential.kind === "session") {

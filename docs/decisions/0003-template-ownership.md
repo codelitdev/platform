@@ -1,6 +1,6 @@
 # ADR 0003: Template ownership and managed files
 
-Status: accepted  
+Status: accepted; partly superseded by ADR 0006  
 Date: 2026-09-02
 
 ## Context

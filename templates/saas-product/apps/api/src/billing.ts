@@ -53,6 +53,6 @@ export function composeBilling(db: AppDb, clock: Clock): BillingBundle {
 export async function runBoundedMaintenance(billing: BillingEngine): Promise<number> {
   return billing.runWebhookInboxBatch({
     limit: 25,
-    workerId: "reference-maintenance",
+    workerId: "__PRODUCT_SLUG__-maintenance",
   });
 }

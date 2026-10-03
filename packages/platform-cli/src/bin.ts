@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { createProduct } from "./create.js";
 import { doctor } from "./doctor.js";
+import { syncProduct } from "./sync.js";
 import { productNameFromTarget } from "./template.js";
-import { upgradeProduct } from "./upgrade.js";
 
 const [command, ...rest] = process.argv.slice(2);
 
@@ -19,18 +19,15 @@ try {
     const report = doctor(process.cwd());
     process.stdout.write(`${JSON.stringify(report)}\n`);
     if (!report.ok) process.exitCode = 1;
-  } else if (command === "upgrade") {
-    const dryRun = rest.includes("--dry-run");
-    const version = rest.find((arg) => !arg.startsWith("--"));
-    const result = upgradeProduct({
+  } else if (command === "sync") {
+    const result = syncProduct({
       root: process.cwd(),
-      version,
-      dryRun,
+      dryRun: rest.includes("--dry-run"),
     });
     process.stdout.write(`${JSON.stringify(result)}\n`);
     if (result.conflicts.length > 0) process.exitCode = 1;
   } else {
-    process.stderr.write("usage: codelit-platform create|doctor|upgrade\n");
+    process.stderr.write("usage: codelit-platform create|doctor|sync\n");
     process.exitCode = 1;
   }
 } catch (error) {

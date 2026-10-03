@@ -1,8 +1,9 @@
 # Compatibility and support
 
-Supported `@codelitdev/platform-preset` lines:
+Supported Platform release lines. All `@codelitdev` packages share one
+version, and the compatibility preset ships inside `@codelitdev/platform-cli`.
 
-| Preset  | Status         | End of support           |
+| Release | Status         | End of support           |
 | ------- | -------------- | ------------------------ |
 | `0.1.0` | current stable | supported for production |
 

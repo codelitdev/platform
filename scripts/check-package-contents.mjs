@@ -27,16 +27,6 @@ const packages = [
     forbidden: ["package/src/", "package/test/"],
   },
   {
-    directory: "packages/platform-preset",
-    prepare: "build",
-    required: [
-      "package/package.json",
-      "package/dist/index.js",
-      "package/dist/manifest.json",
-    ],
-    forbidden: ["package/src/", "package/test/"],
-  },
-  {
     directory: "packages/platform-conformance",
     prepare: "build",
     required: ["package/package.json", "package/dist/index.js"],
@@ -45,7 +35,12 @@ const packages = [
   {
     directory: "packages/platform-cli",
     prepare: "build",
-    required: ["package/package.json", "package/dist/index.js", "package/dist/bin.js"],
+    required: [
+      "package/package.json",
+      "package/dist/index.js",
+      "package/dist/bin.js",
+      "package/dist/preset.json",
+    ],
     forbidden: ["package/src/", "package/test/"],
   },
   {

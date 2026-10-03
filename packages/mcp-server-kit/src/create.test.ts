@@ -63,6 +63,23 @@ describe("createMcpServerKit", () => {
     expect(body.error.code).toBe("unauthenticated");
   });
 
+  it("rejects a malformed Authorization header without authenticating", async () => {
+    const server = kit(async () => {
+      throw new Error("authenticate should not run for a malformed header");
+    });
+    const response = await server.handle({
+      method: "POST",
+      headers: {
+        authorization: "Basic dXNlcjpwYXNz",
+        "x-api-key": "key_1",
+      },
+      body: { jsonrpc: "2.0", id: 1, method: "tools/list" },
+    });
+    expect(response.status).toBe(401);
+    const body = response.body as { error: { code: string } };
+    expect(body.error.code).toBe("unauthenticated");
+  });
+
   it("never emits a system credential from MCP mapping", async () => {
     const server = kit(async () => ({
       kind: "authenticated",

@@ -14,7 +14,6 @@ See [the architecture](docs/architecture.md) for package boundaries and [the ado
 | `packages/platform`             | `@codelitdev/platform`             |
 | `packages/observability`        | `@codelitdev/observability`        |
 | `packages/mcp-server-kit`       | `@codelitdev/mcp-server-kit`       |
-| `packages/platform-preset`      | `@codelitdev/platform-preset`      |
 | `packages/platform-conformance` | `@codelitdev/platform-conformance` |
 | `packages/platform-cli`         | `@codelitdev/platform-cli`         |
 

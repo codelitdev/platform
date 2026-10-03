@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { loadPresetManifest, validateResolvedVersions } from "./index.js";
+import { loadPresetManifest, validateResolvedVersions } from "./preset.js";
 
 describe("platform preset", () => {
   it("ships schemaVersion 1 with recommended/supported/minimumSecure", () => {

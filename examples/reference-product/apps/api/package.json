@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "bun test --timeout 60000 src",
+    "test:conformance": "bun test --timeout 60000 src --test-name-pattern \"platform conformance\"",
     "lint": "biome lint .",
     "start": "bun src/main.ts",
     "worker": "bun src/worker.ts",
@@ -41,7 +42,7 @@
     "pg": "^8.23.0",
     "pino": "^9.6.0",
     "swagger-ui-express": "^5.0.1",
-    "zod": "^4.5.4"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.17",

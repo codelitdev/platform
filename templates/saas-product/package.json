@@ -34,7 +34,6 @@
     "typecheck": "bun run --workspaces --if-present typecheck",
     "test": "bun run --workspaces --if-present test",
     "build": "bun run --workspaces --if-present build",
-    "generate:check": "bun run --filter @__PRODUCT_SLUG__/api check:drift",
     "migrate": "bun apps/api/scripts/migrate.mjs"
   }
 }

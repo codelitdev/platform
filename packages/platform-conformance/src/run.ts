@@ -3,6 +3,7 @@ import type {
   ConformanceFailure,
   PlatformConformanceAdapter,
 } from "./adapter.js";
+import { mcpResourceMetadataChallenge } from "./mcp-discovery.js";
 
 export type ReferenceHttpInput = {
   method: string;
@@ -25,7 +26,7 @@ type HttpAdapter = PlatformConformanceAdapter<
   { apiKey: string },
   ReferenceHttpInput,
   ReferenceMcpInput,
-  { status: number; body: unknown },
+  { status: number; body: unknown; headers?: Record<string, string> },
   { action: string; resourceId: string; actorId: string }
 >;
 
@@ -42,6 +43,24 @@ function errorCode(body: unknown): string | undefined {
     return body.error.code;
   }
   return undefined;
+}
+
+function hasMcpBearerChallenge(headers?: Record<string, string>): boolean {
+  const metadataUrl = mcpResourceMetadataChallenge(headers);
+  if (!metadataUrl) return false;
+  try {
+    const url = new URL(metadataUrl);
+    return (
+      ["http:", "https:"].includes(url.protocol) &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      url.pathname === "/.well-known/oauth-protected-resource/mcp"
+    );
+  } catch {
+    return false;
+  }
 }
 
 export async function runPlatformConformance(
@@ -187,6 +206,17 @@ export async function runPlatformConformance(
   }
 
   if (capabilities.mcp) {
+    const anonymousMcp = await adapter.mcp!({
+      headers: {},
+      tool: "notes.list",
+      args: {},
+    });
+    if (anonymousMcp.status !== 401 || !hasMcpBearerChallenge(anonymousMcp.headers)) {
+      fail(
+        "mcp",
+        "unauthenticated MCP did not return a protected-resource bearer challenge",
+      );
+    }
     const mcpList = await adapter.mcp!({
       headers: {
         authorization: oauth.authorization,

@@ -45,14 +45,21 @@ function parseCookie(
 
 function bearerToken(authorization: string | undefined): string | undefined {
   if (!authorization) return undefined;
-  const match = /^Bearer\s+(\S+)/i.exec(authorization.trim());
+  const match = /^Bearer\s+(\S+)$/i.exec(authorization.trim());
   if (!match?.[1]) return undefined;
   return match[1];
 }
 
+/** An `Authorization` header that is present but is not `Bearer <token>`. */
+function hasMalformedAuthorization(headers: HeaderMap): boolean {
+  const authorization = headerValue(headers, "authorization")?.trim();
+  return Boolean(authorization) && bearerToken(authorization) === undefined;
+}
+
 /**
  * Collect credential mechanisms supplied on an HTTP request.
- * Never produces `system`.
+ * Never produces `system`. A malformed `Authorization` header is skipped here;
+ * `selectHttpCredential` rejects it.
  */
 export function extractHttpCredentials(
   headers: HeaderMap,
@@ -94,7 +101,16 @@ export function extractMcpCredentials(headers: HeaderMap): PresentedCredential[]
 export type CredentialSelection =
   | { kind: "absent" }
   | { kind: "ambiguous"; error: PlatformError }
+  /**
+   * An `Authorization` header that is not `Bearer <token>`. It is rejected,
+   * never treated as absent, so it cannot fall back to another mechanism.
+   */
+  | { kind: "malformed"; error: PlatformError }
   | { kind: "single"; credential: PresentedCredential };
+
+function malformed(): CredentialSelection {
+  return { kind: "malformed", error: createPlatformError("unauthenticated") };
+}
 
 export function selectSingleCredential(
   presented: readonly PresentedCredential[],
@@ -113,10 +129,12 @@ export function selectHttpCredential(
   headers: HeaderMap,
   options: { sessionCookieName?: string } = {},
 ): CredentialSelection {
+  if (hasMalformedAuthorization(headers)) return malformed();
   return selectSingleCredential(extractHttpCredentials(headers, options));
 }
 
 export function selectMcpCredential(headers: HeaderMap): CredentialSelection {
+  if (hasMalformedAuthorization(headers)) return malformed();
   return selectSingleCredential(extractMcpCredentials(headers));
 }
 

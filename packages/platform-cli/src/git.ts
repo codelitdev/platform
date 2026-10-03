@@ -7,13 +7,13 @@ export function assertGitClean(cwd: string): void {
       stdio: "pipe",
     });
   } catch {
-    throw new Error("upgrade_requires_git_repository");
+    throw new Error("sync_requires_git_repository");
   }
   const status = execFileSync("git", ["status", "--porcelain"], {
     cwd,
     encoding: "utf8",
   });
   if (status.trim().length > 0) {
-    throw new Error("upgrade_requires_clean_worktree");
+    throw new Error("sync_requires_clean_worktree");
   }
 }

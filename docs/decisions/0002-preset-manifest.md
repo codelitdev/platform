@@ -1,6 +1,7 @@
 # ADR 0002: Preset manifest shape
 
-Status: accepted  
+Status: accepted; partly superseded by ADR 0006 (the preset now ships in
+`@codelitdev/platform-cli`, without `presetVersion`)  
 Date: 2026-09-02
 
 ## Context

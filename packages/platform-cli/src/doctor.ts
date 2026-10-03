@@ -1,11 +1,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
-import {
-  loadPresetManifest,
-  validateResolvedVersions,
-} from "@codelitdev/platform-preset";
 import { sha256File } from "./hash.js";
 import { readManifest } from "./manifest.js";
+import { loadPresetManifest, validateResolvedVersions } from "./preset.js";
 
 export type DoctorReport = {
   ok: boolean;

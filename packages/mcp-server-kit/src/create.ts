@@ -230,7 +230,7 @@ export function createMcpServerKit<Context>(
     let auth: AuthenticationResult<string>;
     if (selected.kind === "absent") {
       auth = { kind: "absent" };
-    } else if (selected.kind === "ambiguous") {
+    } else if (selected.kind === "ambiguous" || selected.kind === "malformed") {
       auth = { kind: "rejected", error: selected.error };
     } else {
       auth = await options.authenticate(headers);

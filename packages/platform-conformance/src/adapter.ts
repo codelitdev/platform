@@ -30,6 +30,7 @@ export type PlatformConformanceAdapter<
     body: unknown;
     headers?: Record<string, string>;
   }>;
+  /** Return transport response headers so conformance can verify OAuth discovery challenges. */
   mcp?(input: McpInput): Promise<McpOutput>;
   readAuditEvents(): Promise<readonly AuditEvent[]>;
   openapiDocument?(): Promise<{

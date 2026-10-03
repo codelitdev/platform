@@ -51,7 +51,7 @@ export default function HomePage() {
         <header className="app-header">
           <div>
             <p className="eyebrow">CodeLit Platform</p>
-            <h1>Reference workspace</h1>
+            <h1>__PRODUCT_SLUG__ workspace</h1>
             <p className="subtitle">Manage your teams and shared notes.</p>
           </div>
         </header>

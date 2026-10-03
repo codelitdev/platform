@@ -7,6 +7,7 @@ type Tenant = { id: string; publicId: string };
 
 function memoryAdapter(options: {
   mcp?: boolean;
+  challenge?: string | null;
 }): PlatformConformanceAdapter<
   Principal,
   Tenant,
@@ -111,10 +112,18 @@ function memoryAdapter(options: {
     },
     mcp: options.mcp
       ? async (input) => {
-          if (input.headers.cookie && !input.headers.authorization) {
+          if (!input.headers.authorization) {
             return {
               status: 401,
               body: { error: { code: "unauthenticated" } },
+              headers:
+                options.challenge === null
+                  ? {}
+                  : {
+                      "www-authenticate":
+                        options.challenge ??
+                        'Bearer resource_metadata="https://api.example.com/.well-known/oauth-protected-resource/mcp"',
+                    },
             };
           }
           if (
@@ -202,5 +211,33 @@ describe("runPlatformConformance", () => {
       shutdown: true,
     });
     expect(result.failures).toEqual([]);
+  });
+
+  it("fails MCP conformance when the unauthenticated response omits the bearer challenge", async () => {
+    const result = await runPlatformConformance(
+      memoryAdapter({ mcp: true, challenge: null }),
+      { mcp: true },
+    );
+    expect(result.failures).toContainEqual({
+      suite: "mcp",
+      message:
+        "unauthenticated MCP did not return a protected-resource bearer challenge",
+    });
+  });
+
+  it.each([
+    "Bearer",
+    'Bearer resource_metadata="/relative/metadata"',
+    'Bearer resource_metadata="https://api.example.com/wrong-path"',
+  ])("fails MCP conformance for an invalid bearer challenge: %s", async (challenge) => {
+    const result = await runPlatformConformance(
+      memoryAdapter({ mcp: true, challenge }),
+      { mcp: true },
+    );
+    expect(result.failures).toContainEqual({
+      suite: "mcp",
+      message:
+        "unauthenticated MCP did not return a protected-resource bearer challenge",
+    });
   });
 });

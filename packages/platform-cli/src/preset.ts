@@ -8,15 +8,20 @@ export type PackagePin = {
   minimumSecure: string;
 };
 
+/**
+ * Compatibility rules for products: recommended, supported, and minimum-secure
+ * versions of each @codelitdev package, plus exact pins for the external
+ * packages the template uses. `scripts/sync-preset.mjs` writes `recommended`
+ * and `external`; `supported` and `minimumSecure` are hand-maintained.
+ */
 export type PresetManifest = {
   schemaVersion: 1;
-  presetVersion: string;
   runtime: { bun: string };
   packages: Record<string, PackagePin>;
   external: Record<string, string>;
 };
 
-const manifestPath = join(dirname(fileURLToPath(import.meta.url)), "manifest.json");
+const manifestPath = join(dirname(fileURLToPath(import.meta.url)), "preset.json");
 
 export function loadPresetManifest(): PresetManifest {
   return JSON.parse(readFileSync(manifestPath, "utf8")) as PresetManifest;
@@ -130,5 +135,3 @@ export function validateResolvedVersions(
   }
   return issues;
 }
-
-export const presetManifest = loadPresetManifest();

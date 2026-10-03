@@ -1,7 +1,7 @@
 {
   "name": "@codelitdev/platform-conformance",
   "version": "0.1.0-alpha.0",
-  "description": "Shared Platform composition suites for product adapters",
+  "description": "Shared HTTP conformance suites for CodeLit Platform products",
   "author": "CodeLit",
   "type": "module",
   "license": "MIT",
@@ -13,7 +13,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -19,7 +19,6 @@ const packageDirectories = [
   "platform",
   "observability",
   "mcp-server-kit",
-  "platform-preset",
   "platform-conformance",
   "billing",
   "oauth-server-kit",
@@ -147,6 +146,7 @@ try {
   run("bun", ["install", "--ignore-scripts"], target);
   run("bun", ["install", "--frozen-lockfile"], target);
   run("bun", ["run", "--filter", "*/api", "check:drift"], target);
+  run("bun", ["run", "--filter", "*/api", "test:conformance"], target);
   if (process.env.DATABASE_URL)
     run("bun", ["run", "--filter", "*/api", "migrate"], target);
   run("bun", ["run", "test"], target);

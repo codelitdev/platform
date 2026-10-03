@@ -56,11 +56,20 @@ const pkg = JSON.parse(
   ),
 );
 if (JSON.stringify(pkg.exports).includes("src/")) throw new Error("src export");
+if (
+  !readFileSync(
+    path.join(dir, "node_modules/@codelitdev/platform-conformance/README.md"),
+    "utf8",
+  ).includes("runMcpDiscoveryConformance")
+) {
+  throw new Error("missing package README");
+}
 writeFileSync(
   path.join(dir, "assert.mjs"),
   `
-import { runPlatformConformance } from "@codelitdev/platform-conformance";
+import { runMcpDiscoveryConformance, runPlatformConformance } from "@codelitdev/platform-conformance";
 if (typeof runPlatformConformance !== "function") throw new Error("missing run");
+if (typeof runMcpDiscoveryConformance !== "function") throw new Error("missing MCP discovery runner");
 console.log("packed-exports-ok");
 `,
 );

@@ -68,7 +68,7 @@ The platform does not own:
 
 The bootstrap template is thin. Long-lived behavior belongs in independently versioned packages. The template holds composition code, configuration, examples, and explicit application-owned seams.
 
-Auth, MCP, observability, and billing improvements arrive as package releases. Source-shape changes arrive as explicit codemods. Existing applications never merge the template again.
+Auth, MCP, observability, and billing improvements arrive as package releases. Managed files change through `platform-cli sync`; product-owned source changes are documented in release notes (ADR 0006). Existing applications never merge the template again.
 
 ### 4.2 One service, multiple transports
 
@@ -111,7 +111,6 @@ Platform is the source repository for shared CodeLit infrastructure packages and
       packages/mcp-server-kit/        -> @codelitdev/mcp-server-kit
       packages/observability/         -> @codelitdev/observability
       packages/platform/              -> @codelitdev/platform
-      packages/platform-preset/       -> @codelitdev/platform-preset
       packages/platform-conformance/  -> @codelitdev/platform-conformance
       packages/platform-cli/          -> @codelitdev/platform-cli
 
@@ -134,7 +133,6 @@ Target Bun workspace:
         platform/             @codelitdev/platform
         mcp-server-kit/       @codelitdev/mcp-server-kit
         observability/        @codelitdev/observability
-        platform-preset/      @codelitdev/platform-preset
         platform-conformance/ @codelitdev/platform-conformance
         platform-cli/         @codelitdev/platform-cli
       templates/
@@ -364,9 +362,9 @@ CourseLit Queue contributes:
 
 The extraction must not copy product event names, context allowlists, environment access, Mongo logging, queue names, or tenant terminology. It must also correct current lifecycle gaps: manual and SDK Express capture cannot double-report the same exception, initialization failure must leave stdout logging usable, and shutdown must flush every configured pipeline under a caller-supplied timeout.
 
-### 6.7 @codelitdev/platform-preset
+### 6.7 Compatibility preset
 
-A tested compatibility bill of materials pinning:
+The preset ships inside @codelitdev/platform-cli as `src/preset.json` (ADR 0006). It is a tested compatibility bill of materials pinning:
 
 - Exact compatible releases of the independently versioned Platform workspace packages and selected external peers such as dodopayments.
 - Express, ts-rest, Zod, Better Auth, Drizzle, MCP SDK, Pino, Bun test, and PGlite.
@@ -374,12 +372,11 @@ A tested compatibility bill of materials pinning:
 
 Products depend on individual packages; CI verifies that resolved versions match one preset. The preset has no runtime code.
 
-The package exports and ships a machine-readable manifest with this versioned shape:
+`scripts/sync-preset.mjs` writes `recommended` from the shared release version and `external` from the template's exact versions. The manifest has this versioned shape:
 
 ```json
 {
   "schemaVersion": 1,
-  "presetVersion": "0.1.0",
   "runtime": {
     "bun": "1.4.1"
   },
@@ -396,7 +393,7 @@ The package exports and ships a machine-readable manifest with this versioned sh
 }
 ```
 
-`recommended` is the exact version emitted into a new product. `supported` is the range covered by conformance for an existing adopter. `minimumSecure` is monotonic within a supported major line and makes `doctor` and conformance fail when the resolved version is older. The preset validates the product manifest and lockfile; it does not mutate dependencies. Renovate performs upgrades through reviewable product pull requests.
+`recommended` is the exact version emitted into a new product. `supported` is the range covered by conformance for an existing adopter. `minimumSecure` is monotonic within a supported major line and makes `doctor` and conformance fail when the resolved version is older. The preset validates the product manifest and lockfile; it does not mutate dependencies. Dependabot performs upgrades through reviewable product pull requests.
 
 ### 6.8 @codelitdev/platform-conformance
 
@@ -457,22 +454,20 @@ The adapter contract covers fixture creation, credential issuance, REST/MCP invo
 
     bunx @codelitdev/platform-cli create my-product
     bunx @codelitdev/platform-cli doctor
-    bunx @codelitdev/platform-cli upgrade 1.1
+    bunx @codelitdev/platform-cli sync
 
 The CLI:
 
 - Instantiates the template and safely replaces declared tokens.
 - Records capabilities and versions in .codelit-platform.json.
 - Checks preset compatibility and required configuration.
-- Runs idempotent, versioned codemods.
-- Reports ambiguous changes for manual work.
+- Re-renders managed files from the running CLI release with `sync`.
+- Reports drifted managed files as conflicts for manual work.
 - Does not edit product-owned paths just to match a current template.
 
-Codemods have dry-run mode, summaries, fixtures, and fail closed on ambiguity.
+Mutating `create` writes into a new empty directory through a temporary staging directory and renames it only after installation metadata validates. Mutating `sync` requires a Git repository with a clean worktree, records the starting platform manifest and managed-file hashes, computes the full plan before writing, and applies changes as one recoverable operation. It never commits or pushes.
 
-Mutating `create` writes into a new empty directory through a temporary staging directory and renames it only after installation metadata validates. Mutating `upgrade` requires a Git repository with a clean worktree, records the starting platform manifest and managed-file hashes, computes the full plan before writing, and applies changes as one recoverable operation. It never commits or pushes.
-
-A managed file may be replaced only when its current hash matches the hash recorded by the previous Platform operation. A mismatch is a conflict, not permission to overwrite. A product-owned file may change only through a named semantic codemod whose supported input shapes, idempotency, and rollback fixture are tested. On failure, the CLI restores all files it changed. `doctor` and every `--dry-run` command are read-only and work in a dirty repository.
+A managed file may be replaced only when its current hash matches the hash recorded by the previous Platform operation. A mismatch is a conflict, not permission to overwrite. The CLI never changes a product-owned file; a release that requires product changes documents them (ADR 0006). On failure, the CLI restores all files it changed. `doctor` and every `--dry-run` command are read-only and work in a dirty repository.
 
 ## 7. Reference product and template
 
@@ -494,19 +489,17 @@ After Phase 5, CI generates the template into a temporary directory, installs wi
 .codelit-platform.json declares:
 
     {
-      "schemaVersion": 1,
-      "templateVersion": "1.0.0",
-      "presetVersion": "0.1.0",
+      "schemaVersion": 2,
+      "product": { "name": "Acme", "slug": "acme" },
+      "cliVersion": "0.1.0",
       "capabilities": ["auth", "mcp", "observability", "billing"],
       "managedFiles": {
-        "tooling/platform/config.ts": "sha256:<digest>",
         ".github/workflows/platform-conformance.yml": "sha256:<digest>"
       },
-      "productOwnedGlobs": ["apps/**", "packages/api-contract/**"],
-      "appliedUpgrades": ["1.0.0"]
+      "productOwnedGlobs": ["apps/**", "packages/api-contract/**"]
     }
 
-Managed files are enumerated and hashed rather than represented by broad replacement globs. The CLI can replace only an unchanged managed file. Product-owned changes require a named semantic codemod or a migration guide.
+Managed files are enumerated and hashed rather than represented by broad replacement globs. The CLI can replace only an unchanged managed file. Product-owned changes are documented in release notes. `create` also writes a product-owned `code-quality.yml` workflow; `sync` never touches it.
 
 ## 8. Authentication and authorization
 
@@ -653,9 +646,9 @@ The template is used once. Later changes flow through:
       -> adopter tests and conformance
       -> adopter canary and rollout
 
-The monorepo uses independent package versions and Changesets. A package change runs affected-package tests, reverse-dependency tests, packed-public-export tests, and the reference product before publishing. A compatibility change also releases @codelitdev/platform-preset. Products never consume unpublished workspace source.
+All @codelitdev packages release together under one version with Changesets (ADR 0006). A package change runs affected-package tests, reverse-dependency tests, packed-public-export tests, and the reference product before publishing. A compatibility change ships in the CLI's preset. Products never consume unpublished workspace source.
 
-Each product repository pins resolved package versions in its lockfile. Renovate groups `@codelitdev/*` Platform updates, opens a product-local PR, runs that product's integration and conformance suites, and leaves deployment observable and reversible. A semver range alone is not an update mechanism because an existing lockfile retains its prior resolution.
+Each product repository pins resolved package versions in its lockfile. Dependabot groups `@codelitdev/*` Platform updates, opens a product-local PR, runs that product's integration and conformance suites, and leaves deployment observable and reversible. A semver range alone is not an update mechanism because an existing lockfile retains its prior resolution.
 
 For a security fix, the affected package publishes a patch and the preset records both the recommended version and the minimum secure version. Automated adopter PRs are expedited; conformance or `platform-cli doctor` reports versions below the minimum secure release. Critical fixes may use coordinated disclosure and an emergency release path, but are never silently pushed into product repositories.
 
@@ -663,12 +656,12 @@ An extracted abstraction is not stable until its origin product consumes the pub
 
 Future billing changes follow package tests -> billing reference consumer -> SendLit canary -> package release/migration guide -> compatible Platform preset -> adopter conformance and canary. A bootstrap template release is not required for an ordinary billing package upgrade.
 
-OAuth, design-system, MCP, observability, and billing changes follow the same monorepo release discipline: edit the owning package, test affected dependants, publish that package, update the compatibility preset when necessary, and generate adopter PRs. Source-changing bootstrap updates remain explicit CLI codemods and never overwrite product-owned paths.
+OAuth, design-system, MCP, observability, and billing changes follow the same monorepo release discipline: edit the owning package, test affected dependants, publish that package, update the compatibility preset when necessary, and generate adopter PRs. Managed-file updates go through `platform-cli sync`, which never overwrites product-owned paths.
 
 SemVer:
 
 - Patch: behavior-preserving fix or diagnostic.
-- Minor: additive API, opt-in capability, or idempotent codemod.
+- Minor: additive API, opt-in capability, or managed-file change applied by `sync`.
 - Major: removed contract, changed security meaning, or required product/migration work.
 
 docs/compatibility.md records supported preset lines and end-of-support dates.
@@ -724,7 +717,7 @@ Exit: the reference resource has authorized REST/MCP parity, destructive-operati
 
 ### Phase 4 — Complete the reference specification, preset, and conformance
 
-- Implement @codelitdev/platform-preset with the versioned manifest from section 6.7 and publish `docs/compatibility.md`.
+- Implement the compatibility preset with the versioned manifest from section 6.7 (now part of @codelitdev/platform-cli) and publish `docs/compatibility.md`.
 - Implement @codelitdev/platform-conformance with the adapter contract from section 6.8.
 - Run auth, tenant isolation, REST/OpenAPI, MCP parity, observability, billing composition, readiness, and shutdown suites against the reference product.
 - Add affected/reverse-dependency CI and at least one registry-packed reference-product job.
@@ -735,10 +728,9 @@ Exit: the reference product is the executable specification for one complete web
 ### Phase 5 — Template and CLI
 
 - Derive `templates/saas-product` from the proven reference composition, keeping product-owned seams explicit.
-- Implement @codelitdev/platform-cli `create`, `doctor`, and `upgrade` with the transactional/hash rules in sections 6.9 and 7.
-- Implement one real source-changing semantic codemod with forward, idempotency, conflict, and rollback fixtures.
+- Implement @codelitdev/platform-cli `create`, `doctor`, and `sync` with the transactional/hash rules in sections 6.9 and 7.
 - Generate into a temporary clean directory in CI, install with a frozen lockfile, generate/check schemas, migrate, lint, type-check, test, build, and smoke-test.
-- Exercise package updates and the CLI upgrade against generated-repository fixtures; package updates must use packed registry artifacts, not workspace links.
+- Exercise package updates and CLI `sync` against generated-repository fixtures; package updates must use packed registry artifacts, not workspace links.
 
 Exit: one command creates a clean, independently owned product repository, and both package-only and source-changing updates are proven against generated fixtures through reviewable paths.
 
@@ -747,7 +739,7 @@ Exit: one command creates a clean, independently owned product repository, and b
 - Generate its new foundation only after the Phase 5 exit criteria pass.
 - Replace the example tenant with schools and memberships.
 - Adopt the published billing artifact as its second consumer with school/payer schema mapping, per-school subscriptions, no-Free Cloud policy, and product-owned 14-day trial/availability behavior.
-- Before the production cutover, prove one ordinary package update, one minimum-secure patch update, and one source-changing CLI upgrade against CourseLit's generated foundation through reviewable pull requests.
+- Before the production cutover, prove one ordinary package update, one minimum-secure patch update, and one managed-file `sync` against CourseLit's generated foundation through reviewable pull requests.
 - Feed any genuinely shared workflow or hook improvements back into @codelitdev/billing, validate them in SendLit, and stabilize the proven contract rather than forking it in CourseLit.
 - Keep products, learners, communities, sister-product integrations, and storefront checkout CourseLit-owned.
 
@@ -755,7 +747,7 @@ Exit: one command creates a clean, independently owned product repository, and b
 
 - Adopt package by package instead of matching a template snapshot.
 - Run conformance beside existing behavior before switching.
-- Return reusable improvements through packages and explicit upgrades.
+- Return reusable improvements through packages and `sync`.
 
 ## 13. Testing and security
 
@@ -780,9 +772,9 @@ Required tests:
 - Fake-provider Cloud/OSS composition through product policy.
 - Billing action-grant consumption plus persisted-payer enforcement.
 - Required Cloud audit/product-effect hooks and bounded maintenance scheduling.
-- Template generation and upgrade fixtures for supported presets.
+- Template generation and sync fixtures for supported presets.
 - Preset manifest/lockfile compatibility, recommended-version, and minimum-secure-version fixtures.
-- CLI empty-target, dirty-worktree, managed-hash conflict, codemod idempotency, partial-failure rollback, and read-only dry-run fixtures.
+- CLI empty-target, dirty-worktree, managed-hash conflict, sync idempotency, partial-failure rollback, and read-only dry-run fixtures.
 - At least one CI consumer using packed public exports only.
 
 Security requirements:
@@ -792,7 +784,7 @@ Security requirements:
 - Coordinated disclosure, patch publication, adopter PR, and emergency release runbooks.
 - Pinned CI actions and critical dependencies.
 - No logged secrets; encrypted persisted provider credentials.
-- Threat models for tenant selection, auth, API keys, MCP, webhooks, and codemods.
+- Threat models for tenant selection, auth, API keys, MCP, webhooks, and managed-file sync.
 - Tenant escape and credential confusion are release blockers.
 - Audit records remain separate from telemetry.
 
@@ -811,8 +803,8 @@ Security requirements:
 - Each extracted package has an origin-product consumer.
 - Billing, OAuth, design-system, MCP, observability, and bootstrap packages build, test, version, and publish independently from one workspace.
 - CourseLit can start without copying FrontLit or SendLit server code.
-- One ordinary package update, one security patch, and one source-changing upgrade reach a real adopter through their documented paths.
-- CLI conflict and rollback tests prove that an upgrade cannot silently overwrite managed drift or product-owned source.
+- One ordinary package update, one security patch, and one managed-file sync reach a real adopter through their documented paths.
+- CLI conflict and rollback tests prove that a sync cannot silently overwrite managed drift or product-owned source.
 - Compatibility and support policy is published.
 
 ## 15. Deferred decisions

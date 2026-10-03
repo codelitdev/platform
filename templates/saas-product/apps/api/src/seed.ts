@@ -95,11 +95,11 @@ async function mintOAuthToken(
   runtime: Runtime,
   sessionCookie: string,
 ): Promise<string> {
-  const redirectUri = "com.example.reference:/oauth/callback";
+  const redirectUri = "com.example.__PRODUCT_SLUG__:/oauth/callback";
   const client = await runtime.auth.auth.api.createOAuthClient({
     headers: new Headers({ cookie: sessionCookie }),
     body: {
-      client_name: "Reference test client",
+      client_name: "__PRODUCT_SLUG__ test client",
       redirect_uris: [redirectUri],
       token_endpoint_auth_method: "none",
       grant_types: ["authorization_code", "refresh_token"],

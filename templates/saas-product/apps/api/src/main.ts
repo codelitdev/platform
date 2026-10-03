@@ -60,11 +60,11 @@ const app = createExpressApp(runtime);
 const server = await new Promise<ReturnType<typeof app.listen>>((resolve) => {
   const listening = app.listen(port, () => resolve(listening));
 });
-logger.info({ port }, "reference api listening");
+logger.info({ port }, "api listening");
 
 if (process.env.SEED === "1") {
   if (await hasSeededWorld(runtime)) {
-    logger.info("reference world already seeded; skipping seed");
+    logger.info("demo data already seeded; skipping seed");
   } else {
     const world = await seedWorld(runtime, runtime.clock);
     logger.info(
@@ -73,14 +73,7 @@ if (process.env.SEED === "1") {
         apiKeyHint: world.apiKeyA.publicId,
         note: world.noteA.publicId,
       },
-      "seeded reference world",
-    );
-    process.stdout.write(
-      `REFERENCE_SEED ${JSON.stringify({
-        seeded: true,
-        tenantA: world.tenantA.publicId,
-        noteId: world.noteA.publicId,
-      })}\n`,
+      "seeded demo data",
     );
   }
 }

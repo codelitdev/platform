@@ -1,6 +1,6 @@
 # ADR 0004: Release and support policy
 
-Status: accepted  
+Status: accepted; partly superseded by ADR 0006  
 Date: 2026-09-02
 
 ## Context

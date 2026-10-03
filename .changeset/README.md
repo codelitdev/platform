@@ -1,5 +1,5 @@
 # Changesets
 
-Every publishable package change must include a Changeset. Packages are versioned independently; choose the smallest semver bump that accurately describes the public change.
+All `@codelitdev/*` packages release together under one version (the `fixed` group in `config.json`; see ADR 0006). Releases use plain versions without prerelease tags, so every publish moves the `latest` npm tag.
 
-Packages publish stable releases on the `latest` npm tag. Use a prerelease tag only with an explicit release decision and a committed Changesets prerelease state.
+Every publishable change needs a Changeset that describes its public effect. When a change requires product work, list it under a "Product changes" heading so products can apply it after updating.

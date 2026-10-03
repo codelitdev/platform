@@ -17,7 +17,6 @@ security rota even when they originate in a product repository.
 | `packages/platform`             | `@codelitdev/platform`                       | Platform kernel maintainers.                                  |
 | `packages/observability`        | `@codelitdev/observability`                  | Observability maintainers (SendLit API + CourseLit Queue).    |
 | `packages/mcp-server-kit`       | `@codelitdev/mcp-server-kit`                 | MCP maintainers (FrontLit, SendLit, MediaLit).                |
-| `packages/platform-preset`      | `@codelitdev/platform-preset`                | Platform maintainers.                                         |
 | `packages/platform-conformance` | `@codelitdev/platform-conformance`           | Platform maintainers.                                         |
 | `packages/platform-cli`         | `@codelitdev/platform-cli`                   | Platform maintainers.                                         |
 | `templates/saas-product`        | template                                     | Platform maintainers. Product-owned seams are not owned here. |

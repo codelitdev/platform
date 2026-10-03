@@ -136,7 +136,7 @@ export async function createPostgresRuntime(options: {
   const observability =
     options.observability ??
     createObservability({
-      serviceName: options.serviceName ?? "reference-api",
+      serviceName: options.serviceName ?? "__PRODUCT_SLUG__-api",
       environment: "production",
       contextPolicy: {
         propertyAllowlist: new Set(["path", "method", "job_id"]),
@@ -148,7 +148,7 @@ export async function createPostgresRuntime(options: {
     clock,
     apiKeyPepper: options.apiKeyPepper,
     billing,
-    serviceName: options.serviceName ?? "reference-api",
+    serviceName: options.serviceName ?? "__PRODUCT_SLUG__-api",
     databaseReady: true,
     logger: options.logger ?? observability.logger,
     observability,

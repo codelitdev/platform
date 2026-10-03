@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import {
+  copyFileSync,
   cpSync,
   mkdirSync,
   mkdtempSync,
@@ -12,12 +13,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const presetRoot = path.join(root, "..", "platform-preset");
-execFileSync("bun", ["run", "build"], { cwd: presetRoot, stdio: "inherit" });
 execFileSync("bun", ["x", "tsc", "-p", "tsconfig.json"], {
   cwd: root,
   stdio: "inherit",
 });
+copyFileSync(path.join(root, "src/preset.json"), path.join(root, "dist/preset.json"));
 rmSync(path.join(root, "template"), { recursive: true, force: true });
 cpSync(
   path.resolve(root, "../../templates/saas-product"),
@@ -41,7 +41,6 @@ function pack(cwd) {
   if (!name) throw new Error(out);
   return path.isAbsolute(name) ? name : path.join(packDirectory, path.basename(name));
 }
-const presetTarball = pack(presetRoot);
 const tarball = pack(root);
 const dir = mkdtempSync(path.join(tmpdir(), "cli-packed-"));
 mkdirSync(dir, { recursive: true });
@@ -53,11 +52,7 @@ writeFileSync(
     private: true,
     packageManager: "bun@1.4.1",
     dependencies: {
-      "@codelitdev/platform-preset": presetTarball,
       "@codelitdev/platform-cli": tarball,
-    },
-    overrides: {
-      "@codelitdev/platform-preset": presetTarball,
     },
   }),
 );
@@ -72,6 +67,11 @@ const pkg = JSON.parse(
   ),
 );
 if (JSON.stringify(pkg.exports).includes("src/")) throw new Error("src export");
+readFileSync(path.join(dir, "node_modules/@codelitdev/platform-cli/README.md"), "utf8");
+readFileSync(
+  path.join(dir, "node_modules/@codelitdev/platform-cli/dist/preset.json"),
+  "utf8",
+);
 writeFileSync(
   path.join(dir, "assert.mjs"),
   `

@@ -6,11 +6,17 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
-import { loadPresetManifest } from "@codelitdev/platform-preset";
 import { copyTemplate, isEmptyDir, listFiles, removeDir, replaceTokens } from "./fs.js";
 import { sha256File } from "./hash.js";
 import { writeManifest } from "./manifest.js";
-import { resolveTemplateDir, slugify } from "./template.js";
+import { loadPresetManifest } from "./preset.js";
+import {
+  cliVersion,
+  MANAGED_FILES,
+  resolveTemplateDir,
+  slugify,
+  templateTokens,
+} from "./template.js";
 
 export function createProduct(input: { targetDir: string; productName: string }): {
   root: string;
@@ -28,27 +34,19 @@ export function createProduct(input: { targetDir: string; productName: string })
       path.join(staging, "biome.template.json"),
       path.join(staging, "biome.json"),
     );
-    replaceTokens(staging, {
-      __PRODUCT_NAME__: input.productName,
-      __PRODUCT_SLUG__: slug,
-    });
-    pinCodelitVersions(staging, loadPresetManifest());
-    const managedRel = path.join("tooling", "platform", "config.ts");
-    const managedPath = path.join(staging, managedRel);
-    const workflowRel = path.join(".github", "workflows", "platform-conformance.yml");
-    const workflowPath = path.join(staging, workflowRel);
+    const product = { name: input.productName, slug };
+    replaceTokens(staging, templateTokens(product));
     const preset = loadPresetManifest();
+    pinCodelitVersions(staging, preset);
     writeManifest(staging, {
-      schemaVersion: 1,
-      templateVersion: "1.0.0",
-      presetVersion: preset.presetVersion,
+      schemaVersion: 2,
+      product,
+      cliVersion: cliVersion(),
       capabilities: ["auth", "mcp", "observability", "billing"],
-      managedFiles: {
-        [managedRel.replaceAll("\\", "/")]: sha256File(managedPath),
-        [workflowRel.replaceAll("\\", "/")]: sha256File(workflowPath),
-      },
+      managedFiles: Object.fromEntries(
+        MANAGED_FILES.map((rel) => [rel, sha256File(path.join(staging, rel))]),
+      ),
       productOwnedGlobs: ["apps/**", "packages/api-contract/**"],
-      appliedUpgrades: ["1.0.0"],
     });
     validateGeneratedMetadata(staging);
     mkdirSync(path.dirname(target), { recursive: true });
@@ -71,6 +69,7 @@ function validateGeneratedMetadata(root: string): void {
     "packages/api-contract/package.json",
     "apps/api/README.md",
     ".github/workflows/platform-conformance.yml",
+    ".github/workflows/code-quality.yml",
   ];
   if (required.some((file) => !files.includes(file))) {
     throw new Error("create_metadata_invalid");
@@ -85,7 +84,8 @@ function validateGeneratedMetadata(root: string): void {
     )
       continue;
     const content = readFileSync(path.join(root, file), "utf8");
-    if (content.includes("__PRODUCT_")) throw new Error("create_tokens_unresolved");
+    if (content.includes("__PRODUCT_") || content.includes("__PLATFORM_"))
+      throw new Error("create_tokens_unresolved");
   }
   const packageJson = JSON.parse(
     readFileSync(path.join(root, "package.json"), "utf8"),
