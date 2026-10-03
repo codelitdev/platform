@@ -1,6 +1,6 @@
 {
   "name": "@codelitdev/platform",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0",
   "description": "Composition kernel for CodeLit Platform products",
   "author": "CodeLit",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "@codelitdev/design-system",
-  "version": "0.1.0-alpha.7",
+  "version": "0.1.0",
   "description": "Shared CodeLit design tokens, Tailwind preset, and React primitives for CourseLit, MediaLit, SendLit, and FrontLit.",
   "license": "Apache-2.0",
   "author": "CodeLit",
