@@ -1,6 +1,6 @@
 {
   "name": "@codelitdev/platform-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Create, check, and sync CodeLit Platform products",
   "author": "CodeLit",
   "type": "module",
