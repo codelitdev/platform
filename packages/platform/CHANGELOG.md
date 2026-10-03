@@ -1,5 +1,11 @@
 # @codelitdev/platform
 
+## 0.3.0
+
+### Patch Changes
+
+- 8cbb124: `PlatformCredential` has an optional `scopes` field. Authentication adapters set it for `oauth` credentials so products can narrow permissions to the token's granted scopes (ADR 0008).
+
 ## 0.2.0
 
 ### Minor Changes

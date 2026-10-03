@@ -1,5 +1,12 @@
 # @codelitdev/platform-conformance
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [8cbb124]
+  - @codelitdev/platform@0.3.0
+
 ## 0.2.0
 
 ### Patch Changes
