@@ -282,7 +282,13 @@ export async function runBillingProviderContract(
     await adapter.cancelSubscription(paid.providerSubscriptionId, "cancel:contract:1");
   }
   const cancelled = await adapter.retrieveSubscription(paid.providerSubscriptionId);
-  assert(cancelled.status === "cancelled", "cancelled");
+  assert(cancelled.status === paid.status, "cancel keeps status until period end");
+  assert(cancelled.cancelAtPeriodEnd, "cancel scheduled at period end");
+
+  await adapter.resumeSubscription(paid.providerSubscriptionId, "resume:contract:1");
+  const resumed = await adapter.retrieveSubscription(paid.providerSubscriptionId);
+  assert(!resumed.cancelAtPeriodEnd, "resume clears scheduled cancel");
+  assert(resumed.status === paid.status, "resume keeps status");
 
   const signed = helpers.signWebhook(
     JSON.stringify({

@@ -23,7 +23,12 @@ import type {
 
 export const FAKE_BILLING_WEBHOOK_KEY = "whsec_fake_test_key";
 
-type MutationName = "createCustomer" | "createCheckout" | "planChange" | "cancellation";
+type MutationName =
+  | "createCustomer"
+  | "createCheckout"
+  | "planChange"
+  | "cancellation"
+  | "resumption";
 
 export type FakeProviderControls = {
   outage?: boolean;
@@ -53,7 +58,7 @@ function equalHex(left: string, right: string): boolean {
 }
 
 export class FakeBillingProvider implements BillingProviderAdapter {
-  readonly provider = "fake";
+  readonly provider: string;
   readonly capabilities: ProviderCapabilities = {
     planChanges: true,
     intervalChanges: true,
@@ -77,6 +82,7 @@ export class FakeBillingProvider implements BillingProviderAdapter {
   private checkoutsById = new Map<string, StoredCheckout>();
   private planChangesByKey = new Map<string, SubscriptionPlanChangeResult>();
   private cancellationsByKey = new Map<string, string>();
+  private resumptionsByKey = new Map<string, string>();
   private subscriptions = new Map<string, SubscriptionSnapshot>();
   private nextId = 1;
   controls: FakeProviderControls = {};
@@ -85,7 +91,9 @@ export class FakeBillingProvider implements BillingProviderAdapter {
   createCustomerCalls: CreateCustomerInput[] = [];
   createCheckoutCalls: CreateCheckoutInput[] = [];
 
-  constructor(options: { webhookKey?: string; clock?: Clock } = {}) {
+  constructor(options: { webhookKey?: string; clock?: Clock; provider?: string } = {}) {
+    // A second name lets tests run two providers side by side.
+    this.provider = options.provider ?? "fake";
     this.webhookKey = options.webhookKey ?? FAKE_BILLING_WEBHOOK_KEY;
     this.clock = options.clock ?? systemClock;
   }
@@ -145,6 +153,34 @@ export class FakeBillingProvider implements BillingProviderAdapter {
         "webhook-signature": `v1,${hmac(this.webhookKey, `${eventId}.${timestamp}.${body}`)}`,
       },
     };
+  }
+
+  /** A subscription started with the provider directly, outside any engine checkout. */
+  createExternalSubscription(input: {
+    customerId: string;
+    productId: string;
+    occurredAt?: Date;
+  }): SubscriptionSnapshot {
+    const occurredAt = input.occurredAt ?? this.clock.now();
+    const periodEnd = new Date(occurredAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const snapshot: SubscriptionSnapshot = {
+      provider: this.provider,
+      providerCustomerId: input.customerId,
+      providerSubscriptionId: `sub_${this.nextId++}`,
+      providerProductId: input.productId,
+      status: "active",
+      currentPeriodStartsAt: occurredAt,
+      currentPeriodEndsAt: periodEnd,
+      paidThroughAt: periodEnd,
+      trialEndsAt: null,
+      cancelAtPeriodEnd: false,
+      providerOccurredAt: occurredAt,
+      providerVersion: "1",
+      observedAt: this.clock.now(),
+      metadata: {},
+    };
+    this.subscriptions.set(snapshot.providerSubscriptionId, snapshot);
+    return snapshot;
   }
 
   async simulatePayment(
@@ -377,14 +413,56 @@ export class FakeBillingProvider implements BillingProviderAdapter {
     if (!this.cancellationsByKey.has(idempotencyKey)) {
       this.subscriptions.set(id, {
         ...current,
-        status: "cancelled",
-        cancelAtPeriodEnd: false,
+        cancelAtPeriodEnd: true,
         providerOccurredAt: this.clock.now(),
+        providerVersion: this.nextVersion(current.providerVersion),
         observedAt: this.clock.now(),
       });
       this.cancellationsByKey.set(idempotencyKey, id);
     }
     await this.failIfControlled("cancellation");
+  }
+
+  async resumeSubscription(id: string, idempotencyKey: string): Promise<void> {
+    const current = this.subscriptions.get(id);
+    if (!current) {
+      throw new BillingProviderError("invalid", "subscription_not_found");
+    }
+    if (!this.resumptionsByKey.has(idempotencyKey)) {
+      this.subscriptions.set(id, {
+        ...current,
+        cancelAtPeriodEnd: false,
+        providerOccurredAt: this.clock.now(),
+        providerVersion: this.nextVersion(current.providerVersion),
+        observedAt: this.clock.now(),
+      });
+      this.resumptionsByKey.set(idempotencyKey, id);
+    }
+    await this.failIfControlled("resumption");
+  }
+
+  /** Ends a subscription whose cancellation was scheduled, as the provider does at period end. */
+  endScheduledCancellation(id: string): SubscriptionSnapshot {
+    const current = this.subscriptions.get(id);
+    if (!current) {
+      throw new BillingProviderError("invalid", "subscription_not_found");
+    }
+    const now = this.clock.now();
+    const ended: SubscriptionSnapshot = {
+      ...current,
+      status: "cancelled",
+      currentPeriodEndsAt: now,
+      paidThroughAt: now,
+      providerOccurredAt: this.clock.now(),
+      providerVersion: this.nextVersion(current.providerVersion),
+      observedAt: this.clock.now(),
+    };
+    this.subscriptions.set(id, ended);
+    return ended;
+  }
+
+  private nextVersion(version: string | null): string {
+    return String(Number(version ?? "0") + 1);
   }
 
   async parseWebhook(input: RawWebhookRequest): Promise<VerifiedWebhookEnvelope> {

@@ -70,6 +70,8 @@ import { BillingProviderRegistry } from "../providers/registry.js";
 
 export type CommercialBillingState = {
   activePaidPlan: string | null;
+  /** Provider holding the paid subscription, or null without one. */
+  provider: string | null;
   billingInterval: "month" | "year" | null;
   subscriptionStatus: string | null;
   providerTrialEndsAt: Date | null;
@@ -95,6 +97,15 @@ export type CreateBillingOptions = {
   requiredOfferKeys: string[];
   offers?: BillingOffer[];
   webhookRetrieveCurrent?: boolean;
+  /** How long work may sit before `runReconciliationBatch` treats it as stuck. */
+  reconciliation?: {
+    /** Checkouts still `creating`. Default one minute. */
+    checkoutStaleAfterMs?: number;
+    /** Plan changes still `creating`, or `pending` after an error. Default one hour. */
+    planChangeStaleAfterMs?: number;
+    /** Live subscriptions not reconciled with the provider. Default one hour. */
+    subscriptionStaleAfterMs?: number;
+  };
   /** Application-owned allowlist for checkout and portal return URLs. */
   returnUrlValidator?: (url: string) => boolean;
 };
@@ -173,6 +184,25 @@ export function createBilling(options: CreateBillingOptions) {
     return fn();
   }
 
+  /**
+   * Applies the provider's current subscription after a mutation, so read
+   * models reflect it before the webhook arrives. A failure is ignored: the
+   * webhook and reconciliation project the same state later.
+   */
+  async function readBackSubscription(sub: {
+    provider: string;
+    providerSubscriptionId: string;
+  }): Promise<void> {
+    try {
+      const snapshot = await callProvider(() =>
+        provider(sub.provider).retrieveSubscription(sub.providerSubscriptionId),
+      );
+      await projectSnapshot(snapshot, {});
+    } catch {
+      telemetry.event("readback.failed", { provider: sub.provider });
+    }
+  }
+
   async function publicCatalog(): Promise<PublicBillingCatalog | null> {
     if (options.mode === "oss") return null;
     return publicCatalogFor(options.checkoutProvider);
@@ -230,6 +260,14 @@ export function createBilling(options: CreateBillingOptions) {
           return existing.revision;
         }
         const revisions = await store.listRevisions();
+        // Revision numbers are unique across providers.
+        if (
+          revisions.some((revision) => revision.revision === options.requestedRevision)
+        ) {
+          throw new BillingCompositionError(
+            "catalog_revision_used_by_another_provider",
+          );
+        }
         const newer = revisions.find(
           (revision) => revision.revision > options.requestedRevision!,
         );
@@ -630,6 +668,35 @@ export function createBilling(options: CreateBillingOptions) {
     return store.withTransaction(() => enqueueJobInTransaction(subject));
   }
 
+  /**
+   * Closes the payer's open checkout when they choose another offer. A
+   * subscription that still arrives for it marks it `conflicted`.
+   */
+  async function abandonSupersededCheckout(id: string) {
+    const latest = await store.findCheckoutById(id);
+    if (!latest) return;
+    const decision = decideCheckoutTransition(latest.status, "abandoned", {
+      now: clock.now(),
+      expiresAt: latest.expiresAt,
+    });
+    if (!decision.allowed) {
+      throw new BillingWorkflowError("operation_conflicted");
+    }
+    const previous = latest.status;
+    latest.status = "abandoned";
+    latest.completedAt = clock.now();
+    latest.checkoutUrlEncrypted = null;
+    await store.saveCheckout(latest);
+    await requireAudit({
+      effectId: `checkout:${latest.id}:abandoned`,
+      actor: { kind: "user", id: latest.payerId },
+      previous: { status: previous },
+      next: { status: "abandoned" },
+      correlationIds: { attemptId: latest.attemptId },
+    });
+    telemetry.event("checkout.superseded", { attemptId: latest.attemptId });
+  }
+
   async function startCheckout(input: {
     grant: BillingActionGrant;
     entity: BillableEntityRef;
@@ -682,8 +749,12 @@ export function createBilling(options: CreateBillingOptions) {
     if (existingSub && retainsPaidEntitlement(existingSub, clock.now())) {
       throw new BillingWorkflowError("active_subscription_exists");
     }
+    if (existingSub) {
+      // Paid access lapsed but the deadline batch has not run yet.
+      await releaseLapsedEntitlement(existingSub.id, "checkout");
+    }
     const adapter = provider(options.checkoutProvider);
-    const checkoutIdempotencyKey = `checkout:${input.entity.id}:${input.offerKey}:${catalog.revision.revision}`;
+    let checkoutIdempotencyKey = `checkout:${input.entity.id}:${input.offerKey}:${catalog.revision.revision}`;
     const resumable = await store.findResumableCheckout(input.entity.id);
     if (resumable?.providerCheckoutSessionId && resumable.payerId === input.payer.id) {
       try {
@@ -710,22 +781,31 @@ export function createBilling(options: CreateBillingOptions) {
       }
     }
 
-    const liveCheckout = await store.findLiveCheckout(input.entity.id);
+    let liveCheckout = await store.findLiveCheckout(input.entity.id);
     let resumeAttempt: CheckoutAttempt | undefined;
+    // The payer's open checkout for another offer, replaced by this one.
+    let superseded: CheckoutAttempt | undefined;
+    const sameRequest = (attempt: CheckoutAttempt) =>
+      attempt.payerId === input.payer.id &&
+      attempt.offerKey === input.offerKey &&
+      attempt.catalogRevision === catalog.revision.revision;
     if (liveCheckout && liveCheckout.expiresAt.getTime() <= clock.now().getTime()) {
       liveCheckout.status = "expired";
       liveCheckout.completedAt = clock.now();
       liveCheckout.checkoutUrlEncrypted = null;
       await store.saveCheckout(liveCheckout);
-      resumeAttempt = liveCheckout;
+      if (sameRequest(liveCheckout)) resumeAttempt = liveCheckout;
+      liveCheckout = undefined;
     } else if (liveCheckout) {
-      if (
-        liveCheckout.payerId !== input.payer.id ||
-        liveCheckout.offerKey !== input.offerKey ||
-        liveCheckout.catalogRevision !== catalog.revision.revision
-      ) {
+      if (liveCheckout.payerId !== input.payer.id) {
         throw new BillingWorkflowError("checkout_pending");
       }
+      if (!sameRequest(liveCheckout)) {
+        superseded = liveCheckout;
+        liveCheckout = undefined;
+      }
+    }
+    if (liveCheckout) {
       if (
         liveCheckout.status === "open" &&
         liveCheckout.checkoutUrlEncrypted &&
@@ -746,6 +826,12 @@ export function createBilling(options: CreateBillingOptions) {
     if (!resumeAttempt) {
       const existing = await store.findCheckoutByIdempotencyKey(checkoutIdempotencyKey);
       if (
+        existing &&
+        (existing.status === "abandoned" || existing.status === "conflicted")
+      ) {
+        // A replaced checkout keeps its key, so the new attempt needs another.
+        checkoutIdempotencyKey = `${checkoutIdempotencyKey}:${newId()}`;
+      } else if (
         existing &&
         existing.payerId === input.payer.id &&
         existing.offerKey === input.offerKey &&
@@ -837,6 +923,7 @@ export function createBilling(options: CreateBillingOptions) {
             catalogKey: liveCheckout.offerKey,
             trialDays: input.trialDays ?? 0,
             idempotencyKey: liveCheckout.idempotencyKey,
+            expiresAt: liveCheckout.expiresAt,
           }),
         );
         if (options.sensitiveValues) {
@@ -867,6 +954,7 @@ export function createBilling(options: CreateBillingOptions) {
     } else {
       try {
         attempt = await store.withTransaction(async () => {
+          if (superseded) await abandonSupersededCheckout(superseded.id);
           const row: CheckoutAttempt = {
             id: newId(),
             attemptId: store.newAttemptId(),
@@ -900,13 +988,9 @@ export function createBilling(options: CreateBillingOptions) {
         const raced =
           (await store.findLiveCheckout(input.entity.id)) ??
           (await store.findCheckoutByIdempotencyKey(checkoutIdempotencyKey));
-        if (
-          !raced ||
-          raced.payerId !== input.payer.id ||
-          raced.offerKey !== input.offerKey ||
-          raced.catalogRevision !== catalog.revision.revision
-        ) {
-          throw error;
+        if (!raced || error instanceof BillingWorkflowError) throw error;
+        if (!sameRequest(raced)) {
+          throw new BillingWorkflowError("checkout_pending");
         }
         attempt = raced;
       }
@@ -915,12 +999,15 @@ export function createBilling(options: CreateBillingOptions) {
     const reopenExpiredOrUnpaidCompleted =
       attempt.status === "expired" || attempt.status === "completed";
     if (reopenExpiredOrUnpaidCompleted) {
-      attempt.status = "creating";
-      attempt.completedAt = null;
-      attempt.checkoutUrlEncrypted = null;
-      attempt.lastError = null;
-      attempt.expiresAt = new Date(clock.now().getTime() + 60 * 60 * 1000);
-      await store.saveCheckout(attempt);
+      await store.withTransaction(async () => {
+        if (superseded) await abandonSupersededCheckout(superseded.id);
+        attempt.status = "creating";
+        attempt.completedAt = null;
+        attempt.checkoutUrlEncrypted = null;
+        attempt.lastError = null;
+        attempt.expiresAt = new Date(clock.now().getTime() + 60 * 60 * 1000);
+        await store.saveCheckout(attempt);
+      });
     }
     const providerCheckoutKey = reopenExpiredOrUnpaidCompleted
       ? `${attempt.idempotencyKey}:reopen:${attempt.id}`
@@ -952,6 +1039,7 @@ export function createBilling(options: CreateBillingOptions) {
           catalogKey: item.offerKey,
           trialDays: input.trialDays ?? 0,
           idempotencyKey: providerCheckoutKey,
+          expiresAt: attempt.expiresAt,
         }),
       );
       const encrypted = options.sensitiveValues
@@ -1118,6 +1206,13 @@ export function createBilling(options: CreateBillingOptions) {
     ) {
       throw new BillingWorkflowError("plan_change_not_supported");
     }
+    if (
+      input.prorationMode === "do_not_bill" &&
+      target.price.interval !== sub.interval &&
+      adapter.capabilities.intervalChangesBillImmediately
+    ) {
+      throw new BillingWorkflowError("plan_change_not_supported");
+    }
     let providerProduct: BillingProductSnapshot;
     try {
       providerProduct = await callProvider(() =>
@@ -1159,15 +1254,18 @@ export function createBilling(options: CreateBillingOptions) {
     let attempt: PlanChangeAttempt;
     try {
       attempt = await store.withTransaction(async () => {
+        const changeId = store.newChangeId();
         const row: PlanChangeAttempt = {
           id: newId(),
-          changeId: store.newChangeId(),
+          changeId,
           billableEntityId: input.entity.id,
           subscriptionId: sub.id,
           actorId: input.payer.id,
           payerId: input.payer.id,
           provider: sub.provider,
-          idempotencyKey: `plan-change:${sub.id}:${input.offerKey}:${catalog.revision.revision}`,
+          // One key per attempt: a later change back to the same offer is a
+          // new request, while retries of this one reuse the stored key.
+          idempotencyKey: `plan-change:${sub.id}:${input.offerKey}:${catalog.revision.revision}:${changeId}`,
           currentCatalogRevision: sub.catalogRevision,
           currentPriceEntryId: sub.priceEntryId,
           currentPlan: sub.plan,
@@ -1211,7 +1309,7 @@ export function createBilling(options: CreateBillingOptions) {
         remote.paymentUrl && options.sensitiveValues
           ? await options.sensitiveValues.encrypt(remote.paymentUrl)
           : null;
-      return await store.withTransaction(async () => {
+      const pending = await store.withTransaction(async () => {
         const latest = (await store.findPlanChangeById(attempt.id)) ?? attempt;
         const decision = decidePlanChangeTransition(latest.status, "pending");
         if (!decision.allowed) throw new BillingWorkflowError("operation_conflicted");
@@ -1228,6 +1326,8 @@ export function createBilling(options: CreateBillingOptions) {
         });
         return latest;
       });
+      await readBackSubscription(sub);
+      return (await store.findPlanChangeById(pending.id)) ?? pending;
     } catch (error) {
       await enqueueJob({
         provider: sub.provider,
@@ -1267,7 +1367,7 @@ export function createBilling(options: CreateBillingOptions) {
     if (sub.payerId !== input.payer.id) {
       throw new BillingWorkflowError("payer_mismatch");
     }
-    if (sub.status === "cancelled") {
+    if (sub.status === "cancelled" || sub.cancelAtPeriodEnd) {
       return { accepted: true as const, subscriptionId: sub.id };
     }
     if (
@@ -1278,7 +1378,7 @@ export function createBilling(options: CreateBillingOptions) {
     }
     await store.withTransaction(async () => {
       await requireAudit({
-        effectId: `cancellation:${sub.id}:requested`,
+        effectId: `cancellation:${sub.id}:${sub.providerVersion ?? "0"}:requested`,
         actor: { kind: "user", id: input.payer.id },
         previous: { status: sub.status },
         next: { requested: "provider_cancel" },
@@ -1294,7 +1394,7 @@ export function createBilling(options: CreateBillingOptions) {
       await callProvider(() =>
         provider(sub.provider).cancelSubscription(
           sub.providerSubscriptionId,
-          `cancel:${sub.id}`,
+          cancellationKey(sub),
         ),
       );
     } catch (error) {
@@ -1303,6 +1403,79 @@ export function createBilling(options: CreateBillingOptions) {
         retryable: true,
       });
     }
+    await readBackSubscription(sub);
+    return { accepted: true as const, subscriptionId: sub.id };
+  }
+
+  /**
+   * Clears a cancellation scheduled for the end of the paid period. Uses the
+   * `cancellation` grant, because it reverses that action.
+   */
+  async function resumeCancellation(input: {
+    grant: BillingActionGrant;
+    entity: BillableEntityRef;
+    payer: PayerRef;
+  }) {
+    if (options.mode === "oss") {
+      throw new BillingWorkflowError("unsupported_operation");
+    }
+    await consumeGrant(
+      input.grant,
+      "cancellation",
+      {
+        kind: input.entity.kind,
+        id: input.entity.id,
+      },
+      input.payer.id,
+    );
+    const sub = await store.findEntitlementSubscription(input.entity.id);
+    // Some providers, such as Lemon Squeezy, report a scheduled cancellation
+    // as `cancelled` until the period ends; that one can still be resumed.
+    if (
+      !sub ||
+      sub.status === "expired" ||
+      (sub.status === "cancelled" && !sub.cancelAtPeriodEnd)
+    ) {
+      throw new BillingWorkflowError("subscription_required");
+    }
+    if (sub.payerId !== input.payer.id) {
+      throw new BillingWorkflowError("payer_mismatch");
+    }
+    if (!sub.cancelAtPeriodEnd) {
+      return { accepted: true as const, subscriptionId: sub.id };
+    }
+    await store.withTransaction(async () => {
+      await requireAudit({
+        effectId: `resumption:${sub.id}:${sub.providerVersion ?? "0"}:requested`,
+        actor: { kind: "user", id: input.payer.id },
+        previous: { cancelAtPeriodEnd: true },
+        next: { requested: "provider_resume" },
+        correlationIds: { subscriptionId: sub.id },
+      });
+      // A pending cancellation retry must not cancel again after this.
+      const job = await enqueueJobInTransaction({
+        provider: sub.provider,
+        subscriptionId: sub.id,
+      });
+      if (job.operation === "cancellation") {
+        job.operation = "reconcile";
+        await store.saveJob(job);
+      }
+    });
+    try {
+      await callProvider(() =>
+        provider(sub.provider).resumeSubscription(
+          sub.providerSubscriptionId,
+          `resume:${sub.id}:${sub.providerVersion ?? "0"}`,
+        ),
+      );
+    } catch (error) {
+      if (error instanceof BillingWorkflowError) throw error;
+      throw new BillingWorkflowError("provider_unavailable", {
+        retryable: true,
+      });
+    }
+    await readBackSubscription(sub);
     return { accepted: true as const, subscriptionId: sub.id };
   }
 
@@ -1365,13 +1538,16 @@ export function createBilling(options: CreateBillingOptions) {
       payloadEncrypted: encryptedPayload?.ciphertext ?? null,
       payloadKeyVersion: encryptedPayload?.keyVersion ?? null,
       verifiedKeyVersion: envelope.verifiedKeyVersion,
-      status: "pending",
+      // Another product's event is kept for deduplication and audit, but is
+      // never processed, retried, or quarantined.
+      status: envelope.foreign ? "ignored" : "pending",
       processingAttempts: 0,
       lastError: null,
       availableAt: clock.now(),
       lockedAt: null,
       leaseExpiresAt: null,
       workerId: null,
+      ...(envelope.foreign ? { processedAt: clock.now() } : {}),
     };
     try {
       await store.withTransaction(async () => store.insertWebhook(record));
@@ -1391,9 +1567,15 @@ export function createBilling(options: CreateBillingOptions) {
     }
   }
 
+  type ProjectionCorrelation = {
+    checkoutAttemptId?: string;
+    /** Owner of a subscription created outside this engine (adoption). */
+    adopted?: { billableEntityId: string; payerId: string; catalogRevision: number };
+  };
+
   async function projectSnapshot(
     snapshot: SubscriptionSnapshot,
-    correlation: { checkoutAttemptId?: string },
+    correlation: ProjectionCorrelation,
     reconcile = false,
   ) {
     return store.withTransaction(() =>
@@ -1401,9 +1583,34 @@ export function createBilling(options: CreateBillingOptions) {
     );
   }
 
+  /**
+   * Points the payer's customer at the one the provider chose during checkout.
+   * Only for a first subscription correlated to that payer's checkout.
+   */
+  async function relinkCheckoutCustomer(
+    customerRowId: string,
+    payerId: string,
+    providerCustomerId: string,
+  ) {
+    const row = await store.findCustomerById(customerRowId);
+    if (!row || row.payerId !== payerId || row.status !== "active") return undefined;
+    const previous = row.providerCustomerId;
+    row.providerCustomerId = providerCustomerId;
+    await store.saveCustomer(row);
+    await requireAudit({
+      effectId: `customer:${row.id}:relinked:${providerCustomerId}`,
+      actor: { kind: "system", id: "billing" },
+      previous: { providerCustomerId: previous },
+      next: { providerCustomerId },
+      correlationIds: { customerId: row.id },
+    });
+    telemetry.event("customer.relinked", { customerId: row.id });
+    return row;
+  }
+
   async function projectSnapshotInTransaction(
     snapshot: SubscriptionSnapshot,
-    correlation: { checkoutAttemptId?: string },
+    correlation: ProjectionCorrelation,
     reconcile = false,
   ) {
     if (
@@ -1446,12 +1653,29 @@ export function createBilling(options: CreateBillingOptions) {
         ? await store.findCheckoutById(existing.originCheckoutAttemptId)
         : undefined;
     const attempt = correlatedAttempt ?? originAttempt;
-    const billableEntityId = existing?.billableEntityId ?? attempt?.billableEntityId;
-    const payerId = existing?.payerId ?? attempt?.payerId;
-    const customer = await store.findCustomerByProviderCustomerId(
+    const billableEntityId =
+      existing?.billableEntityId ??
+      attempt?.billableEntityId ??
+      correlation.adopted?.billableEntityId;
+    const payerId =
+      existing?.payerId ?? attempt?.payerId ?? correlation.adopted?.payerId;
+    let customer = await store.findCustomerByProviderCustomerId(
       snapshot.provider,
       snapshot.providerCustomerId,
     );
+    if (
+      !customer &&
+      !existing &&
+      correlatedAttempt?.providerCustomerRowId &&
+      correlatedAttempt.provider === snapshot.provider &&
+      provider(snapshot.provider).capabilities.checkoutAssignsCustomer
+    ) {
+      customer = await relinkCheckoutCustomer(
+        correlatedAttempt.providerCustomerRowId,
+        correlatedAttempt.payerId,
+        snapshot.providerCustomerId,
+      );
+    }
     if (!billableEntityId || !payerId || !customer) {
       throw new BillingWorkflowError("operation_quarantined");
     }
@@ -1512,7 +1736,10 @@ export function createBilling(options: CreateBillingOptions) {
     }
     const lineageRevision = pendingChange
       ? pendingChange.targetCatalogRevision
-      : (existing?.catalogRevision ?? attempt?.catalogRevision ?? 0);
+      : (existing?.catalogRevision ??
+        attempt?.catalogRevision ??
+        correlation.adopted?.catalogRevision ??
+        0);
     const lineageOffer = pendingChange
       ? pendingChange.targetOfferKey
       : (existing?.offerKey ?? attempt?.offerKey ?? price.offerKey);
@@ -1725,10 +1952,22 @@ export function createBilling(options: CreateBillingOptions) {
     return store.claimClaimableJobs(clock.now(), limit, input.workerId);
   }
 
-  async function runReconciliationBatch(input: { workerId: string; limit?: number }) {
+  /**
+   * Processes queued reconciliation jobs. Unless `discover` is false, it first
+   * queues stuck work (see `enqueueStuckWork`), so products need no sweep of
+   * their own.
+   */
+  async function runReconciliationBatch(input: {
+    workerId: string;
+    limit?: number;
+    discover?: boolean;
+  }) {
     const limit = workLimit(input.limit);
+    if (input.discover !== false && options.mode === "cloud") {
+      await enqueueStuckWork(limit);
+    }
     const claimed = await claimReconciliationJobs({
-      ...input,
+      workerId: input.workerId,
       limit,
     });
     for (const job of claimed) {
@@ -1790,29 +2029,11 @@ export function createBilling(options: CreateBillingOptions) {
       if (remaining <= 0) return processed;
       const subscriptions = await store.listDueSubscriptionDeadlines(now, remaining);
       for (const subscription of subscriptions) {
-        const state = await store.ensurePlanState(subscription.billableEntityId);
-        if (state.activeSubscriptionId !== subscription.id) {
-          throw new BillingWorkflowError("operation_conflicted");
-        }
-        const previous = { ...subscription };
-        subscription.isEntitlementSource = false;
-        state.activeSubscriptionId = null;
-        state.projectionVersion += 1;
-        await store.upsertSubscription(subscription);
-        await store.savePlanState(state);
-        const effectId = `projection:${subscription.id}:${state.projectionVersion}`;
-        await requireAudit({
-          effectId,
-          actor: { kind: "system", id: "deadline_worker" },
-          previous,
-          next: subscription,
-          correlationIds: { subscriptionId: subscription.id },
-        });
-        await lifecycle?.afterProjection?.({
-          material: true,
-          previous,
-          next: subscription,
-          planState: state,
+        await releaseLapsedEntitlementInTransaction(subscription.id, "deadline_worker");
+        // Confirm the final state with the provider in case its last event was missed.
+        await enqueueJobInTransaction({
+          provider: subscription.provider,
+          subscriptionId: subscription.id,
         });
         processed += 1;
       }
@@ -1976,6 +2197,7 @@ export function createBilling(options: CreateBillingOptions) {
           catalogKey: attempt.offerKey,
           trialDays: 0,
           idempotencyKey: attempt.idempotencyKey,
+          expiresAt: attempt.expiresAt,
         }),
       );
       await store.withTransaction(async () => {
@@ -2028,7 +2250,7 @@ export function createBilling(options: CreateBillingOptions) {
           throw new BillingWorkflowError("operation_quarantined");
         }
         await callProvider(() =>
-          adapter.cancelSubscription(sub.providerSubscriptionId, `cancel:${sub.id}`),
+          adapter.cancelSubscription(sub.providerSubscriptionId, cancellationKey(sub)),
         );
       }
       const snapshot = await callProvider(() =>
@@ -2227,7 +2449,26 @@ export function createBilling(options: CreateBillingOptions) {
     });
   }
 
-  async function commercialState(entityId: string): Promise<CommercialBillingState> {
+  /**
+   * Reads the entity's paid state. Pass `transaction` to read inside the
+   * caller's open transaction; the Drizzle store then locks the rows it reads
+   * until that transaction ends, so quota checks can rely on it.
+   */
+  async function commercialState(
+    entityId: string,
+    readOptions: { transaction?: unknown } = {},
+  ): Promise<CommercialBillingState> {
+    if (readOptions.transaction !== undefined) {
+      return store.runInTransaction(readOptions.transaction, () =>
+        readCommercialState(entityId),
+      );
+    }
+    return readCommercialState(entityId);
+  }
+
+  async function readCommercialState(
+    entityId: string,
+  ): Promise<CommercialBillingState> {
     const state = (await store.findPlanState(entityId)) ?? {
       billableEntityId: entityId,
       activeSubscriptionId: null,
@@ -2236,9 +2477,14 @@ export function createBilling(options: CreateBillingOptions) {
     const pointed = state.activeSubscriptionId
       ? await store.findSubscriptionById(state.activeSubscriptionId)
       : undefined;
-    const sub = pointed?.isEntitlementSource ? pointed : undefined;
+    // Re-check the clock: paid access may have lapsed since the last projection.
+    const sub =
+      pointed?.isEntitlementSource && retainsPaidEntitlement(pointed, clock.now())
+        ? pointed
+        : undefined;
     return {
       activePaidPlan: sub?.plan ?? null,
+      provider: sub?.provider ?? null,
       billingInterval: sub?.interval ?? null,
       subscriptionStatus: sub?.status ?? null,
       providerTrialEndsAt: sub?.trialEndsAt ?? null,
@@ -2251,6 +2497,193 @@ export function createBilling(options: CreateBillingOptions) {
     };
   }
 
+  /** Stops a subscription whose paid access has lapsed from granting entitlement. */
+  async function releaseLapsedEntitlement(subscriptionId: string, actorId: string) {
+    await store.withTransaction(() =>
+      releaseLapsedEntitlementInTransaction(subscriptionId, actorId),
+    );
+  }
+
+  async function releaseLapsedEntitlementInTransaction(
+    subscriptionId: string,
+    actorId: string,
+  ) {
+    const subscription = await store.findSubscriptionById(subscriptionId);
+    if (
+      !subscription?.isEntitlementSource ||
+      retainsPaidEntitlement(subscription, clock.now())
+    ) {
+      return;
+    }
+    const state = await store.ensurePlanState(subscription.billableEntityId);
+    if (state.activeSubscriptionId !== subscription.id) {
+      throw new BillingWorkflowError("operation_conflicted");
+    }
+    const previous = { ...subscription };
+    subscription.isEntitlementSource = false;
+    state.activeSubscriptionId = null;
+    state.projectionVersion += 1;
+    await store.upsertSubscription(subscription);
+    await store.savePlanState(state);
+    await requireAudit({
+      effectId: `projection:${subscription.id}:${state.projectionVersion}`,
+      actor: { kind: "system", id: actorId },
+      previous,
+      next: subscription,
+      correlationIds: { subscriptionId: subscription.id },
+    });
+    await lifecycle?.afterProjection?.({
+      material: true,
+      previous,
+      next: subscription,
+      planState: state,
+    });
+  }
+
+  /**
+   * Queues reconciliation for work that stalled without an event: checkouts
+   * stuck while being created, plan changes interrupted by an error, and
+   * subscriptions not checked with the provider recently.
+   */
+  async function enqueueStuckWork(limit: number): Promise<number> {
+    const now = clock.now().getTime();
+    const stale = options.reconciliation ?? {};
+    let queued = 0;
+    const checkouts = await store.listStuckCreatingCheckouts(
+      new Date(now - (stale.checkoutStaleAfterMs ?? 60 * 1000)),
+      clock.now(),
+      limit,
+    );
+    for (const attempt of checkouts) {
+      await enqueueJob({ provider: attempt.provider, checkoutAttemptId: attempt.id });
+      queued += 1;
+    }
+    const changes = await store.listStuckPlanChanges(
+      new Date(now - (stale.planChangeStaleAfterMs ?? 60 * 60 * 1000)),
+      Math.max(0, limit - queued),
+    );
+    for (const change of changes) {
+      await enqueueJob({ provider: change.provider, planChangeAttemptId: change.id });
+      queued += 1;
+    }
+    const subscriptions = await store.listUnreconciledSubscriptions(
+      new Date(now - (stale.subscriptionStaleAfterMs ?? 60 * 60 * 1000)),
+      Math.max(0, limit - queued),
+    );
+    for (const subscription of subscriptions) {
+      await enqueueJob({
+        provider: subscription.provider,
+        subscriptionId: subscription.id,
+      });
+      queued += 1;
+    }
+    return queued;
+  }
+
+  /**
+   * Takes over a subscription created outside this engine, for example one
+   * started with the provider before the product used this package. Links the
+   * provider's customer to the payer, then projects the subscription like any
+   * other. Its product must be in the provider's active catalog. Repeating it
+   * for the same entity is safe.
+   */
+  async function adoptProviderSubscription(
+    context: OperatorContext,
+    input: {
+      providerName: string;
+      providerSubscriptionId: string;
+      entity: BillableEntityRef;
+      payer: PayerRef;
+    },
+  ) {
+    if (options.mode === "oss") {
+      throw new BillingWorkflowError("unsupported_operation");
+    }
+    assertOperatorContext(context);
+    if (
+      !isBoundedOpaqueId(input.providerName) ||
+      !isBoundedOpaqueId(input.providerSubscriptionId) ||
+      !isBoundedOpaqueId(input.entity.id) ||
+      !isBoundedOpaqueId(input.payer.id) ||
+      !input.payer.email
+    ) {
+      throw new BillingWorkflowError("operation_quarantined");
+    }
+    const adapter = provider(input.providerName);
+    const catalog = await store.getActiveCatalog(input.providerName);
+    if (!catalog) throw new BillingWorkflowError("catalog_unavailable");
+    const snapshot = await callProvider(() =>
+      adapter.retrieveSubscription(input.providerSubscriptionId),
+    );
+    return store.withTransaction(async () => {
+      const known = await store.findSubscriptionByProviderIds(
+        snapshot.provider,
+        snapshot.providerSubscriptionId,
+      );
+      if (
+        known &&
+        (known.billableEntityId !== input.entity.id || known.payerId !== input.payer.id)
+      ) {
+        throw new BillingWorkflowError("operation_conflicted");
+      }
+      let customer = await store.findCustomerByProviderCustomerId(
+        snapshot.provider,
+        snapshot.providerCustomerId,
+      );
+      if (customer && customer.payerId !== input.payer.id) {
+        throw new BillingWorkflowError("payer_mismatch");
+      }
+      if (!customer) {
+        const payerCustomer = await store.findCustomerByPayer(
+          snapshot.provider,
+          input.payer.id,
+        );
+        if (
+          payerCustomer?.providerCustomerId &&
+          payerCustomer.providerCustomerId !== snapshot.providerCustomerId
+        ) {
+          throw new BillingWorkflowError("operation_conflicted");
+        }
+        if (payerCustomer) {
+          payerCustomer.providerCustomerId = snapshot.providerCustomerId;
+          payerCustomer.status = "active";
+          await store.saveCustomer(payerCustomer);
+          customer = payerCustomer;
+        } else {
+          customer = {
+            id: newId(),
+            provider: snapshot.provider,
+            payerId: input.payer.id,
+            payerEmail: input.payer.email,
+            providerCustomerId: snapshot.providerCustomerId,
+            idempotencyKey: `adopt:${snapshot.provider}:${snapshot.providerCustomerId}`,
+            status: "active",
+            lastError: null,
+          };
+          await store.insertCustomer(customer);
+        }
+      }
+      const write = await projectSnapshotInTransaction(snapshot, {
+        adopted: {
+          billableEntityId: input.entity.id,
+          payerId: input.payer.id,
+          catalogRevision: catalog.revision.revision,
+        },
+      });
+      await recordOperatorAudit(
+        context,
+        `operator:adopt:${snapshot.provider}:${snapshot.providerSubscriptionId}`,
+        known ?? null,
+        write.subscription,
+        {
+          subscriptionId: write.subscription.id,
+          billableEntityId: input.entity.id,
+        },
+      );
+      return write;
+    });
+  }
+
   async function operatorCancel(context: OperatorContext, subscriptionId: string) {
     if (options.mode === "oss") {
       throw new BillingWorkflowError("unsupported_operation");
@@ -2259,6 +2692,7 @@ export function createBilling(options: CreateBillingOptions) {
     const sub = await store.findSubscriptionById(subscriptionId);
     if (!sub) throw new BillingWorkflowError("subscription_required");
     if (sub.status === "cancelled" || sub.status === "expired") return;
+    if (sub.cancelAtPeriodEnd) return;
     if (
       provider(sub.provider).capabilities.mutationRecovery.cancellation ===
       "unsupported"
@@ -2283,7 +2717,7 @@ export function createBilling(options: CreateBillingOptions) {
       await callProvider(() =>
         provider(sub.provider).cancelSubscription(
           sub.providerSubscriptionId,
-          `operator-cancel:${sub.id}`,
+          `operator-${cancellationKey(sub)}`,
         ),
       );
     } catch (error) {
@@ -2356,15 +2790,23 @@ export function createBilling(options: CreateBillingOptions) {
   }
 
   return {
+    /**
+     * @internal The engine's own persistence. Products must not read or write
+     * billing state through it: use the workflows and read models
+     * (`commercialState`, `publicCatalog`, `health`) instead, so projections,
+     * audit, and lifecycle hooks stay consistent.
+     */
     store,
     startCheckout,
     startPortal,
     startPlanChange,
     cancel,
+    resumeCancellation,
     ingestWebhook,
     processWebhookByEventId,
     runWebhookInboxBatch,
     runReconciliationBatch,
+    enqueueStuckWork,
     runDeadlineBatch,
     purgeExpiredSensitiveValues,
     claimReconciliationJobs,
@@ -2378,6 +2820,7 @@ export function createBilling(options: CreateBillingOptions) {
     verifyRequestedCatalog,
     abandonRequestedCatalog,
     operatorCancel,
+    adoptProviderSubscription,
     recordOperatorAudit,
     enqueueJob,
     resolveCustomer,
@@ -2385,6 +2828,15 @@ export function createBilling(options: CreateBillingOptions) {
 }
 
 export type BillingEngine = ReturnType<typeof createBilling>;
+
+/**
+ * Provider idempotency key for a cancellation. It includes the subscription's
+ * provider version so that cancelling again after a resume is a new request,
+ * while retries of the same request reuse the key.
+ */
+function cancellationKey(sub: { id: string; providerVersion: string | null }): string {
+  return `cancel:${sub.id}:${sub.providerVersion ?? "0"}`;
+}
 
 function catalogShapeIsComplete(
   catalog: Awaited<ReturnType<BillingStore["getActiveCatalog"]>>,

@@ -200,6 +200,13 @@ export function createOperations(deps: OperationsDeps) {
       );
       return write;
     },
+    /** Takes over a subscription created outside the engine (see the engine's docs). */
+    async adoptProviderSubscription(
+      context: OperatorContext,
+      input: Parameters<OperationsDeps["billing"]["adoptProviderSubscription"]>[1],
+    ) {
+      return deps.billing.adoptProviderSubscription(context, input);
+    },
     async requestCancellation(context: OperatorContext, subscriptionId: string) {
       await deps.billing.operatorCancel(context, subscriptionId);
     },

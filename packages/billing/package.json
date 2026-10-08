@@ -58,6 +58,11 @@
       "import": "./dist/providers/dodo/index.js",
       "default": "./dist/providers/dodo/index.js"
     },
+    "./providers/lemonsqueezy": {
+      "types": "./dist/providers/lemonsqueezy/index.d.ts",
+      "import": "./dist/providers/lemonsqueezy/index.js",
+      "default": "./dist/providers/lemonsqueezy/index.js"
+    },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "import": "./dist/testing/index.js",

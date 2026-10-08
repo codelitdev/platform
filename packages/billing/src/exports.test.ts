@@ -19,6 +19,7 @@ describe("public exports", () => {
       "./operations",
       "./providers",
       "./providers/dodo",
+      "./providers/lemonsqueezy",
       "./testing",
     ];
     expect(Object.keys(pkg.exports).sort()).toEqual([...expected].sort());

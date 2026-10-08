@@ -56,6 +56,7 @@ export class DodoBillingProvider implements BillingProviderAdapter {
 
   private readonly client: DodoPayments;
   private readonly webhookSecrets: DodoBillingProviderOptions["webhookSecrets"];
+  private readonly brandId: string | undefined;
   private readonly clock: Clock;
 
   constructor(options: DodoBillingProviderOptions) {
@@ -74,6 +75,15 @@ export class DodoBillingProvider implements BillingProviderAdapter {
           options.requestTimeoutMs > 120_000))
     ) {
       throw new BillingProviderError("misconfigured", "provider_options_invalid");
+    }
+    if (
+      options.brandId !== undefined &&
+      (typeof options.brandId !== "string" ||
+        options.brandId.length === 0 ||
+        options.brandId.length > 256 ||
+        /\s/.test(options.brandId))
+    ) {
+      throw new BillingProviderError("misconfigured", "brand_id_invalid");
     }
     const now = options.clock.now();
     if (
@@ -108,6 +118,7 @@ export class DodoBillingProvider implements BillingProviderAdapter {
     }
     this.clock = options.clock;
     this.webhookSecrets = options.webhookSecrets;
+    this.brandId = options.brandId;
     this.client = new DodoPayments({
       bearerToken: options.apiKey,
       environment: options.environment,
@@ -134,6 +145,7 @@ export class DodoBillingProvider implements BillingProviderAdapter {
   }
 
   async createCheckout(input: CreateCheckoutInput): Promise<Checkout> {
+    // Dodo checkout sessions take no expiry, so input.expiresAt is not sent.
     try {
       const response = await this.client.checkoutSessions.create(
         {
@@ -309,10 +321,22 @@ export class DodoBillingProvider implements BillingProviderAdapter {
       await this.client.subscriptions.update(
         id,
         {
-          status: "cancelled",
-          cancel_at_next_billing_date: false,
-          cancel_reason: "cancelled_by_merchant",
+          cancel_at_next_billing_date: true,
+          cancel_reason: "cancelled_by_customer",
         },
+        { idempotencyKey },
+      );
+    } catch (error) {
+      if (error instanceof BillingProviderError) throw error;
+      throw providerError(error);
+    }
+  }
+
+  async resumeSubscription(id: string, idempotencyKey: string): Promise<void> {
+    try {
+      await this.client.subscriptions.update(
+        id,
+        { cancel_at_next_billing_date: false },
         { idempotencyKey },
       );
     } catch (error) {
@@ -360,6 +384,14 @@ export class DodoBillingProvider implements BillingProviderAdapter {
     const occurredAt = dateOrNull(event.timestamp);
     if (!occurredAt) throw new Error("webhook_timestamp_missing");
     const data = (event.data ?? {}) as Record<string, unknown>;
+    const eventBrandId =
+      typeof data.brand_id === "string" && data.brand_id.length > 0
+        ? data.brand_id
+        : undefined;
+    const foreign =
+      this.brandId !== undefined &&
+      eventBrandId !== undefined &&
+      eventBrandId !== this.brandId;
     const isSubscription = String(event.type).startsWith("subscription.");
     const subscriptionId = isSubscription
       ? String(data.subscription_id ?? data.id ?? "") || null
@@ -385,6 +417,7 @@ export class DodoBillingProvider implements BillingProviderAdapter {
         checkoutAttemptId: boundedMetadata(metadata?.checkoutAttemptId),
         catalogKey: boundedMetadata(metadata?.catalogKey),
       },
+      ...(foreign ? { foreign: true } : {}),
     };
   }
 }

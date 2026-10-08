@@ -15,7 +15,7 @@ This package standardizes those mechanics:
 - Webhook verification, durable inbox, retrieve-current-then-project
 - Subscription transitions, material projection diffs, and reconciliation leases
 - Provider-safe public catalog / commercial-state read models
-- Fake + Dodo adapters behind one contract
+- Fake, Dodo, and Lemon Squeezy adapters behind one contract
 
 Your product still owns:
 
@@ -47,6 +47,8 @@ The engine is mechanical. It will not infer product policy from plan names.
 - `effectiveAt`: `immediately` \| `next_billing_date`
 - `prorationMode`: `prorated_immediately` \| `do_not_bill`
 
+A provider that declares `intervalChangesBillImmediately` starts and bills a new period when the billing interval changes, so `do_not_bill` across intervals fails with `plan_change_not_supported` before the provider is called.
+
 A typical SaaS split (what SendLit does, not required): upgrades → immediate + prorate; downgrades → next invoice + do not bill. Until a webhook/reconciliation snapshot actually shows the new product, `commercialState().activePaidPlan` stays on the current plan and `pendingPlanChange` is set. Your UI should disable a second change and say “being confirmed” vs “scheduled,” not pretend the plan already flipped.
 
 **Do not:**
@@ -55,6 +57,7 @@ A typical SaaS split (what SendLit does, not required): upgrades → immediate +
 - Hold an app `db.transaction()` across a provider call, or nest `db.transaction()` on the root pool inside `afterProjection`
 - Treat checkout redirect, `payment.succeeded`, or a toast as entitlement
 - Re-interpret provider SDK errors in routes; map `BillingWorkflowError.code` only
+- Read or write billing state through `billing.store`; it is internal to the engine
 
 ## Install
 
@@ -75,6 +78,7 @@ Public imports (do not import `src/`):
 | `@codelitdev/billing/operations`     | Operator inspect / retry / cancel    |
 | `@codelitdev/billing/providers`      | Registry, fake, contract types       |
 | `@codelitdev/billing/providers/dodo` | `createDodoBillingProvider`          |
+| `@codelitdev/billing/providers/lemonsqueezy` | `createLemonSqueezyBillingProvider` |
 | `@codelitdev/billing/core`           | Statuses, money, errors, clock       |
 | `@codelitdev/billing/catalog`        | Offer validation / public catalog    |
 | `@codelitdev/billing/testing`        | Provider contract + workflow harness |
@@ -166,6 +170,10 @@ Examples: `examples/reference-product/`, `examples/consumers/sendlit/`.
 
 Parse your own env. Pass typed Dodo options. Wire Drizzle, grants, encryption, and product effects.
 
+When several products share one Dodo business, Dodo sends every event to every webhook endpoint. Give each product its own Dodo brand, create its products under that brand, and set `brandId`. Webhooks whose `brand_id` names another brand are stored as `ignored`: they are kept for deduplication but never processed, retried, or quarantined. Webhooks without a `brand_id` are processed as before. See [ADR 0009](../../docs/decisions/0009-dodo-brand-webhook-filtering.md).
+
+To sell through Lemon Squeezy instead, compose `createLemonSqueezyBillingProvider` from `@codelitdev/billing/providers/lemonsqueezy` with `apiKey`, the product's `storeId`, and the store webhook's `webhookSecrets`, and set `checkoutProvider: "lemonsqueezy"`. Catalog offers name Lemon Squeezy variant IDs as `providerProductId`. Webhooks from other stores are stored as `ignored`. Trials come from the variant, so checkout rejects `trialDays`; plan changes apply immediately, and `do_not_bill` is refused for a change to another interval because Lemon Squeezy bills that at once. Turn off plan changes in the store's customer portal settings: the engine quarantines a plan change it did not start, along with that subscription's later webhooks.
+
 ```ts
 import { systemClock } from "@codelitdev/billing/core";
 import { createDrizzleBillingStore } from "@codelitdev/billing/drizzle";
@@ -202,6 +210,8 @@ export const billing = createBilling({
                     secret: process.env.DODO_PAYMENTS_WEBHOOK_KEY_CURRENT!,
                 },
             ],
+            // Your product's Dodo brand. Other brands' webhooks are ignored.
+            brandId: process.env.DODO_BRAND_ID,
             clock,
         }),
     ],
@@ -265,6 +275,8 @@ const { checkoutUrl } = await billing.startCheckout({
 });
 ```
 
+An entity has one open checkout at a time, and it expires after an hour. Starting checkout again for the same offer returns the same checkout. If the same payer picks another offer, such as yearly after monthly, that checkout replaces the open one. The old checkout becomes `abandoned`, and providers that support it close its page when it expires. If it is paid anyway, it becomes `conflicted`: it grants access when nothing else does, and otherwise the second subscription is quarantined for an operator. While another payer's checkout is open, `startCheckout` fails with `checkout_pending`.
+
 Other grant actions: `startPortal`, `cancel`, and plan change:
 
 ```ts
@@ -281,9 +293,21 @@ await billing.startPlanChange({
 
 Submit the catalog revision the user saw; a stale revision fails with `catalog_changed` and may include the current public catalog.
 
+`cancel`, `resumeCancellation`, and `startPlanChange` read the subscription back from the provider after the change, so `commercialState` reflects it before the webhook arrives. `cancel` schedules cancellation at the end of the paid period. The subscription stays the entitlement source until `paidThroughAt`, and `commercialState` reports `cancelAtPeriodEnd: true` meanwhile, so show the end date and offer to resume. `resumeCancellation` clears a scheduled cancellation and uses a `cancellation` grant. Once the period ends, the provider's webhook or `runDeadlineBatch` removes the entitlement. See [ADR 0010](../../docs/decisions/0010-cancel-at-period-end.md).
+
+```ts
+const state = await billing.commercialState(organizationId);
+if (state.cancelAtPeriodEnd) {
+    // "Pro stays active until {state.paidThroughAt}" and a resume button
+}
+await billing.resumeCancellation({ grant, entity, payer });
+```
+
 Redirect is not payment. Entitlement changes from webhook projection or reconciliation. A scheduled plan change does not rewrite the subscription until the provider’s current snapshot matches the pending attempt.
 
 ## 5. Webhooks and workers
+
+Mount each provider's webhook at `POST /webhooks/billing/<provider>` on the API, for example `/webhooks/billing/dodo`. Use the same path in every product, so a provider's endpoint settings look the same across products.
 
 Preserve the **raw** body. Return 2xx after the event is durably inserted (duplicates included). Project asynchronously.
 
@@ -301,10 +325,12 @@ The package does not start timers. Your scheduler should call, with unique `work
 | Unit                          | Job                                                          |
 | ----------------------------- | ------------------------------------------------------------ |
 | `runWebhookInboxBatch`        | Drain verified events (retrieve + project)                   |
-| `runReconciliationBatch`      | Stuck customers/checkouts/changes/subscriptions              |
+| `runReconciliationBatch`      | Queue stuck checkouts, plan changes, and unreconciled subscriptions (`discover: false` to skip), then run queued jobs |
 | `runDeadlineBatch`            | Expire open checkouts; drop elapsed paid-through entitlement |
 | `purgeExpiredSensitiveValues` | Drop old encrypted checkout URLs / replay payloads           |
 | `verifyRequestedCatalog`      | Finish a pending catalog revision                            |
+
+What counts as stuck is configurable with `createBilling({ reconciliation: { checkoutStaleAfterMs, planChangeStaleAfterMs, subscriptionStaleAfterMs } })`; the defaults are one minute, one hour, and one hour. Each unreconciled subscription costs one provider read per period.
 
 Multi-instance safety is database leases, not a process-local mutex. Never hold an app transaction across a provider call.
 
@@ -319,7 +345,15 @@ const catalog = await billing.publicCatalog();
 
 const commercial = await billing.commercialState(organizationId);
 // activePaidPlan, subscriptionStatus, periods, pendingCheckout / pendingPlanChange, projectionVersion
+
+// Inside your own transaction, for example when reserving quota:
+await db.transaction(async (tx) => {
+    const locked = await billing.commercialState(organizationId, { transaction: tx });
+    // the Drizzle store locks the rows it read until tx ends
+});
 ```
+
+`commercialState` is the source of truth for paid access. It re-checks the clock, so a scheduled cancellation stops counting as paid once `paidThroughAt` passes, even before the provider's final event or `runDeadlineBatch`. Decide what a plan unlocks from it; do not copy paid status into product tables and re-derive it.
 
 Compose those with your trial, Free plan, quotas, and `canManageBilling`. `projectionVersion` is a cache key; equivalent webhook replays update freshness only and do not increment it.
 
@@ -350,9 +384,17 @@ await ops.projectProviderSubscription(ctx, {
     providerSubscriptionId, // e.g. from the checkout return URL
     checkoutAttemptId, // optional; defaults to snapshot metadata
 });
+await ops.adoptProviderSubscription(ctx, {
+    providerName: "lemonsqueezy",
+    providerSubscriptionId, // started with the provider before this package
+    entity: { kind: "organization", id: organizationId },
+    payer: { id: userId, email },
+});
 await ops.requestCancellation(ctx, subscriptionId);
 const payload = await ops.inspectWebhookReplay(ctx, providerEventId);
 ```
+
+`adoptProviderSubscription` takes over a subscription created outside the engine, such as one from before the product used this package. It links the provider's customer to the payer and projects the subscription; afterwards renewals, cancel, resume, and the portal work as usual. The subscription's product must be in the provider's active catalog, and adopting it again for the same entity is safe. See [ADR 0014](../../docs/decisions/0014-lemon-squeezy-adapter-and-adoption.md).
 
 `reconcileEntity` cannot invent a subscription from a paid-but-unprojected checkout. Use `projectProviderSubscription` when the provider already has a subscription id and local entitlement is still missing.
 

@@ -26,6 +26,13 @@ export type {
   PriceEntryRow,
 } from "./store.js";
 
+const LIVE_SUBSCRIPTION_STATUSES: readonly string[] = [
+  "pending",
+  "trialing",
+  "active",
+  "past_due",
+];
+
 export class MemoryBillingStore implements BillingStore {
   transactionDepth = 0;
   isInTransaction(): boolean {
@@ -453,12 +460,53 @@ export class MemoryBillingStore implements BillingStore {
       .filter(
         (row) =>
           row.isEntitlementSource &&
-          row.status === "cancelled" &&
           row.cancelAtPeriodEnd &&
           row.paidThroughAt !== null &&
           row.paidThroughAt.getTime() <= now.getTime(),
       )
       .slice(0, limit);
+  }
+
+  listUnreconciledSubscriptions(
+    reconciledBefore: Date,
+    limit: number,
+  ): CanonicalSubscription[] {
+    return this.subscriptions
+      .filter(
+        (row) =>
+          (LIVE_SUBSCRIPTION_STATUSES.includes(row.status) ||
+            (row.status === "cancelled" && row.isEntitlementSource)) &&
+          (!row.lastReconciledAt ||
+            row.lastReconciledAt.getTime() < reconciledBefore.getTime()),
+      )
+      .slice(0, limit);
+  }
+
+  // The memory store keeps no update timestamps, so every candidate counts as stuck.
+  listStuckCreatingCheckouts(
+    _updatedBefore: Date,
+    now: Date,
+    limit: number,
+  ): CheckoutAttempt[] {
+    return this.checkouts
+      .filter(
+        (row) => row.status === "creating" && row.expiresAt.getTime() > now.getTime(),
+      )
+      .slice(0, limit);
+  }
+
+  listStuckPlanChanges(_updatedBefore: Date, limit: number): PlanChangeAttempt[] {
+    return this.planChanges
+      .filter(
+        (row) =>
+          row.status === "creating" ||
+          (row.status === "pending" && row.lastError !== null),
+      )
+      .slice(0, limit);
+  }
+
+  async runInTransaction<T>(_transaction: unknown, fn: () => Promise<T>): Promise<T> {
+    return fn();
   }
 
   findLivePlanChange(billableEntityId: string) {

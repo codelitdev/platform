@@ -10,6 +10,7 @@ export type {
 } from "../ports/authorization.js";
 export { MemoryAuthorizationPort } from "../ports/authorization.js";
 export type { BillingLifecycleHooks } from "../ports/lifecycle.js";
+export type { SensitiveValuePort } from "../ports/sensitive-values.js";
 export {
   type BillingEngine,
   type CommercialBillingState,

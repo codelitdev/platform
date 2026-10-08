@@ -3,15 +3,17 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 describe("public exports", () => {
-  it("exposes dist-only root export and no src/", async () => {
+  it("exposes dist-only root and billing exports and no src/", async () => {
     const pkg = JSON.parse(
       await readFile(path.join(process.cwd(), "package.json"), "utf8"),
     ) as {
       exports: Record<string, { import: string; types: string }>;
     };
-    expect(Object.keys(pkg.exports)).toEqual(["."]);
+    expect(Object.keys(pkg.exports)).toEqual([".", "./billing", "./billing/drizzle"]);
     expect(pkg.exports["."].import).toBe("./dist/index.js");
     expect(pkg.exports["."].types).toBe("./dist/index.d.ts");
+    expect(pkg.exports["./billing"].import).toBe("./dist/billing/index.js");
+    expect(pkg.exports["./billing/drizzle"].import).toBe("./dist/billing/drizzle.js");
     expect(JSON.stringify(pkg.exports)).not.toContain("src/");
   });
 });

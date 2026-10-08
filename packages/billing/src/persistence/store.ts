@@ -166,6 +166,27 @@ export interface BillingStore {
     now: Date,
     limit: number,
   ): Promise<CanonicalSubscription[]> | CanonicalSubscription[];
+  /** Live subscriptions not reconciled with the provider since `reconciledBefore`. */
+  listUnreconciledSubscriptions(
+    reconciledBefore: Date,
+    limit: number,
+  ): Promise<CanonicalSubscription[]> | CanonicalSubscription[];
+  /** Checkouts still `creating`, last updated before `updatedBefore`, and not expired. */
+  listStuckCreatingCheckouts(
+    updatedBefore: Date,
+    now: Date,
+    limit: number,
+  ): Promise<CheckoutAttempt[]> | CheckoutAttempt[];
+  /** Plan changes still `creating`, or `pending` after an error, last updated before `updatedBefore`. */
+  listStuckPlanChanges(
+    updatedBefore: Date,
+    limit: number,
+  ): Promise<PlanChangeAttempt[]> | PlanChangeAttempt[];
+  /**
+   * Runs `fn` so that store reads and writes use the caller's open
+   * transaction instead of opening a new one.
+   */
+  runInTransaction<T>(transaction: unknown, fn: () => Promise<T>): Promise<T>;
 
   findLivePlanChange(
     billableEntityId: string,
