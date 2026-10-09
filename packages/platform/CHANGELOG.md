@@ -1,5 +1,12 @@
 # @codelitdev/platform
 
+## 0.4.1
+
+### Patch Changes
+
+- b04e522: Declare the optional `@codelitdev/billing` peer as `>=0.4.0`. 0.4.0 published it as `workspace:*`, which npm refuses to install.
+- @codelitdev/billing@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes
