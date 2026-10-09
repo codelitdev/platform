@@ -1617,7 +1617,9 @@ describe("workflow harness", () => {
       "succeeded",
       "succeeded",
     ]);
-    expect(new Set(store.planChanges.map((change) => change.idempotencyKey)).size).toBe(3);
+    expect(new Set(store.planChanges.map((change) => change.idempotencyKey)).size).toBe(
+      3,
+    );
   });
 
   it("refuses do_not_bill across intervals when the provider bills such a change at once", async () => {
