@@ -39,7 +39,7 @@
     "template:smoke": "bun scripts/template-smoke.mjs",
     "changeset": "changeset",
     "version-packages": "changeset version && bun scripts/sync-preset.mjs",
-    "release": "bun run verify && changeset publish",
+    "release": "bun run verify && node scripts/resolve-workspace-ranges.mjs && changeset publish",
     "prepare": "husky"
   },
   "devDependencies": {
