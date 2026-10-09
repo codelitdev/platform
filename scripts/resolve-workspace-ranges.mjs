@@ -2,6 +2,7 @@
 // ranges before `changeset publish`. Changesets publishes with `npm publish`,
 // which copies `workspace:^` into the published package.json as is, and npm
 // cannot install that. Runs on CI's throwaway checkout only.
+// See docs/decisions/0015-resolve-workspace-ranges-before-publishing.md.
 //
 // workspace:^ -> ^<version>, workspace:~ -> ~<version>,
 // workspace:* -> <version>, workspace:<range> -> <range>
