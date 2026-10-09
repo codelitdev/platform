@@ -306,6 +306,8 @@ The initial interface follows SendLit's working adapter while removing SendLit m
         portalPlanChanges
         portalIntervalChanges
         proratedPlanChanges
+        intervalChangesBillImmediately?
+        immediatePlanChangesOnly?
         mutationRecovery {
           createCustomer: idempotency_key | lookup
           createCheckout: idempotency_key | lookup
@@ -459,7 +461,7 @@ The generated models include canonical columns, indexes, unique constraints, par
 - Provider subscriptions are unique by provider and provider subscription ID.
 - At most one subscription per billable entity is the entitlement source.
 - Checkout and plan-change idempotency keys are unique.
-- Only one nonterminal checkout/change attempt exists per billable entity.
+- Only one nonterminal checkout/change attempt exists per billable entity. A payer who starts checkout for another offer replaces their own open checkout, which becomes abandoned; another payer's open checkout returns checkout_pending.
 - Webhook events are unique by provider and provider event ID.
 - Catalog revisions and immutable provider price identities obey Section 10.
 - Reconciliation jobs have exactly one canonical subject foreign key, one live job per subject, and reclaimable lease metadata.

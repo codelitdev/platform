@@ -614,7 +614,7 @@ Platform owns the source, release automation, reference integration, compatibili
 
 The product checks in billing.generated.ts, runs codelit-billing generate --check in CI, and creates/reviews/applies SQL through its own drizzle-kit migration flow. Package install, import, API startup, and worker startup run no DDL.
 
-Platform supplies reusable adapters and examples for Better Auth action grants, audit/observability ports, encryption, return-URL validation, graceful worker startup, and scheduled invocation of bounded maintenance batches. The product supplies the billable entity/payer mapping, offers, provider credentials, policy, product effects, HTTP contracts, UI, and operator authorization.
+Platform supplies reusable adapters and examples for Better Auth action grants, audit/observability ports, encryption, return-URL validation, graceful worker startup, and scheduled invocation of bounded maintenance batches. The billing adapters are exported from `@codelitdev/platform/billing` (ADR 0013). The product supplies the billable entity/payer mapping, offers, provider credentials, policy, product effects, HTTP contracts, UI, and operator authorization. One HTTP contract is shared: each product mounts its provider webhook at `POST /webhooks/billing/<provider>` (for example `/webhooks/billing/dodo`).
 
 Other Platform packages and templates must not duplicate billing catalogs, checkout/customer state machines, provider adapters, webhook projection, reconciliation leases, commercial read models, lifecycle blockers, or operator services. Improvements to those mechanics are made in `packages/billing`, published as @codelitdev/billing, and reach products through a dependency upgrade plus any required generated-schema review.
 

@@ -32,6 +32,8 @@ export type VerifiedWebhookEnvelope = {
     checkoutAttemptId?: string;
     catalogKey?: string;
   };
+  /** The event belongs to another product on the same provider account. */
+  foreign?: boolean;
 };
 
 export type CanonicalSubscription = {
@@ -74,6 +76,15 @@ export function retainsPaidEntitlement(
   >,
   now: Date,
 ): boolean {
+  // A cancellation scheduled for the period end stops paid access once the
+  // period has passed, even if the provider's final event has not arrived.
+  if (
+    snapshot.cancelAtPeriodEnd &&
+    snapshot.paidThroughAt &&
+    snapshot.paidThroughAt.getTime() <= now.getTime()
+  ) {
+    return false;
+  }
   if (PAID_STATUSES.has(snapshot.status)) return true;
   return (
     snapshot.status === "cancelled" &&

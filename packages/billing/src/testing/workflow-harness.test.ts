@@ -73,6 +73,15 @@ describe("workflow harness", () => {
     expect(store.revisions[0]!.status as string).toBe("active");
   });
 
+  it("rejects a revision number already used by another provider", async () => {
+    const { billing, store } = createWorkflowHarness();
+    store.revisions[0]!.checkoutProvider = "other";
+    await expect(billing.recordRequestedCatalog()).rejects.toThrow(
+      "catalog_revision_used_by_another_provider",
+    );
+    expect(store.revisions).toHaveLength(1);
+  });
+
   it("marks a mismatched pending revision invalid without rolling back the active catalog", async () => {
     const { billing, fake, store, authorization, now } = createWorkflowHarness();
     const nextOffers = REFERENCE_OFFERS.map((offer) => ({
@@ -404,6 +413,31 @@ describe("workflow harness", () => {
     expect((await billing.commercialState(workspace.id)).projectionVersion).toBe(1);
   });
 
+  it("records another product's webhook as ignored without processing it", async () => {
+    const { billing, fake, store } = createWorkflowHarness();
+    const parse = fake.parseWebhook.bind(fake);
+    fake.parseWebhook = async (input) => ({ ...(await parse(input)), foreign: true });
+    const signed = fake.signWebhook(
+      JSON.stringify({
+        type: "subscription.updated",
+        data: { subscription_id: "sub_other_product" },
+      }),
+    );
+
+    const ingested = await billing.ingestWebhook({ provider: "fake", raw: signed });
+    expect(ingested.duplicate).toBe(false);
+    expect(store.webhooks[0].status).toBe("ignored");
+    expect(store.webhooks[0].processedAt).toBeInstanceOf(Date);
+
+    expect(await billing.runWebhookInboxBatch({ workerId: "wh-1" })).toBe(0);
+    expect(store.webhooks[0].status).toBe("ignored");
+    expect(store.webhooks[0].processingAttempts).toBe(0);
+    expect(store.subscriptions).toHaveLength(0);
+
+    const again = await billing.ingestWebhook({ provider: "fake", raw: signed });
+    expect(again.duplicate).toBe(true);
+  });
+
   it("projects a paid checkout on resume when the webhook never arrived", async () => {
     const { billing, fake, store, authorization, now } = createWorkflowHarness();
     const workspace = entity("ws_resume_paid");
@@ -594,6 +628,200 @@ describe("workflow harness", () => {
     expect(store.checkouts).toHaveLength(0);
   });
 
+  it("replaces the payer's open checkout when they choose another offer", async () => {
+    const { billing, fake, store, authorization, now } = createWorkflowHarness();
+    const workspace = entity("ws_switch_offer");
+    const actor = payer("acct_switch_offer");
+    let grants = 0;
+    const start = (offerKey: string) => {
+      const token = {
+        ...grant("checkout", workspace.id, actor.id, now),
+        grantId: `grant_switch_${++grants}`,
+      };
+      authorization.issue(token);
+      return billing.startCheckout({
+        grant: token,
+        entity: workspace,
+        payer: actor,
+        offerKey,
+        catalogRevision: 1,
+        returnUrl: "https://app.test/billing",
+      });
+    };
+    const yearly = await start("pro_year");
+    const monthly = await start("pro_month");
+    expect(monthly.attempt.id).not.toBe(yearly.attempt.id);
+    expect(monthly.checkoutUrl).not.toBe(yearly.checkoutUrl);
+    expect(store.checkouts.find((row) => row.id === yearly.attempt.id)?.status).toBe(
+      "abandoned",
+    );
+    expect(monthly.attempt.status).toBe("open");
+    expect(fake.createCheckoutCalls.at(-1)?.expiresAt).toEqual(
+      monthly.attempt.expiresAt,
+    );
+
+    // Back to yearly: the abandoned attempt keeps its key, so a new one opens.
+    const yearlyAgain = await start("pro_year");
+    expect(yearlyAgain.attempt.id).not.toBe(yearly.attempt.id);
+    expect(yearlyAgain.attempt.idempotencyKey).not.toBe(yearly.attempt.idempotencyKey);
+    expect(store.checkouts.filter((row) => row.status === "open")).toHaveLength(1);
+
+    // Choosing the same offer again reopens the same checkout.
+    const same = await start("pro_year");
+    expect(same.attempt.id).toBe(yearlyAgain.attempt.id);
+    expect(same.checkoutUrl).toBe(yearlyAgain.checkoutUrl);
+  });
+
+  it("replaces the open checkout when reopening an expired one for another offer", async () => {
+    const { billing, store, authorization, now } = createWorkflowHarness();
+    const workspace = entity("ws_switch_expired");
+    const actor = payer("acct_switch_expired");
+    let grants = 0;
+    const start = (offerKey: string) => {
+      const token = {
+        ...grant("checkout", workspace.id, actor.id, now),
+        grantId: `grant_switch_expired_${++grants}`,
+      };
+      authorization.issue(token);
+      return billing.startCheckout({
+        grant: token,
+        entity: workspace,
+        payer: actor,
+        offerKey,
+        catalogRevision: 1,
+        returnUrl: "https://app.test/billing",
+      });
+    };
+    const yearly = await start("pro_year");
+    const expired = store.checkouts.find((row) => row.id === yearly.attempt.id)!;
+    expired.status = "expired";
+    expired.completedAt = now;
+    const monthly = await start("pro_month");
+    const reopened = await start("pro_year");
+    expect(reopened.attempt.id).toBe(yearly.attempt.id);
+    expect(reopened.attempt.status).toBe("open");
+    expect(store.checkouts.find((row) => row.id === monthly.attempt.id)?.status).toBe(
+      "abandoned",
+    );
+    expect(store.checkouts.filter((row) => row.status === "open")).toHaveLength(1);
+  });
+
+  it("keeps checkout_pending for another payer's open checkout", async () => {
+    const { billing, authorization, now } = createWorkflowHarness();
+    const workspace = entity("ws_other_payer");
+    const owner = payer("acct_owner");
+    const other = payer("acct_other");
+    const ownerGrant = grant("checkout", workspace.id, owner.id, now);
+    authorization.issue(ownerGrant);
+    await billing.startCheckout({
+      grant: ownerGrant,
+      entity: workspace,
+      payer: owner,
+      offerKey: "pro_year",
+      catalogRevision: 1,
+      returnUrl: "https://app.test/billing",
+    });
+    const otherGrant = {
+      ...grant("checkout", workspace.id, other.id, now),
+      grantId: "grant_other_payer",
+    };
+    authorization.issue(otherGrant);
+    await expect(
+      billing.startCheckout({
+        grant: otherGrant,
+        entity: workspace,
+        payer: other,
+        offerKey: "pro_month",
+        catalogRevision: 1,
+        returnUrl: "https://app.test/billing",
+      }),
+    ).rejects.toMatchObject({ code: "checkout_pending" });
+  });
+
+  it("flags a replaced checkout that is paid anyway", async () => {
+    const { billing, fake, store, authorization, now } = createWorkflowHarness();
+    const workspace = entity("ws_late_paid");
+    const actor = payer("acct_late_paid");
+    let grants = 0;
+    const start = (offerKey: string) => {
+      const token = {
+        ...grant("checkout", workspace.id, actor.id, now),
+        grantId: `grant_late_${++grants}`,
+      };
+      authorization.issue(token);
+      return billing.startCheckout({
+        grant: token,
+        entity: workspace,
+        payer: actor,
+        offerKey,
+        catalogRevision: 1,
+        returnUrl: "https://app.test/billing",
+      });
+    };
+    const yearly = await start("pro_year");
+    const monthly = await start("pro_month");
+
+    // The old page was still open and the payer paid on it.
+    const paidYearly = await fake.simulatePayment(
+      yearly.attempt.providerCheckoutSessionId!,
+    );
+    await billing.projectSnapshot(paidYearly, {
+      checkoutAttemptId: yearly.attempt.attemptId,
+    });
+    expect(store.checkouts.find((row) => row.id === yearly.attempt.id)?.status).toBe(
+      "conflicted",
+    );
+    const state = await billing.commercialState(workspace.id);
+    expect(state.activePaidPlan).toBe("pro");
+    expect(state.billingInterval).toBe("year");
+
+    // Paying on both pages leaves the second subscription for an operator.
+    const paidMonthly = await fake.simulatePayment(
+      monthly.attempt.providerCheckoutSessionId!,
+    );
+    await expect(
+      billing.projectSnapshot(paidMonthly, {
+        checkoutAttemptId: monthly.attempt.attemptId,
+      }),
+    ).rejects.toMatchObject({ code: "operation_quarantined" });
+    expect((await billing.commercialState(workspace.id)).billingInterval).toBe("year");
+  });
+
+  it("follows the customer a provider picks at checkout", async () => {
+    for (const assigns of [true, false]) {
+      const { billing, fake, store, authorization, now } = createWorkflowHarness();
+      fake.capabilities.checkoutAssignsCustomer = assigns;
+      const workspace = entity(`ws_checkout_customer_${assigns}`);
+      const actor = payer(`acct_checkout_customer_${assigns}`);
+      const token = grant("checkout", workspace.id, actor.id, now);
+      authorization.issue(token);
+      const checkout = await billing.startCheckout({
+        grant: token,
+        entity: workspace,
+        payer: actor,
+        offerKey: "pro_year",
+        catalogRevision: 1,
+        returnUrl: "https://app.test/billing",
+      });
+      const paid = await fake.simulatePayment(
+        checkout.attempt.providerCheckoutSessionId!,
+      );
+      const projected = billing.projectSnapshot(
+        { ...paid, providerCustomerId: "cus_chosen_at_checkout" },
+        { checkoutAttemptId: checkout.attempt.attemptId },
+      );
+      if (!assigns) {
+        await expect(projected).rejects.toMatchObject({
+          code: "operation_quarantined",
+        });
+        continue;
+      }
+      await projected;
+      expect(store.customers[0]!.providerCustomerId).toBe("cus_chosen_at_checkout");
+      expect((await billing.commercialState(workspace.id)).activePaidPlan).toBe("pro");
+    }
+  });
+
   it("two billable entities under one payer transition independently", async () => {
     const { billing, fake, authorization, now } = createWorkflowHarness();
     const actor = payer();
@@ -771,7 +999,7 @@ describe("workflow harness", () => {
     expect(store.subscriptions[0].providerVersion).toBe("2");
   });
 
-  it("clears the active subscription pointer after immediate cancellation", async () => {
+  it("clears the active subscription pointer when the subscription ends", async () => {
     const { billing, fake, store, authorization, now } = createWorkflowHarness();
     const workspace = entity("ws_cancel");
     const actor = payer();
@@ -793,7 +1021,7 @@ describe("workflow harness", () => {
     });
     await fake.cancelSubscription(paid.providerSubscriptionId, "cancel:test");
     await billing.projectSnapshot(
-      await fake.retrieveSubscription(paid.providerSubscriptionId),
+      fake.endScheduledCancellation(paid.providerSubscriptionId),
       {},
     );
     expect(store.planStates.get(workspace.id)?.activeSubscriptionId).toBeNull();
@@ -834,9 +1062,431 @@ describe("workflow harness", () => {
     expect(store.jobs[0]?.operation).toBe("cancellation");
 
     await billing.runReconciliationBatch({ workerId: "w-cancel" });
-    expect(store.subscriptions[0].status).toBe("cancelled");
-    expect(store.planStates.get(workspace.id)?.activeSubscriptionId).toBe(null);
+    expect(store.subscriptions[0].status).toBe("active");
+    expect(store.subscriptions[0].cancelAtPeriodEnd).toBe(true);
+    expect(store.planStates.get(workspace.id)?.activeSubscriptionId).toBe(
+      store.subscriptions[0].id,
+    );
     expect(store.jobs[0]?.status).toBe("completed");
+  });
+
+  it("keeps paid access until the period ends after a cancel, and resumes", async () => {
+    const { billing, fake, authorization, now } = createWorkflowHarness();
+    const workspace = entity("ws_cancel_period_end");
+    const actor = payer("acct_cancel_period_end");
+    const checkoutGrant = grant("checkout", workspace.id, actor.id, now);
+    authorization.issue(checkoutGrant);
+    const checkout = await billing.startCheckout({
+      grant: checkoutGrant,
+      entity: workspace,
+      payer: actor,
+      offerKey: "pro_month",
+      catalogRevision: 1,
+      returnUrl: "https://app.test/billing",
+    });
+    const paid = await fake.simulatePayment(
+      checkout.attempt.providerCheckoutSessionId!,
+    );
+    await billing.projectSnapshot(paid, {
+      checkoutAttemptId: checkout.attempt.attemptId,
+    });
+
+    const cancelGrant = grant("cancellation", workspace.id, actor.id, now);
+    authorization.issue(cancelGrant);
+    await billing.cancel({ grant: cancelGrant, entity: workspace, payer: actor });
+    await billing.projectSnapshot(
+      await fake.retrieveSubscription(paid.providerSubscriptionId),
+      {},
+    );
+    const scheduled = await billing.commercialState(workspace.id);
+    expect(scheduled.activePaidPlan).toBe("pro");
+    expect(scheduled.cancelAtPeriodEnd).toBe(true);
+    expect(scheduled.paidThroughAt).toEqual(paid.paidThroughAt);
+
+    const resumeGrant = grant(
+      "cancellation",
+      workspace.id,
+      actor.id,
+      new Date(now.getTime() - 1),
+    );
+    authorization.issue(resumeGrant);
+    await billing.resumeCancellation({
+      grant: resumeGrant,
+      entity: workspace,
+      payer: actor,
+    });
+    await billing.projectSnapshot(
+      await fake.retrieveSubscription(paid.providerSubscriptionId),
+      {},
+    );
+    const resumed = await billing.commercialState(workspace.id);
+    expect(resumed.activePaidPlan).toBe("pro");
+    expect(resumed.cancelAtPeriodEnd).toBe(false);
+
+    // Cancelling again after a resume is a new provider request.
+    const againGrant = grant(
+      "cancellation",
+      workspace.id,
+      actor.id,
+      new Date(now.getTime() - 2),
+    );
+    authorization.issue(againGrant);
+    await billing.cancel({ grant: againGrant, entity: workspace, payer: actor });
+    await billing.projectSnapshot(
+      await fake.retrieveSubscription(paid.providerSubscriptionId),
+      {},
+    );
+    expect((await billing.commercialState(workspace.id)).cancelAtPeriodEnd).toBe(true);
+
+    // At period end the provider ends the subscription and access stops.
+    await billing.projectSnapshot(
+      fake.endScheduledCancellation(paid.providerSubscriptionId),
+      {},
+    );
+    expect((await billing.commercialState(workspace.id)).activePaidPlan).toBeNull();
+  });
+
+  it("resumes a cancellation a provider reports as cancelled until the period ends", async () => {
+    const { billing, fake, store, authorization, now } = createWorkflowHarness();
+    const workspace = entity("ws_resume_cancelled_status");
+    const actor = payer("acct_resume_cancelled_status");
+    const checkoutGrant = grant("checkout", workspace.id, actor.id, now);
+    authorization.issue(checkoutGrant);
+    const checkout = await billing.startCheckout({
+      grant: checkoutGrant,
+      entity: workspace,
+      payer: actor,
+      offerKey: "pro_month",
+      catalogRevision: 1,
+      returnUrl: "https://app.test/billing",
+    });
+    const paid = await fake.simulatePayment(
+      checkout.attempt.providerCheckoutSessionId!,
+    );
+    await billing.projectSnapshot(paid, {
+      checkoutAttemptId: checkout.attempt.attemptId,
+    });
+    await fake.cancelSubscription(paid.providerSubscriptionId, "cancel_at_provider");
+    // Projected the way Lemon Squeezy reports it: `cancelled`, paid until the end.
+    await billing.projectSnapshot(
+      {
+        ...(await fake.retrieveSubscription(paid.providerSubscriptionId)),
+        status: "cancelled",
+        cancelAtPeriodEnd: true,
+      },
+      {},
+    );
+    expect(store.subscriptions[0]!.status).toBe("cancelled");
+    expect((await billing.commercialState(workspace.id)).activePaidPlan).toBe("pro");
+
+    const resumeGrant = {
+      ...grant("cancellation", workspace.id, actor.id, now),
+      grantId: "grant_resume_cancelled_status",
+    };
+    authorization.issue(resumeGrant);
+    await billing.resumeCancellation({
+      grant: resumeGrant,
+      entity: workspace,
+      payer: actor,
+    });
+    const resumed = await billing.commercialState(workspace.id);
+    expect(resumed.activePaidPlan).toBe("pro");
+    expect(resumed.cancelAtPeriodEnd).toBe(false);
+    expect(store.subscriptions[0]!.status).toBe("active");
+  });
+
+  it("reads back a cancel and lapses paid access when the period passes", async () => {
+    const { billing, fake, store, authorization, now } = createWorkflowHarness();
+    const workspace = entity("ws_lapse");
+    const actor = payer("acct_lapse");
+    const checkoutGrant = grant("checkout", workspace.id, actor.id, now);
+    authorization.issue(checkoutGrant);
+    const checkout = await billing.startCheckout({
+      grant: checkoutGrant,
+      entity: workspace,
+      payer: actor,
+      offerKey: "pro_month",
+      catalogRevision: 1,
+      returnUrl: "https://app.test/billing",
+    });
+    const paid = await fake.simulatePayment(
+      checkout.attempt.providerCheckoutSessionId!,
+    );
+    await billing.projectSnapshot(paid, {
+      checkoutAttemptId: checkout.attempt.attemptId,
+    });
+
+    const cancelGrant = grant("cancellation", workspace.id, actor.id, now);
+    authorization.issue(cancelGrant);
+    await billing.cancel({ grant: cancelGrant, entity: workspace, payer: actor });
+    // No webhook or manual projection: cancel reads the subscription back.
+    const scheduled = await billing.commercialState(workspace.id);
+    expect(scheduled.cancelAtPeriodEnd).toBe(true);
+    expect(scheduled.activePaidPlan).toBe("pro");
+
+    // The provider's final event never arrives, and the period passes.
+    const later = new Date(paid.paidThroughAt!.getTime() + 1000);
+    const afterPeriod = createBillingFrom(store, fake, later, REFERENCE_OFFERS, {
+      authorization,
+    });
+    expect((await afterPeriod.commercialState(workspace.id)).activePaidPlan).toBeNull();
+
+    expect(await afterPeriod.runDeadlineBatch()).toBe(1);
+    expect(store.planStates.get(workspace.id)?.activeSubscriptionId).toBeNull();
+    expect(
+      store.jobs.some((job) => job.subscriptionId === store.subscriptions[0].id),
+    ).toBe(true);
+
+    // A new checkout is allowed once access has lapsed.
+    const again = grant("checkout", workspace.id, actor.id, later);
+    authorization.issue(again);
+    await expect(
+      afterPeriod.startCheckout({
+        grant: again,
+        entity: workspace,
+        payer: actor,
+        offerKey: "pro_month",
+        catalogRevision: 1,
+        returnUrl: "https://app.test/billing",
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it("discovers subscriptions that were never reconciled", async () => {
+    const { billing, fake, store, authorization, now } = createWorkflowHarness();
+    const workspace = entity("ws_discover");
+    const actor = payer("acct_discover");
+    const checkoutGrant = grant("checkout", workspace.id, actor.id, now);
+    authorization.issue(checkoutGrant);
+    const checkout = await billing.startCheckout({
+      grant: checkoutGrant,
+      entity: workspace,
+      payer: actor,
+      offerKey: "pro_month",
+      catalogRevision: 1,
+      returnUrl: "https://app.test/billing",
+    });
+    const paid = await fake.simulatePayment(
+      checkout.attempt.providerCheckoutSessionId!,
+    );
+    await billing.projectSnapshot(paid, {
+      checkoutAttemptId: checkout.attempt.attemptId,
+    });
+    expect(store.subscriptions[0].lastReconciledAt).toBeNull();
+
+    await billing.runReconciliationBatch({ workerId: "w-off", discover: false });
+    expect(store.jobs).toHaveLength(0);
+
+    await billing.runReconciliationBatch({ workerId: "w-on" });
+    expect(store.subscriptions[0].lastReconciledAt).toBeInstanceOf(Date);
+    expect(
+      (await billing.commercialState(workspace.id, { transaction: {} })).activePaidPlan,
+    ).toBe("pro");
+  });
+
+  it("adopts a subscription started outside the engine", async () => {
+    const { billing, fake, store, authorization, audit, now } = createWorkflowHarness();
+    const workspace = entity("ws_adopt");
+    const actor = payer("acct_adopt");
+    const operator = { actorId: "op_1", reason: "migrate an existing subscription" };
+    const external = fake.createExternalSubscription({
+      customerId: "cus_external",
+      productId: "pdt_pro_month",
+    });
+
+    const adopted = await billing.adoptProviderSubscription(operator, {
+      providerName: "fake",
+      providerSubscriptionId: external.providerSubscriptionId,
+      entity: workspace,
+      payer: actor,
+    });
+    expect(adopted.subscription.billableEntityId).toBe(workspace.id);
+    const state = await billing.commercialState(workspace.id);
+    expect(state.activePaidPlan).toBe("pro");
+    expect(state.provider).toBe("fake");
+    expect(store.customers).toHaveLength(1);
+    expect(
+      audit.records.some((row) => row.effectId.startsWith("operator:adopt:")),
+    ).toBe(true);
+
+    // Repeating it is safe; another entity cannot take it.
+    await billing.adoptProviderSubscription(operator, {
+      providerName: "fake",
+      providerSubscriptionId: external.providerSubscriptionId,
+      entity: workspace,
+      payer: actor,
+    });
+    expect(store.customers).toHaveLength(1);
+    expect(store.subscriptions).toHaveLength(1);
+    await expect(
+      billing.adoptProviderSubscription(operator, {
+        providerName: "fake",
+        providerSubscriptionId: external.providerSubscriptionId,
+        entity: entity("ws_other"),
+        payer: payer("acct_other"),
+      }),
+    ).rejects.toMatchObject({ code: "operation_conflicted" });
+
+    // From then on the usual workflows apply.
+    const cancelGrant = grant("cancellation", workspace.id, actor.id, now);
+    authorization.issue(cancelGrant);
+    await billing.cancel({ grant: cancelGrant, entity: workspace, payer: actor });
+    expect((await billing.commercialState(workspace.id)).cancelAtPeriodEnd).toBe(true);
+  });
+
+  it("refuses to adopt a subscription whose product is not in the catalog", async () => {
+    const { billing, fake } = createWorkflowHarness();
+    const external = fake.createExternalSubscription({
+      customerId: "cus_unknown",
+      productId: "pdt_not_in_catalog",
+    });
+    await expect(
+      billing.adoptProviderSubscription(
+        { actorId: "op_1", reason: "migrate" },
+        {
+          providerName: "fake",
+          providerSubscriptionId: external.providerSubscriptionId,
+          entity: entity("ws_unknown"),
+          payer: payer("acct_unknown"),
+        },
+      ),
+    ).rejects.toMatchObject({ code: "operation_quarantined" });
+  });
+
+  it("refuses to adopt a subscription whose product only a retired revision sold", async () => {
+    const { billing, fake, store } = createWorkflowHarness(undefined, {
+      seedLocalCatalog: false,
+    });
+    store.seedCatalog({
+      revision: 1,
+      provider: "fake",
+      offers: REFERENCE_OFFERS,
+      status: "retired",
+    });
+    store.seedCatalog({
+      revision: 2,
+      provider: "fake",
+      offers: REFERENCE_OFFERS.filter((offer) => offer.key !== "pro_month").map(
+        (offer) => ({ ...offer, revision: 2 }),
+      ),
+    });
+    const external = fake.createExternalSubscription({
+      customerId: "cus_retired",
+      productId: "pdt_pro_month",
+    });
+    await expect(
+      billing.adoptProviderSubscription(
+        { actorId: "op_1", reason: "migrate" },
+        {
+          providerName: "fake",
+          providerSubscriptionId: external.providerSubscriptionId,
+          entity: entity("ws_retired"),
+          payer: payer("acct_retired"),
+        },
+      ),
+    ).rejects.toMatchObject({ code: "operation_quarantined" });
+    expect(store.subscriptions).toHaveLength(0);
+  });
+
+  it("stops a pending cancellation retry when the user resumes", async () => {
+    const { billing, fake, store, authorization, now } = createWorkflowHarness();
+    const workspace = entity("ws_resume_retry");
+    const actor = payer("acct_resume_retry");
+    const checkoutGrant = grant("checkout", workspace.id, actor.id, now);
+    authorization.issue(checkoutGrant);
+    const checkout = await billing.startCheckout({
+      grant: checkoutGrant,
+      entity: workspace,
+      payer: actor,
+      offerKey: "pro_month",
+      catalogRevision: 1,
+      returnUrl: "https://app.test/billing",
+    });
+    const paid = await fake.simulatePayment(
+      checkout.attempt.providerCheckoutSessionId!,
+    );
+    await billing.projectSnapshot(paid, {
+      checkoutAttemptId: checkout.attempt.attemptId,
+    });
+
+    // The cancel reaches the provider but the response times out.
+    const cancelGrant = grant("cancellation", workspace.id, actor.id, now);
+    authorization.issue(cancelGrant);
+    fake.controls.timeoutAfter = { cancellation: true };
+    await expect(
+      billing.cancel({ grant: cancelGrant, entity: workspace, payer: actor }),
+    ).rejects.toMatchObject({ code: "provider_unavailable" });
+    fake.controls.timeoutAfter = {};
+    await billing.projectSnapshot(
+      await fake.retrieveSubscription(paid.providerSubscriptionId),
+      {},
+    );
+
+    const resumeGrant = grant(
+      "cancellation",
+      workspace.id,
+      actor.id,
+      new Date(now.getTime() - 1),
+    );
+    authorization.issue(resumeGrant);
+    await billing.resumeCancellation({
+      grant: resumeGrant,
+      entity: workspace,
+      payer: actor,
+    });
+    expect(store.jobs[0]?.operation).toBe("reconcile");
+
+    await billing.runReconciliationBatch({ workerId: "w-resume" });
+    expect(store.subscriptions[0].cancelAtPeriodEnd).toBe(false);
+    expect((await billing.commercialState(workspace.id)).activePaidPlan).toBe("pro");
+  });
+
+  it("asks the user to retry a resume while a worker is sending the cancellation", async () => {
+    const { billing, fake, store, authorization, now } = createWorkflowHarness();
+    const workspace = entity("ws_resume_claimed");
+    const actor = payer("acct_resume_claimed");
+    const checkoutGrant = grant("checkout", workspace.id, actor.id, now);
+    authorization.issue(checkoutGrant);
+    const checkout = await billing.startCheckout({
+      grant: checkoutGrant,
+      entity: workspace,
+      payer: actor,
+      offerKey: "pro_month",
+      catalogRevision: 1,
+      returnUrl: "https://app.test/billing",
+    });
+    const paid = await fake.simulatePayment(
+      checkout.attempt.providerCheckoutSessionId!,
+    );
+    await billing.projectSnapshot(paid, {
+      checkoutAttemptId: checkout.attempt.attemptId,
+    });
+    const cancelGrant = grant("cancellation", workspace.id, actor.id, now);
+    authorization.issue(cancelGrant);
+    fake.controls.timeoutAfter = { cancellation: true };
+    await expect(
+      billing.cancel({ grant: cancelGrant, entity: workspace, payer: actor }),
+    ).rejects.toMatchObject({ code: "provider_unavailable" });
+    fake.controls.timeoutAfter = {};
+    await billing.projectSnapshot(
+      await fake.retrieveSubscription(paid.providerSubscriptionId),
+      {},
+    );
+    await billing.claimReconciliationJobs({ workerId: "w-cancel" });
+
+    const resumeGrant = {
+      ...grant("cancellation", workspace.id, actor.id, now),
+      grantId: "grant_resume_claimed",
+    };
+    authorization.issue(resumeGrant);
+    await expect(
+      billing.resumeCancellation({
+        grant: resumeGrant,
+        entity: workspace,
+        payer: actor,
+      }),
+    ).rejects.toMatchObject({ code: "operation_conflicted", retryable: true });
+    expect(store.jobs[0]?.operation).toBe("cancellation");
   });
 
   it("projects an immediate plan change using the target lineage", async () => {
@@ -919,6 +1569,148 @@ describe("workflow harness", () => {
     expect(store.planChanges[0].status).toBe("succeeded");
     expect(store.checkouts[0].status).toBe("completed");
     expect(store.checkouts[0].offerKey).toBe("pro_month");
+  });
+
+  it("changes back and forth between offers more than once", async () => {
+    const { billing, fake, store, authorization, now } = createWorkflowHarness();
+    const workspace = entity("ws_plan_change_repeat");
+    const actor = payer("acct_plan_change_repeat");
+    const checkoutGrant = grant("checkout", workspace.id, actor.id, now);
+    authorization.issue(checkoutGrant);
+    const checkout = await billing.startCheckout({
+      grant: checkoutGrant,
+      entity: workspace,
+      payer: actor,
+      offerKey: "pro_month",
+      catalogRevision: 1,
+      returnUrl: "https://app.test/billing",
+    });
+    const paid = await fake.simulatePayment(
+      checkout.attempt.providerCheckoutSessionId!,
+    );
+    await billing.projectSnapshot(paid, {
+      checkoutAttemptId: checkout.attempt.attemptId,
+    });
+    for (const [step, offerKey] of ["pro_year", "pro_month", "pro_year"].entries()) {
+      const changeGrant = {
+        ...grant("plan_change", workspace.id, actor.id, now),
+        grantId: `grant_plan_change_repeat_${step}`,
+      };
+      authorization.issue(changeGrant);
+      await billing.startPlanChange({
+        grant: changeGrant,
+        entity: workspace,
+        payer: actor,
+        offerKey,
+        catalogRevision: 1,
+        effectiveAt: "immediately",
+        prorationMode: "prorated_immediately",
+      });
+      await billing.projectSnapshot(
+        await fake.retrieveSubscription(paid.providerSubscriptionId),
+        {},
+      );
+      expect(store.subscriptions[0].offerKey).toBe(offerKey);
+    }
+    expect(store.planChanges.map((change) => change.status)).toEqual([
+      "succeeded",
+      "succeeded",
+      "succeeded",
+    ]);
+    expect(new Set(store.planChanges.map((change) => change.idempotencyKey)).size).toBe(
+      3,
+    );
+  });
+
+  it("refuses do_not_bill across intervals when the provider bills such a change at once", async () => {
+    const { billing, fake, store, authorization, now } = createWorkflowHarness();
+    fake.capabilities.intervalChangesBillImmediately = true;
+    const workspace = entity("ws_plan_change_unbilled");
+    const actor = payer("acct_plan_change_unbilled");
+    const checkoutGrant = grant("checkout", workspace.id, actor.id, now);
+    authorization.issue(checkoutGrant);
+    const checkout = await billing.startCheckout({
+      grant: checkoutGrant,
+      entity: workspace,
+      payer: actor,
+      offerKey: "pro_month",
+      catalogRevision: 1,
+      returnUrl: "https://app.test/billing",
+    });
+    const paid = await fake.simulatePayment(
+      checkout.attempt.providerCheckoutSessionId!,
+    );
+    await billing.projectSnapshot(paid, {
+      checkoutAttemptId: checkout.attempt.attemptId,
+    });
+    const yearGrant = grant("plan_change", workspace.id, actor.id, now);
+    authorization.issue(yearGrant);
+    await expect(
+      billing.startPlanChange({
+        grant: yearGrant,
+        entity: workspace,
+        payer: actor,
+        offerKey: "pro_year",
+        catalogRevision: 1,
+        effectiveAt: "immediately",
+        prorationMode: "do_not_bill",
+      }),
+    ).rejects.toMatchObject({ code: "plan_change_not_supported" });
+    expect(store.planChanges).toHaveLength(0);
+
+    const sameIntervalGrant = {
+      ...grant("plan_change", workspace.id, actor.id, now),
+      grantId: "grant_plan_change_same_interval",
+    };
+    authorization.issue(sameIntervalGrant);
+    const change = await billing.startPlanChange({
+      grant: sameIntervalGrant,
+      entity: workspace,
+      payer: actor,
+      offerKey: "business_month",
+      catalogRevision: 1,
+      effectiveAt: "immediately",
+      prorationMode: "do_not_bill",
+    });
+    expect(change.targetOfferKey).toBe("business_month");
+  });
+
+  it("refuses a scheduled plan change when the provider applies changes at once", async () => {
+    const { billing, fake, store, authorization, now } = createWorkflowHarness();
+    fake.capabilities.immediatePlanChangesOnly = true;
+    const workspace = entity("ws_plan_change_scheduled");
+    const actor = payer("acct_plan_change_scheduled");
+    const checkoutGrant = grant("checkout", workspace.id, actor.id, now);
+    authorization.issue(checkoutGrant);
+    const checkout = await billing.startCheckout({
+      grant: checkoutGrant,
+      entity: workspace,
+      payer: actor,
+      offerKey: "pro_month",
+      catalogRevision: 1,
+      returnUrl: "https://app.test/billing",
+    });
+    const paid = await fake.simulatePayment(
+      checkout.attempt.providerCheckoutSessionId!,
+    );
+    await billing.projectSnapshot(paid, {
+      checkoutAttemptId: checkout.attempt.attemptId,
+    });
+    const changeGrant = grant("plan_change", workspace.id, actor.id, now);
+    authorization.issue(changeGrant);
+    await expect(
+      billing.startPlanChange({
+        grant: changeGrant,
+        entity: workspace,
+        payer: actor,
+        offerKey: "business_month",
+        catalogRevision: 1,
+        effectiveAt: "next_billing_date",
+        prorationMode: "do_not_bill",
+      }),
+    ).rejects.toMatchObject({ code: "plan_change_not_supported" });
+    expect(store.planChanges).toHaveLength(0);
+    expect(store.jobs).toHaveLength(0);
   });
 
   it("rejects unsafe return URLs before provider mutation", async () => {

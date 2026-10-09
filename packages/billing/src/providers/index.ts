@@ -7,6 +7,7 @@ export type {
   CreateCheckoutInput,
   CreateCustomerInput,
   DodoBillingProviderOptions,
+  LemonSqueezyBillingProviderOptions,
   MutationRecovery,
   PortalSession,
   ProviderCapabilities,

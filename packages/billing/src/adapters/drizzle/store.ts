@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { and, eq, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import type { CheckoutAttempt } from "../../core/checkout-attempt.js";
 import type { Clock } from "../../core/clock.js";
@@ -790,13 +790,72 @@ export function createDrizzleBillingStore(
         t("billingSubscriptions"),
         and(
           eq(t("billingSubscriptions").isEntitlementSource as never, true),
-          eq(t("billingSubscriptions").status as never, "cancelled"),
           eq(t("billingSubscriptions").cancelAtPeriodEnd as never, true),
           lte(t("billingSubscriptions").paidThroughAt as never, now),
         ),
         limit,
       );
       return rows.map(mapSubscription);
+    },
+    async listUnreconciledSubscriptions(reconciledBefore, limit) {
+      const subscriptions = t("billingSubscriptions");
+      const rows = await many(
+        subscriptions,
+        and(
+          or(
+            inArray(subscriptions.status as never, [
+              "pending",
+              "trialing",
+              "active",
+              "past_due",
+            ]),
+            and(
+              eq(subscriptions.status as never, "cancelled"),
+              eq(subscriptions.isEntitlementSource as never, true),
+            ),
+          ),
+          or(
+            isNull(subscriptions.lastReconciledAt as never),
+            lt(subscriptions.lastReconciledAt as never, reconciledBefore),
+          ),
+        ),
+        limit,
+      );
+      return rows.map(mapSubscription);
+    },
+    async listStuckCreatingCheckouts(updatedBefore, now, limit) {
+      const checkouts = t("billingCheckoutAttempts");
+      const rows = await many(
+        checkouts,
+        and(
+          eq(checkouts.status as never, "creating"),
+          lte(checkouts.updatedAt as never, updatedBefore),
+          gt(checkouts.expiresAt as never, now),
+        ),
+        limit,
+      );
+      return rows.map(mapCheckout);
+    },
+    async listStuckPlanChanges(updatedBefore, limit) {
+      const changes = t("billingPlanChangeAttempts");
+      const rows = await many(
+        changes,
+        and(
+          or(
+            eq(changes.status as never, "creating"),
+            and(
+              eq(changes.status as never, "pending"),
+              isNotNull(changes.lastError as never),
+            ),
+          ),
+          lte(changes.updatedAt as never, updatedBefore),
+        ),
+        limit,
+      );
+      return rows.map(mapPlanChange);
+    },
+    async runInTransaction<T>(transaction: unknown, fn: () => Promise<T>): Promise<T> {
+      return transactionContext.run(transaction as DrizzleDb, fn);
     },
     async findLivePlanChange(billableEntityId) {
       const row = await one(

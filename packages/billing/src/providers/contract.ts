@@ -56,6 +56,18 @@ export type ProviderCapabilities = {
   portalPlanChanges: boolean;
   portalIntervalChanges: boolean;
   proratedPlanChanges: boolean;
+  /**
+   * The provider picks the customer during checkout, so a new subscription can
+   * name a customer other than the one the checkout was created for.
+   */
+  checkoutAssignsCustomer?: boolean;
+  /**
+   * A change to another billing interval starts a new period and bills at
+   * once, so `do_not_bill` cannot be honoured across intervals.
+   */
+  intervalChangesBillImmediately?: boolean;
+  /** Plan changes take effect at once; `next_billing_date` is not supported. */
+  immediatePlanChangesOnly?: boolean;
   mutationRecovery: {
     createCustomer: MutationRecovery;
     createCheckout: MutationRecovery;
@@ -81,6 +93,8 @@ export type CreateCheckoutInput = {
   catalogKey: string;
   trialDays: number;
   idempotencyKey: string;
+  /** When the checkout attempt expires. Adapters that can, close the provider checkout then. */
+  expiresAt?: Date;
 };
 
 export type CheckoutSessionSnapshot = {
@@ -102,12 +116,37 @@ export interface BillingProviderAdapter {
   changeSubscriptionPlan(
     input: SubscriptionPlanChangeInput,
   ): Promise<SubscriptionPlanChangeResult>;
+  /**
+   * Schedules cancellation at the end of the paid period. The subscription
+   * keeps its status until then, and its snapshot reports
+   * `cancelAtPeriodEnd: true`.
+   */
   cancelSubscription(subscriptionId: string, idempotencyKey: string): Promise<void>;
+  /** Clears a scheduled cancellation, so the subscription renews again. */
+  resumeSubscription(subscriptionId: string, idempotencyKey: string): Promise<void>;
   retrieveProduct(productId: string): Promise<BillingProductSnapshot>;
   retrieveSubscription(subscriptionId: string): Promise<SubscriptionSnapshot>;
   retrieveCheckoutSession(checkoutSessionId: string): Promise<CheckoutSessionSnapshot>;
   parseWebhook(input: RawWebhookRequest): Promise<VerifiedWebhookEnvelope>;
 }
+
+export type LemonSqueezyBillingProviderOptions = {
+  apiKey: string;
+  /** The product's store. Webhooks and subscriptions from other stores are ignored or rejected. */
+  storeId: string;
+  /** Signing secrets of the store's webhook; older ones may stay during rotation. */
+  webhookSecrets: Array<{
+    version: string;
+    secret: string;
+    expiresAt?: Date | null;
+  }>;
+  requestTimeoutMs?: number;
+  /** Default `https://api.lemonsqueezy.com/v1`. */
+  apiBaseUrl?: string;
+  /** Override for tests. */
+  fetch?: typeof fetch;
+  clock: Clock;
+};
 
 export type DodoBillingProviderOptions = {
   apiKey: string;
@@ -118,6 +157,13 @@ export type DodoBillingProviderOptions = {
     expiresAt?: Date | null;
   }>;
   requestTimeoutMs?: number;
+  /**
+   * The Dodo brand this product sells under. Dodo delivers every event of the
+   * business to every webhook endpoint, so events whose `brand_id` names
+   * another brand are recorded as ignored instead of being processed. Events
+   * without a `brand_id` are processed as before.
+   */
+  brandId?: string;
   clock: Clock;
 };
 

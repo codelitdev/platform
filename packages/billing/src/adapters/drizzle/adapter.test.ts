@@ -121,6 +121,21 @@ describe("drizzle adapter", () => {
       mismatches: [],
     });
     const actor = payer();
+    // Switching from yearly to monthly replaces the open yearly checkout.
+    const yearlyToken = {
+      ...grant("checkout", workspaceId, actor.id, now),
+      grantId: "grant_drizzle_yearly",
+    };
+    authorization.issue(yearlyToken);
+    const yearly = await billing.startCheckout({
+      grant: yearlyToken,
+      entity: workspace,
+      payer: actor,
+      offerKey: "pro_year",
+      catalogRevision: 1,
+      returnUrl: "https://app.test/billing",
+      applicationFields: { consumerReference: "school:primary" },
+    });
     const token = grant("checkout", workspaceId, actor.id, now);
     authorization.issue(token);
     const checkout = await billing.startCheckout({
@@ -133,6 +148,9 @@ describe("drizzle adapter", () => {
       applicationFields: { consumerReference: "school:primary" },
     });
     expect(checkout.attempt.status).toBe("open");
+    await expect(store.findCheckoutById(yearly.attempt.id)).resolves.toMatchObject({
+      status: "abandoned",
+    });
     await expect(store.findCheckoutById(checkout.attempt.id)).resolves.toMatchObject({
       applicationFields: { consumerReference: "school:primary" },
     });
@@ -154,6 +172,17 @@ describe("drizzle adapter", () => {
     expect(state.activePaidPlan).toBe("pro");
     expect(state.projectionVersion).toBe(1);
     expect(state.pendingCheckout).toBe(false);
+
+    // Reads inside the caller's transaction see the same state.
+    const inTransaction = await db.transaction((tx) =>
+      billing.commercialState(workspaceId, { transaction: tx }),
+    );
+    expect(inTransaction.activePaidPlan).toBe("pro");
+
+    // Discovery finds the subscription that was never reconciled.
+    await billing.runReconciliationBatch({ workerId: "rc-pg" });
+    const [reconciled] = await db.select().from(billingSchema.billingSubscriptions);
+    expect(reconciled?.lastReconciledAt).toBeInstanceOf(Date);
   });
 
   it("expires checkouts and purges retained secrets through drizzle", async () => {
