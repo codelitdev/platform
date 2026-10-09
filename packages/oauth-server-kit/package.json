@@ -1,6 +1,6 @@
 {
   "name": "@codelitdev/oauth-server-kit",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Lean Better Auth OAuth authentication framework for web, mobile, REST, and MCP surfaces.",
   "author": "CodeLit",
   "license": "MIT",
