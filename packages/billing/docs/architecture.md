@@ -307,6 +307,7 @@ The initial interface follows SendLit's working adapter while removing SendLit m
         portalIntervalChanges
         proratedPlanChanges
         intervalChangesBillImmediately?
+        immediatePlanChangesOnly?
         mutationRecovery {
           createCustomer: idempotency_key | lookup
           createCheckout: idempotency_key | lookup

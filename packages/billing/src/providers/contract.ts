@@ -66,6 +66,8 @@ export type ProviderCapabilities = {
    * once, so `do_not_bill` cannot be honoured across intervals.
    */
   intervalChangesBillImmediately?: boolean;
+  /** Plan changes take effect at once; `next_billing_date` is not supported. */
+  immediatePlanChangesOnly?: boolean;
   mutationRecovery: {
     createCustomer: MutationRecovery;
     createCheckout: MutationRecovery;

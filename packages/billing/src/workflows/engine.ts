@@ -1207,6 +1207,12 @@ export function createBilling(options: CreateBillingOptions) {
       throw new BillingWorkflowError("plan_change_not_supported");
     }
     if (
+      input.effectiveAt === "next_billing_date" &&
+      adapter.capabilities.immediatePlanChangesOnly
+    ) {
+      throw new BillingWorkflowError("plan_change_not_supported");
+    }
+    if (
       input.prorationMode === "do_not_bill" &&
       target.price.interval !== sub.interval &&
       adapter.capabilities.intervalChangesBillImmediately
@@ -1445,6 +1451,20 @@ export function createBilling(options: CreateBillingOptions) {
       return { accepted: true as const, subscriptionId: sub.id };
     }
     await store.withTransaction(async () => {
+      // A worker already sending the cancellation would cancel again after
+      // this resume, so the caller retries once that job has finished.
+      const running = await store.findLiveJob({
+        provider: sub.provider,
+        subscriptionId: sub.id,
+      });
+      if (
+        running?.operation === "cancellation" &&
+        running.status === "processing" &&
+        running.leaseExpiresAt !== null &&
+        running.leaseExpiresAt.getTime() > clock.now().getTime()
+      ) {
+        throw new BillingWorkflowError("operation_conflicted", { retryable: true });
+      }
       await requireAudit({
         effectId: `resumption:${sub.id}:${sub.providerVersion ?? "0"}:requested`,
         actor: { kind: "user", id: input.payer.id },
@@ -1452,7 +1472,9 @@ export function createBilling(options: CreateBillingOptions) {
         next: { requested: "provider_resume" },
         correlationIds: { subscriptionId: sub.id },
       });
-      // A pending cancellation retry must not cancel again after this.
+      // A pending cancellation retry must not cancel again after this. If the
+      // resume call below fails, reconciling reads back the provider's state
+      // and the caller can resume again.
       const job = await enqueueJobInTransaction({
         provider: sub.provider,
         subscriptionId: sub.id,
@@ -2615,6 +2637,15 @@ export function createBilling(options: CreateBillingOptions) {
     const snapshot = await callProvider(() =>
       adapter.retrieveSubscription(input.providerSubscriptionId),
     );
+    // A product from a retired revision still has a price entry, so check the
+    // active catalog itself.
+    if (
+      !catalog.items.some(
+        (item) => item.price.providerProductId === snapshot.providerProductId,
+      )
+    ) {
+      throw new BillingWorkflowError("operation_quarantined");
+    }
     return store.withTransaction(async () => {
       const known = await store.findSubscriptionByProviderIds(
         snapshot.provider,

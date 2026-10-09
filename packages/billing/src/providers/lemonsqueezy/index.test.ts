@@ -71,6 +71,7 @@ describe("lemon squeezy adapter", () => {
     expect(capabilities.portalPlanChanges).toBe(false);
     expect(capabilities.portalIntervalChanges).toBe(false);
     expect(capabilities.intervalChangesBillImmediately).toBe(true);
+    expect(capabilities.immediatePlanChangesOnly).toBe(true);
   });
 
   it("reads a cancelled subscription as paid until ends_at", async () => {

@@ -44,8 +44,9 @@ quarantined.
   - Webhooks from another store are marked `foreign` (ADR 0009) and
     subscriptions from another store are rejected.
   - Trials are configured on the variant, so checkout rejects `trialDays`;
-    variant changes apply immediately, so scheduled plan changes are
-    rejected.
+    variant changes apply immediately, so the adapter declares
+    `immediatePlanChangesOnly` and the engine refuses scheduled plan changes
+    before creating an attempt.
   - A variant on another interval restarts the billing period and bills it,
     even with prorations disabled. The adapter declares
     `intervalChangesBillImmediately`, and the engine refuses `do_not_bill`

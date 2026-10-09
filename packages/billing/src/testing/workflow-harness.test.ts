@@ -1353,6 +1353,41 @@ describe("workflow harness", () => {
     ).rejects.toMatchObject({ code: "operation_quarantined" });
   });
 
+  it("refuses to adopt a subscription whose product only a retired revision sold", async () => {
+    const { billing, fake, store } = createWorkflowHarness(undefined, {
+      seedLocalCatalog: false,
+    });
+    store.seedCatalog({
+      revision: 1,
+      provider: "fake",
+      offers: REFERENCE_OFFERS,
+      status: "retired",
+    });
+    store.seedCatalog({
+      revision: 2,
+      provider: "fake",
+      offers: REFERENCE_OFFERS.filter((offer) => offer.key !== "pro_month").map(
+        (offer) => ({ ...offer, revision: 2 }),
+      ),
+    });
+    const external = fake.createExternalSubscription({
+      customerId: "cus_retired",
+      productId: "pdt_pro_month",
+    });
+    await expect(
+      billing.adoptProviderSubscription(
+        { actorId: "op_1", reason: "migrate" },
+        {
+          providerName: "fake",
+          providerSubscriptionId: external.providerSubscriptionId,
+          entity: entity("ws_retired"),
+          payer: payer("acct_retired"),
+        },
+      ),
+    ).rejects.toMatchObject({ code: "operation_quarantined" });
+    expect(store.subscriptions).toHaveLength(0);
+  });
+
   it("stops a pending cancellation retry when the user resumes", async () => {
     const { billing, fake, store, authorization, now } = createWorkflowHarness();
     const workspace = entity("ws_resume_retry");
@@ -1404,6 +1439,54 @@ describe("workflow harness", () => {
     await billing.runReconciliationBatch({ workerId: "w-resume" });
     expect(store.subscriptions[0].cancelAtPeriodEnd).toBe(false);
     expect((await billing.commercialState(workspace.id)).activePaidPlan).toBe("pro");
+  });
+
+  it("asks the user to retry a resume while a worker is sending the cancellation", async () => {
+    const { billing, fake, store, authorization, now } = createWorkflowHarness();
+    const workspace = entity("ws_resume_claimed");
+    const actor = payer("acct_resume_claimed");
+    const checkoutGrant = grant("checkout", workspace.id, actor.id, now);
+    authorization.issue(checkoutGrant);
+    const checkout = await billing.startCheckout({
+      grant: checkoutGrant,
+      entity: workspace,
+      payer: actor,
+      offerKey: "pro_month",
+      catalogRevision: 1,
+      returnUrl: "https://app.test/billing",
+    });
+    const paid = await fake.simulatePayment(
+      checkout.attempt.providerCheckoutSessionId!,
+    );
+    await billing.projectSnapshot(paid, {
+      checkoutAttemptId: checkout.attempt.attemptId,
+    });
+    const cancelGrant = grant("cancellation", workspace.id, actor.id, now);
+    authorization.issue(cancelGrant);
+    fake.controls.timeoutAfter = { cancellation: true };
+    await expect(
+      billing.cancel({ grant: cancelGrant, entity: workspace, payer: actor }),
+    ).rejects.toMatchObject({ code: "provider_unavailable" });
+    fake.controls.timeoutAfter = {};
+    await billing.projectSnapshot(
+      await fake.retrieveSubscription(paid.providerSubscriptionId),
+      {},
+    );
+    await billing.claimReconciliationJobs({ workerId: "w-cancel" });
+
+    const resumeGrant = {
+      ...grant("cancellation", workspace.id, actor.id, now),
+      grantId: "grant_resume_claimed",
+    };
+    authorization.issue(resumeGrant);
+    await expect(
+      billing.resumeCancellation({
+        grant: resumeGrant,
+        entity: workspace,
+        payer: actor,
+      }),
+    ).rejects.toMatchObject({ code: "operation_conflicted", retryable: true });
+    expect(store.jobs[0]?.operation).toBe("cancellation");
   });
 
   it("projects an immediate plan change using the target lineage", async () => {
@@ -1588,6 +1671,44 @@ describe("workflow harness", () => {
       prorationMode: "do_not_bill",
     });
     expect(change.targetOfferKey).toBe("business_month");
+  });
+
+  it("refuses a scheduled plan change when the provider applies changes at once", async () => {
+    const { billing, fake, store, authorization, now } = createWorkflowHarness();
+    fake.capabilities.immediatePlanChangesOnly = true;
+    const workspace = entity("ws_plan_change_scheduled");
+    const actor = payer("acct_plan_change_scheduled");
+    const checkoutGrant = grant("checkout", workspace.id, actor.id, now);
+    authorization.issue(checkoutGrant);
+    const checkout = await billing.startCheckout({
+      grant: checkoutGrant,
+      entity: workspace,
+      payer: actor,
+      offerKey: "pro_month",
+      catalogRevision: 1,
+      returnUrl: "https://app.test/billing",
+    });
+    const paid = await fake.simulatePayment(
+      checkout.attempt.providerCheckoutSessionId!,
+    );
+    await billing.projectSnapshot(paid, {
+      checkoutAttemptId: checkout.attempt.attemptId,
+    });
+    const changeGrant = grant("plan_change", workspace.id, actor.id, now);
+    authorization.issue(changeGrant);
+    await expect(
+      billing.startPlanChange({
+        grant: changeGrant,
+        entity: workspace,
+        payer: actor,
+        offerKey: "business_month",
+        catalogRevision: 1,
+        effectiveAt: "next_billing_date",
+        prorationMode: "do_not_bill",
+      }),
+    ).rejects.toMatchObject({ code: "plan_change_not_supported" });
+    expect(store.planChanges).toHaveLength(0);
+    expect(store.jobs).toHaveLength(0);
   });
 
   it("rejects unsafe return URLs before provider mutation", async () => {

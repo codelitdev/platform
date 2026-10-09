@@ -47,7 +47,7 @@ The engine is mechanical. It will not infer product policy from plan names.
 - `effectiveAt`: `immediately` \| `next_billing_date`
 - `prorationMode`: `prorated_immediately` \| `do_not_bill`
 
-A provider that declares `intervalChangesBillImmediately` starts and bills a new period when the billing interval changes, so `do_not_bill` across intervals fails with `plan_change_not_supported` before the provider is called.
+A provider that declares `intervalChangesBillImmediately` starts and bills a new period when the billing interval changes, so `do_not_bill` across intervals fails with `plan_change_not_supported` before the provider is called. A provider that declares `immediatePlanChangesOnly` cannot schedule a change, so `next_billing_date` fails the same way.
 
 A typical SaaS split (what SendLit does, not required): upgrades → immediate + prorate; downgrades → next invoice + do not bill. Until a webhook/reconciliation snapshot actually shows the new product, `commercialState().activePaidPlan` stays on the current plan and `pendingPlanChange` is set. Your UI should disable a second change and say “being confirmed” vs “scheduled,” not pretend the plan already flipped.
 

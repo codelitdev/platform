@@ -75,6 +75,8 @@ export class LemonSqueezyBillingProvider implements BillingProviderAdapter {
     checkoutAssignsCustomer: true,
     // A variant on another interval restarts the billing period and bills it.
     intervalChangesBillImmediately: true,
+    // Variant changes apply at once; there is no scheduled change.
+    immediatePlanChangesOnly: true,
     mutationRecovery: {
       createCustomer: "lookup",
       createCheckout: "lookup",

@@ -1,3 +1,4 @@
+import { BillingWorkflowError } from "@codelitdev/billing/core";
 import type { BillingEngine } from "@codelitdev/billing/workflows";
 
 /** Products mount provider webhooks at this path, for example `/webhooks/billing/dodo`. */
@@ -11,8 +12,27 @@ export type BillingWebhookResponse = {
 };
 
 /**
+ * A request the provider should not send again: adapters reject a bad
+ * signature or body with a `webhook_*` error, and the engine quarantines a
+ * malformed envelope. Anything else, such as a database outage, may succeed
+ * on redelivery.
+ */
+function isRejectedWebhook(error: unknown): boolean {
+  if (error instanceof BillingWorkflowError) {
+    return error.code === "operation_quarantined";
+  }
+  return (
+    error instanceof Error &&
+    error.constructor === Error &&
+    error.message.startsWith("webhook_")
+  );
+}
+
+/**
  * Handles a provider webhook: verifies and stores it, answers 202 (200 for a
- * duplicate), then drains the inbox in the background. Pass the raw request
+ * duplicate), then drains the inbox in the background. A rejected request
+ * gets 400; a failure to store a verified one gets 503 so the provider
+ * retries. Pass the raw request
  * body exactly as received; signature checks fail on re-serialised JSON.
  */
 export async function handleBillingWebhook(input: {
@@ -52,6 +72,8 @@ export async function handleBillingWebhook(input: {
       : { status: 202, body: { accepted: true } };
   } catch (error) {
     input.onError?.(error);
-    return { status: 400, body: { accepted: false } };
+    return isRejectedWebhook(error)
+      ? { status: 400, body: { accepted: false } }
+      : { status: 503, body: { accepted: false } };
   }
 }

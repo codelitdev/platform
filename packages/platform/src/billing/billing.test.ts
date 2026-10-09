@@ -255,6 +255,34 @@ describe("billing webhook handler", () => {
   });
 });
 
+describe("billing webhook storage failures", () => {
+  it("asks the provider to retry when a verified webhook cannot be stored", async () => {
+    const headers = { "webhook-id": "evt_1" };
+    for (const [error, status] of [
+      [new Error("connection terminated"), 503],
+      [new BillingWorkflowError("composition_invalid"), 503],
+      [new BillingWorkflowError("operation_quarantined"), 400],
+      [new Error("webhook_body_invalid"), 400],
+    ] as const) {
+      const billing = {
+        async ingestWebhook() {
+          throw error;
+        },
+        async runWebhookInboxBatch() {
+          return 0;
+        },
+      };
+      const response = await handleBillingWebhook({
+        billing: billing as never,
+        provider: "dodo",
+        rawBody: "{}",
+        headers,
+      });
+      expect(response.status).toBe(status);
+    }
+  });
+});
+
 describe("billing error response", () => {
   it("exposes only stable codes", () => {
     expect(billingErrorResponse(new BillingWorkflowError("checkout_pending"))).toEqual({

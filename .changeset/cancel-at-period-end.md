@@ -2,7 +2,7 @@
 "@codelitdev/billing": minor
 ---
 
-Cancelling a subscription now keeps it active until the end of the paid period (ADR 0010). Previously the Dodo adapter ended it immediately, so the customer lost the time they had paid for. `commercialState` reports `cancelAtPeriodEnd: true` and `paidThroughAt` while a cancellation is scheduled, and the new `resumeCancellation` clears it.
+Cancelling a subscription now keeps it active until the end of the paid period (ADR 0010). Previously the Dodo adapter ended it immediately, so the customer lost the time they had paid for. `commercialState` reports `cancelAtPeriodEnd: true` and `paidThroughAt` while a cancellation is scheduled, and the new `resumeCancellation` clears it. While a worker is sending a retried cancellation, `resumeCancellation` fails with a retryable `operation_conflicted`, so the cancellation cannot land after the resume.
 
 **Product changes for this release**
 
