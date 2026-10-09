@@ -1,6 +1,6 @@
 {
   "name": "@codelitdev/mcp-server-kit",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "MCP transport, session, auth hooks, and error mapping for CodeLit products",
   "author": "CodeLit",
   "type": "module",
@@ -37,7 +37,7 @@
     "zod": "^3.25.76"
   },
   "peerDependencies": {
-    "@codelitdev/platform": ">=0.3.0"
+    "@codelitdev/platform": ">=0.4.0"
   },
   "devDependencies": {
     "@codelitdev/platform": "workspace:*",
