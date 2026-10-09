@@ -1,6 +1,6 @@
 {
   "name": "@codelitdev/billing",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Provider-neutral billing engine for CodeLit products",
   "author": "CodeLit",
   "type": "module",
