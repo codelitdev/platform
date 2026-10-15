@@ -474,7 +474,7 @@ A managed file may be replaced only when its current hash matches the hash recor
 The completed reference product is the executable specification:
 
 - apps/api: Express, ts-rest, OpenAPI, Better Auth, Drizzle/PostgreSQL, REST, MCP, Pino, optional PostHog, and worker entry point.
-- apps/web: Next.js admin shell, BFF cookies, sign-in, tenant switcher, and one resource screen.
+- apps/web: Next.js admin shell, hosted sign-in redirect, session validation against the API, tenant switcher, and one resource screen.
 - packages/api-contract: shared Zod and ts-rest contract.
 - Tenant, membership, invitation, API-key, audit-event, and example-resource models.
 - Official @codelitdev/billing example with billing.config.ts, committed billing.generated.ts, application-owned Drizzle migration, createBilling composition, fake provider, action-grant adapter, audit/product-effect hooks, and worker maintenance entry point.
@@ -507,7 +507,7 @@ Admin auth follows FrontLit:
 
 - Better Auth persists accounts and sessions in product PostgreSQL.
 - oauth-server-kit provides OAuth provider behavior.
-- Browser auth uses a same-origin BFF and HttpOnly Secure cookies.
+- Browser auth uses hosted sign-in on the API host and an HttpOnly Secure session cookie shared with the web host across the product's subdomains (section 8.5).
 - API and MCP accept configured OAuth tokens and tenant-scoped API keys.
 - Product code checks membership on every request.
 - Sensitive actions use recent auth and a single-use action token or equivalent grant.
@@ -522,14 +522,14 @@ Tenant memberships, invitations, API keys, audit events, and the selected-tenant
 
 The reference API accepts one credential mechanism per request:
 
-1. A Better Auth session cookie forwarded by the same-origin BFF.
+1. A Better Auth session cookie, sent by the browser or forwarded by the web app's server code.
 2. An OAuth access token in `Authorization: Bearer`.
 3. A tenant-bound API key in `X-API-Key`.
 4. An explicitly constructed internal `system` context that cannot be supplied over HTTP or MCP.
 
 More than one supplied mechanism returns `credential_ambiguous`. An invalid explicit credential returns `unauthenticated`; the server never falls back to another credential or anonymous access. MCP accepts OAuth bearer or API key, not browser sessions.
 
-The reference product uses `X-Tenant-ID` as an untrusted selector for tenant-scoped API and OAuth-authenticated MCP operations. The BFF may derive it from its route or selected-tenant preference. The resolver validates the public ID, loads current membership, and derives permissions on every request. Account-scoped endpoints reject a tenant selector unless their contract explicitly supports it; tenant-scoped endpoints return `tenant_required` when it is absent. An API key ignores any alternate selector and always resolves to its persisted tenant.
+The reference product uses `X-Tenant-ID` as an untrusted selector for tenant-scoped API and OAuth-authenticated MCP operations. The web app may derive it from its route or selected-tenant preference. The resolver validates the public ID, loads current membership, and derives permissions on every request. Account-scoped endpoints reject a tenant selector unless their contract explicitly supports it; tenant-scoped endpoints return `tenant_required` when it is absent. An API key ignores any alternate selector and always resolves to its persisted tenant.
 
 ### 8.3 API keys
 
@@ -556,6 +556,17 @@ Normalized trusted context:
 IDs and permissions remain product-owned. Separate identity realms remain separate; CourseLit learner identity does not share admin tables, sessions, or policy.
 
 For billing actions, the Platform/application adapter converts that proof into @codelitdev/billing's consume-once BillingActionGrant bound to actor, action, target, issue time, and expiry. The billing engine still checks the persisted payer/customer/subscription association; an authorized tenant owner cannot use a fresh grant to impersonate another payer. Webhook and scheduled reconciliation use separate trusted system entry points.
+
+### 8.5 Browser sessions and hosted sign-in
+
+Each product serves its API and its admin web app from sibling subdomains of one product domain, for example `api.sendlit.app` and `app.sendlit.app`. SendLit, FrontLit, and MediaLit share this shape, and the reference product follows it:
+
+- **Hosted sign-in on the API host.** The API mounts the hosted pages from `@codelitdev/oauth-server-kit` (`createOAuthPagesRouter`). The web app's `/login` sends the browser to `<api>/login?redirect=<web URL>`. After sign-in the hosted page redirects back only to origins in `allowedRedirectOrigins`, which is the product's configured web origin.
+- **Session cookie shared across subdomains.** Better Auth sets a product-specific `advanced.cookiePrefix` (`sendlit`, `frontlit`, `medialit`) and `crossSubDomainCookies` with `domain` taken from `AUTH_COOKIE_DOMAIN`, the shared parent domain. The cookie is HttpOnly, Secure, and SameSite=Lax. Without a cookie domain the cookie stays host-only on the API host and the web app never sees the session, so every deployment with separate API and web hostnames sets it. Local development leaves it unset because `localhost` cookies are not port-scoped.
+- **The web app validates; it never creates sessions.** Server code and middleware forward the incoming `Cookie` header to the API's `/api/auth/get-session` and trust only that response. The presence of a cookie is not a session. Same-origin route handlers in the web app may proxy browser calls to the API and forward the cookie, but they do not issue or rewrite session cookies.
+- **Redirects use configured origins.** The web app builds absolute URLs from configuration (`WEB_CLIENT` or `WEB_ORIGIN`), never from the request URL. Behind the proxy the container binds `0.0.0.0`, so the request origin is wrong.
+- **Cookie names stay aligned.** Code that parses cookie names, such as web middleware or session-freshness checks, uses the same prefix as Better Auth. The hosted pages' `legacyHostOnlySessionCookieNames` lists any older host-only cookies to clear when a cookie domain is first enabled.
+- **Signing keys depend on the secret.** Better Auth's `jwt()` plugin encrypts its private keys with `BETTER_AUTH_SECRET` and signs a token inside `/get-session`. Changing the secret after the first start leaves stored keys undecryptable and `/get-session` fails, which looks like a sign-in loop. Clear the `jwks` table if the secret has to change.
 
 ## 9. API and MCP composition
 
@@ -689,7 +700,7 @@ Exit: repository history disposition is recorded, blocking ADRs are accepted, an
 
 - Implement @codelitdev/platform's context, error, lifecycle, audit, ID, and safe transport-mapping contracts.
 - Create `examples/reference-product/apps/api`, `apps/web`, and `packages/api-contract` without creating the distributable template yet.
-- Implement Better Auth schema generation, OAuth composition, same-origin BFF sessions, tenant selection, memberships, invitations, API keys, audit events, and the credential-precedence rules in section 8.
+- Implement Better Auth schema generation, OAuth composition, cross-subdomain session cookies, tenant selection, memberships, invitations, API keys, audit events, and the credential-precedence rules in section 8.
 - Add one tenant-owned example resource through ts-rest/OpenAPI and a Pino-stdout-only baseline.
 - Integrate @codelitdev/billing through packed public exports, a committed generated schema, an application-owned migration, fake provider, action grants, audit/product-effect hooks, and bounded maintenance invocation.
 - Add PGlite tests, Docker Compose PostgreSQL, migration drift checks, and public-API reports.
