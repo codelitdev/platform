@@ -2,20 +2,21 @@ import { describe, expect, it, vi } from "bun:test";
 import { createBatchSender } from "./transport.js";
 
 const ok = () => new Response(null, { status: 200 });
+const okSend = <T>() => vi.fn(async (_items: T[], _signal: AbortSignal) => ok());
 
 describe("createBatchSender", () => {
   it("sends a burst in batches instead of one request per item", async () => {
-    const send = vi.fn(async () => ok());
+    const send = okSend<number>();
     const sender = createBatchSender<number>({ send, maxBatch: 50 });
     for (let i = 0; i < 120; i++) sender.push(i);
     await sender.shutdown();
-    const batches = send.mock.calls.map(([items]) => items as number[]);
+    const batches = send.mock.calls.map(([items]) => items);
     expect(batches.map((items) => items.length)).toEqual([50, 50, 20]);
     expect(batches.flat()).toEqual([...Array(120).keys()]);
   });
 
   it("sends a partial batch after the flush interval", async () => {
-    const send = vi.fn(async () => ok());
+    const send = okSend<string>();
     const sender = createBatchSender<string>({ send, flushIntervalMs: 10 });
     sender.push("a");
     expect(send).not.toHaveBeenCalled();
@@ -64,7 +65,7 @@ describe("createBatchSender", () => {
   });
 
   it("keeps the queue bounded by dropping the oldest items", async () => {
-    const send = vi.fn(async () => ok());
+    const send = okSend<number>();
     const sender = createBatchSender<number>({ send, maxBatch: 100, maxQueue: 3 });
     for (let i = 0; i < 5; i++) sender.push(i);
     await sender.shutdown();
