@@ -1,6 +1,6 @@
 {
   "name": "@codelitdev/observability",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Provider-neutral logging and optional telemetry for CodeLit products",
   "author": "CodeLit",
   "type": "module",

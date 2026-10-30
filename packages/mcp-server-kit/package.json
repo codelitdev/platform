@@ -1,6 +1,6 @@
 {
   "name": "@codelitdev/mcp-server-kit",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Stateless MCP 2026-07-28 endpoint, auth hooks, and error mapping for CodeLit products",
   "author": "CodeLit",
   "type": "module",
@@ -38,7 +38,7 @@
     "zod-to-json-schema": "^3.25.2"
   },
   "peerDependencies": {
-    "@codelitdev/platform": ">=0.4.2"
+    "@codelitdev/platform": ">=0.5.0"
   },
   "devDependencies": {
     "@codelitdev/platform": "workspace:*",
