@@ -1,27 +1,25 @@
-import { AsyncLocalStorage } from "node:async_hooks";
 import {
   type AuthenticationResult,
   captureAndMapException,
   createPlatformError,
   type HeaderMap,
   mapTransportAuthentication,
-  PLATFORM_ERROR_CODES,
   type PlatformError,
-  type PlatformErrorCode,
   selectMcpCredential,
   toPublicHttpError,
 } from "@codelitdev/platform";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  type CacheHint,
+  type CallToolResult,
+  createMcpHandler,
+  McpServer,
+  type ServerContext,
+  type ToolAnnotations,
+} from "@modelcontextprotocol/server";
 import type { z } from "zod";
 import { mcpCorsHeaders } from "./cors.js";
-import { createMcpSessionStore } from "./sessions.js";
-import {
-  createStreamableSession,
-  dispatchWebStandard,
-  headerString,
-  patchMcpAccept,
-  type WebStandardStreamableHTTPServerTransport,
-} from "./streamable-http.js";
+import { toMcpInputSchema } from "./schema.js";
+import { patchMcpAccept, readMcpResponse, toWebRequest } from "./streamable-http.js";
 
 export type McpToolRisk = "read" | "write" | "destructive";
 
@@ -40,125 +38,153 @@ export type McpToolDefinition<Context> = {
 export type CreateMcpServerKitOptions<Context> = {
   name: string;
   version: string;
+  /** Shown to clients in `server/discover` and `initialize`. */
+  description?: string;
+  instructions?: string;
   authenticate: (headers: HeaderMap) => Promise<AuthenticationResult<string>>;
   resolveContext: (input: {
     principalId: string;
     credential: AuthenticationResult<string> & { kind: "authenticated" };
     headers: HeaderMap;
   }) => Promise<{ ok: true; context: Context } | { ok: false; error: PlatformError }>;
+  /** Registered, and listed by `tools/list`, in this order. */
   tools: readonly McpToolDefinition<Context>[];
+  /**
+   * Cache hint for `tools/list` and `server/discover` results (MCP
+   * 2026-07-28). The catalog is static per deployment but only served to
+   * authenticated callers, so the default is five minutes, private.
+   */
+  catalogCacheHint?: CacheHint;
   onError?: (input: { error: unknown; source: string }) => void;
 };
 
-type ToolScope<Context> = {
-  context: Context;
-  signal: AbortSignal;
+export type McpKitRequest = {
+  method: string;
+  headers: HeaderMap;
+  /** The parsed JSON-RPC body. */
+  body?: unknown;
+  signal?: AbortSignal;
 };
 
-type RegisterTool = (
-  name: string,
-  config: {
-    description?: string;
-    inputSchema?: Record<string, z.ZodType>;
-    annotations?: {
-      readOnlyHint?: boolean;
-      destructiveHint?: boolean;
-    };
-    _meta?: Record<string, unknown>;
-  },
-  callback: (
-    args: Record<string, unknown>,
-    extra: {
-      authInfo?: { extra?: Record<string, unknown> };
-      signal?: AbortSignal;
-    },
-  ) => Promise<unknown>,
-) => unknown;
+export type McpKitResponse = {
+  status: number;
+  headers: Record<string, string>;
+  /** A JSON-RPC message, a platform error body, or null for an empty response. */
+  body: unknown;
+};
 
-function isPlatformErrorCode(value: unknown): value is PlatformErrorCode {
-  return (
-    typeof value === "string" &&
-    (PLATFORM_ERROR_CODES as readonly string[]).includes(value)
-  );
+const DEFAULT_CATALOG_CACHE_HINT: CacheHint = {
+  ttlMs: 5 * 60 * 1000,
+  cacheScope: "private",
+};
+
+function toolAnnotations(risk: McpToolRisk): ToolAnnotations {
+  if (risk === "read") return { readOnlyHint: true };
+  return { readOnlyHint: false, destructiveHint: risk === "destructive" };
 }
 
-function platformToolError(error: PlatformError) {
+/**
+ * A tool failure is a tool result, not a JSON-RPC error, so the model sees the
+ * stable platform code and can correct its call (MCP "tool execution errors").
+ */
+function platformToolError(error: PlatformError): CallToolResult {
   const mapped = toPublicHttpError(error);
+  const structured = {
+    code: mapped.body.code,
+    message: mapped.body.message,
+    details: mapped.body.details ?? null,
+  };
   return {
-    isError: true as const,
-    content: [{ type: "text" as const, text: mapped.body.message }],
-    structuredContent: {
-      code: mapped.body.code,
-      message: mapped.body.message,
-      details: mapped.body.details ?? null,
-    },
+    isError: true,
+    content: [{ type: "text", text: JSON.stringify(structured) }],
+    structuredContent: structured,
   };
 }
 
+function isPlatformErrorResult(value: unknown): value is { error: PlatformError } {
+  if (!value || typeof value !== "object" || !("error" in value)) return false;
+  const error = (value as { error: unknown }).error;
+  return Boolean(error && typeof error === "object" && "code" in error);
+}
+
+function toolResult(result: unknown): CallToolResult {
+  const structured =
+    result && typeof result === "object" && !Array.isArray(result)
+      ? (result as Record<string, unknown>)
+      : { value: result ?? null };
+  return {
+    content: [{ type: "text", text: JSON.stringify(structured) }],
+    structuredContent: structured,
+  };
+}
+
+function platformErrorResponse(
+  error: PlatformError,
+  cors: Record<string, string>,
+): McpKitResponse {
+  const mapped = toPublicHttpError(error);
+  return { status: mapped.status, headers: { ...cors }, body: mapped.body };
+}
+
+/**
+ * A stateless MCP endpoint serving protocol 2026-07-28 and, through the SDK's
+ * stateless legacy mode, 2025-era Streamable HTTP clients. Every request is
+ * authenticated and resolved to a product context before a fresh, request-local
+ * server handles it; nothing is kept between requests.
+ */
 export function createMcpServerKit<Context>(
   options: CreateMcpServerKitOptions<Context>,
 ) {
-  const transports = new Map<string, WebStandardStreamableHTTPServerTransport>();
-  const sessions = createMcpSessionStore({
-    onExpire(session) {
-      const transport = transports.get(session.id);
-      transports.delete(session.id);
-      if (transport) {
-        void transport.close().catch(() => {
-          // Expiry cleanup is best effort; the session has already been
-          // removed, so it cannot be reused even if close fails.
-        });
-      }
-    },
-  });
-  const requestScope = new AsyncLocalStorage<ToolScope<Context>>();
+  // Zod-to-JSON-Schema conversion happens once per process, not per request.
+  const tools = options.tools.map((tool) => ({
+    tool,
+    inputSchema: toMcpInputSchema(tool.inputSchema),
+  }));
+  const catalogCacheHint = options.catalogCacheHint ?? DEFAULT_CATALOG_CACHE_HINT;
 
-  function jsonRpcError(id: unknown, error: PlatformError) {
-    const mapped = toPublicHttpError(error);
-    return {
-      status: mapped.status,
-      headers: {} as Record<string, string>,
-      body: {
-        jsonrpc: "2.0",
-        id: id ?? null,
-        error: {
-          code: mapped.body.code,
-          message: mapped.body.message,
-          data: mapped.body.details,
-        },
-      },
-    };
+  function reportError(error: unknown, source: string) {
+    try {
+      options.onError?.({ error, source });
+    } catch {
+      // Error reporting must not alter the MCP response.
+    }
   }
 
-  function registerTools(server: McpServer) {
-    const registerTool = (server.registerTool as unknown as RegisterTool).bind(server);
-    for (const tool of options.tools) {
-      const shape =
-        tool.inputSchema &&
-        typeof tool.inputSchema === "object" &&
-        "shape" in tool.inputSchema
-          ? (tool.inputSchema as { shape: Record<string, z.ZodType> }).shape
-          : undefined;
-      registerTool(
+  function contextFrom(ctx: ServerContext): Context | undefined {
+    return ctx.http?.authInfo?.extra?.context as Context | undefined;
+  }
+
+  function buildServer(): McpServer {
+    const server = new McpServer(
+      {
+        name: options.name,
+        version: options.version,
+        ...(options.description ? { description: options.description } : {}),
+      },
+      {
+        ...(options.instructions ? { instructions: options.instructions } : {}),
+        cacheHints: {
+          "tools/list": catalogCacheHint,
+          "server/discover": catalogCacheHint,
+        },
+      },
+    );
+    for (const { tool, inputSchema } of tools) {
+      server.registerTool(
         tool.name,
         {
           description: tool.description,
-          ...(shape ? { inputSchema: shape } : {}),
-          annotations: {
-            readOnlyHint: tool.risk === "read",
-            destructiveHint: tool.risk === "destructive",
-          },
+          inputSchema,
+          annotations: toolAnnotations(tool.risk),
           _meta: { risk: tool.risk },
         },
-        async (args, extra) => {
-          const scope = requestScope.getStore();
-          const context =
-            scope?.context ?? (extra.authInfo?.extra?.context as Context | undefined);
+        async (args, ctx) => {
+          const context = contextFrom(ctx);
           if (!context) {
             return platformToolError(createPlatformError("unauthenticated"));
           }
-          const signal = extra.signal ?? scope?.signal;
-          if (signal?.aborted) {
+          const signal = ctx.mcpReq.signal;
+          if (signal.aborted) {
             return platformToolError(createPlatformError("internal_error"));
           }
           const rawArgs = (args ?? {}) as Record<string, unknown>;
@@ -174,56 +200,25 @@ export function createMcpServerKit<Context>(
             return platformToolError(createPlatformError("validation_failed"));
           }
           try {
-            const result = await tool.handler({
-              context,
-              args: parsed.data,
-              signal: signal ?? new AbortController().signal,
-            });
-            if (
-              result &&
-              typeof result === "object" &&
-              "error" in result &&
-              result.error &&
-              typeof result.error === "object" &&
-              "code" in result.error
-            ) {
-              return platformToolError(result.error as PlatformError);
-            }
-            return {
-              content: [{ type: "text" as const, text: JSON.stringify(result) }],
-              structuredContent:
-                result && typeof result === "object"
-                  ? (result as Record<string, unknown>)
-                  : { value: result },
-            };
+            const result = await tool.handler({ context, args: parsed.data, signal });
+            return isPlatformErrorResult(result)
+              ? platformToolError(result.error)
+              : toolResult(result);
           } catch (thrown) {
-            try {
-              options.onError?.({ error: thrown, source: "mcp.tool" });
-            } catch {
-              // Error reporting must not alter the MCP response.
-            }
+            reportError(thrown, "mcp.tool");
             return platformToolError(captureAndMapException(thrown));
           }
         },
       );
     }
+    return server;
   }
 
-  async function attachSession(sessionId?: string) {
-    const live = createStreamableSession({
-      name: options.name,
-      version: options.version,
-      sessionId,
-      registerTools,
-      onclosed: (id) => {
-        transports.delete(id);
-        sessions.delete(id);
-      },
-    });
-    await live.ready;
-    if (sessionId) transports.set(sessionId, live.transport);
-    return live;
-  }
+  const handler = createMcpHandler(() => buildServer(), {
+    legacy: "stateless",
+    onerror: (error) => reportError(error, "mcp.protocol"),
+  });
+  let closed = false;
 
   async function authenticateHeaders(headers: HeaderMap) {
     const selected = selectMcpCredential(headers);
@@ -238,298 +233,76 @@ export function createMcpServerKit<Context>(
     return mapTransportAuthentication(auth, { transport: "mcp" });
   }
 
-  function adaptSdkBody(body: unknown): unknown {
-    if (!body || typeof body !== "object") return body;
-    const rpc = body as {
-      result?: {
-        isError?: boolean;
-        structuredContent?: Record<string, unknown>;
-        content?: Array<Record<string, unknown>>;
-        tools?: Array<Record<string, unknown>>;
-      };
-    };
-    if (Array.isArray(rpc.result?.tools)) {
-      for (const listed of rpc.result.tools) {
-        const meta = listed._meta as { risk?: string } | undefined;
-        const annotations = {
-          ...((listed.annotations as Record<string, unknown> | undefined) ?? {}),
-        };
-        if (meta?.risk) annotations.risk = meta.risk;
-        listed.annotations = annotations;
-      }
-    }
-    const structured = rpc.result?.structuredContent;
-    if (structured && Array.isArray(rpc.result?.content)) {
-      const hasJson = rpc.result.content.some((item) => item.type === "json");
-      if (!hasJson) {
-        rpc.result.content = [
-          { type: "json", json: structured },
-          ...rpc.result.content,
-        ];
-      }
-    }
-    return body;
-  }
-
-  function mapSdkResult(
-    rpcId: unknown,
-    cors: Record<string, string>,
-    sdk: { status: number; headers: Record<string, string>; body: unknown },
-  ) {
-    const body = adaptSdkBody(sdk.body) as {
-      result?: {
-        isError?: boolean;
-        structuredContent?: {
-          code?: unknown;
-          message?: unknown;
-          details?: Record<string, string | number | boolean | null>;
-        };
-      };
-    };
-    const code = body?.result?.isError
-      ? body.result.structuredContent?.code
-      : undefined;
-    if (isPlatformErrorCode(code)) {
-      const mapped = jsonRpcError(
-        rpcId,
-        createPlatformError(code, {
-          safeDetails: body.result?.structuredContent?.details,
-        }),
-      );
-      return {
-        ...mapped,
-        headers: { ...cors, ...sdk.headers, ...mapped.headers },
-      };
-    }
-    return {
-      status: sdk.status,
-      headers: { ...cors, ...sdk.headers },
-      body: sdk.body,
-    };
-  }
-
-  async function handle(request: {
-    method: string;
-    headers: HeaderMap;
-    body?: unknown;
-    signal?: AbortSignal;
-  }): Promise<{
-    status: number;
-    headers: Record<string, string>;
-    body: unknown;
-  }> {
+  async function handle(request: McpKitRequest): Promise<McpKitResponse> {
     const headers = patchMcpAccept(request.headers);
     const cors = mcpCorsHeaders(headers);
     const method = request.method.toUpperCase();
     if (method === "OPTIONS") {
       return { status: 204, headers: cors, body: null };
     }
-    if (sessions.closed) {
+    if (closed) {
       return {
+        ...platformErrorResponse(createPlatformError("internal_error"), cors),
         status: 503,
-        headers: cors,
-        body: toPublicHttpError(createPlatformError("internal_error")).body,
       };
     }
-
-    const sessionId = headerString(headers, "mcp-session-id");
-    const payload =
-      request.body && typeof request.body === "object"
-        ? (request.body as {
-            jsonrpc?: string;
-            id?: unknown;
-            method?: string;
-            params?: Record<string, unknown>;
-          })
-        : {};
-    const rpcId = payload.id ?? null;
-
-    // Every MCP operation is protected.  In particular, do not allow an
-    // unauthenticated initialize to allocate a session (or an unauthenticated
-    // GET/DELETE to operate on a session id).  Besides violating the auth
-    // contract, doing so makes the in-memory session map an easy DoS target.
-    const auth = await authenticateHeaders(headers);
-    if (auth.kind !== "authenticated") {
-      const error =
-        auth.kind === "rejected" ? auth.error : createPlatformError("unauthenticated");
-      const mapped = jsonRpcError(rpcId, error);
-      return { ...mapped, headers: { ...cors, ...mapped.headers } };
-    }
-
-    if (method === "GET" || method === "DELETE") {
-      const session = sessions.get(sessionId);
-      if (!session || (session.ownerId && session.ownerId !== auth.principalId)) {
-        return {
-          status: 404,
-          headers: cors,
-          body: {
-            jsonrpc: "2.0",
-            error: { code: -32001, message: "Session not found" },
-            id: null,
-          },
-        };
-      }
-      const transport = transports.get(session.id);
-      if (!transport) {
-        return {
-          status: 404,
-          headers: cors,
-          body: {
-            jsonrpc: "2.0",
-            error: { code: -32001, message: "Session not found" },
-            id: null,
-          },
-        };
-      }
-      const result = await dispatchWebStandard(transport, {
-        method,
-        headers,
-        body: request.body,
-        signal: request.signal,
-      });
-      if (method === "DELETE") {
-        transports.delete(session.id);
-        sessions.delete(session.id);
-        await transport.close();
-      }
-      return {
-        status: result.status || (method === "DELETE" ? 204 : result.status),
-        headers: {
-          ...cors,
-          ...result.headers,
-          ...(method === "GET" ? { "Mcp-Session-Id": session.id } : {}),
-        },
-        body: result.body,
-      };
-    }
-
+    // Streamable HTTP without sessions is POST-only: there is no standalone
+    // GET stream and no session to DELETE.
     if (method !== "POST") {
       return {
         status: 405,
-        headers: cors,
+        headers: { ...cors, Allow: "POST, OPTIONS" },
         body: toPublicHttpError(createPlatformError("validation_failed")).body,
       };
     }
 
-    if (payload.method === "initialize") {
-      const resolved = await options.resolveContext({
-        principalId: auth.principalId,
-        credential: auth,
-        headers,
-      });
-      if (!resolved.ok) {
-        const mapped = jsonRpcError(rpcId, resolved.error);
-        return { ...mapped, headers: { ...cors, ...mapped.headers } };
-      }
-      const session = sessions.create(auth.principalId);
-      const live = await attachSession(session.id);
-      const result = await requestScope.run(
-        {
-          context: resolved.context,
-          signal: request.signal ?? new AbortController().signal,
-        },
-        () =>
-          dispatchWebStandard(live.transport, {
-            method: "POST",
-            headers,
-            body: request.body,
-            signal: request.signal,
-            authInfo: {
-              token: "kit",
-              clientId: auth.principalId,
-              scopes: [],
-              extra: { context: resolved.context },
-            },
-          }),
+    // Every MCP request is protected, `server/discover` and legacy
+    // `initialize` included.
+    const auth = await authenticateHeaders(headers);
+    if (auth.kind !== "authenticated") {
+      return platformErrorResponse(
+        auth.kind === "rejected" ? auth.error : createPlatformError("unauthenticated"),
+        cors,
       );
-      return {
-        status: result.status || 200,
-        headers: {
-          ...cors,
-          ...result.headers,
-          "Mcp-Session-Id": session.id,
-        },
-        body: result.body,
-      };
     }
-
-    if (sessionId) {
-      const session = sessions.get(sessionId);
-      if (!session || (session.ownerId && session.ownerId !== auth.principalId)) {
-        return {
-          status: 404,
-          headers: cors,
-          body: {
-            jsonrpc: "2.0",
-            error: { code: -32001, message: "Session not found" },
-            id: null,
-          },
-        };
-      }
-    }
-
     const resolved = await options.resolveContext({
       principalId: auth.principalId,
       credential: auth,
       headers,
     });
-    if (!resolved.ok) {
-      const mapped = jsonRpcError(rpcId, resolved.error);
-      return { ...mapped, headers: { ...cors, ...mapped.headers } };
+    if (!resolved.ok) return platformErrorResponse(resolved.error, cors);
+    if (request.signal?.aborted) {
+      return platformErrorResponse(createPlatformError("internal_error"), cors);
     }
 
-    const live = sessionId
-      ? {
-          transport: transports.get(sessions.get(sessionId)?.id ?? "") ?? null,
-          close: async () => undefined,
-        }
-      : await attachSession();
-    const transport = live.transport;
-    if (!transport) {
-      return {
-        status: 404,
-        headers: cors,
-        body: {
-          jsonrpc: "2.0",
-          error: { code: -32001, message: "Session not found" },
-          id: null,
-        },
-      };
-    }
-
-    const sdk = await requestScope.run(
+    const response = await handler.fetch(
+      toWebRequest({ headers, body: request.body, signal: request.signal }),
       {
-        context: resolved.context,
-        signal: request.signal ?? new AbortController().signal,
+        parsedBody: request.body,
+        authInfo: {
+          // The credential never enters the MCP layer; tools read the
+          // resolved product context instead.
+          token: "kit",
+          clientId: auth.principalId,
+          scopes: [],
+          extra: { context: resolved.context },
+        },
       },
-      () =>
-        dispatchWebStandard(transport, {
-          method: "POST",
-          headers,
-          body: request.body,
-          signal: request.signal,
-          authInfo: {
-            token: "kit",
-            clientId: auth.principalId,
-            scopes: [],
-            extra: { context: resolved.context },
-          },
-        }),
     );
-    if (!sessionId) await transport.close();
-    return mapSdkResult(rpcId, cors, sdk);
+    const result = await readMcpResponse(response);
+    return {
+      status: result.status,
+      headers: { ...cors, ...result.headers },
+      body: result.body,
+    };
   }
 
   return {
     handle,
     listTools: () => [...options.tools],
-    sessions,
     shutdown: async () => {
-      for (const transport of transports.values()) {
-        await transport.close();
-      }
-      transports.clear();
-      sessions.shutdown();
+      closed = true;
+      await handler.close();
     },
   };
 }
