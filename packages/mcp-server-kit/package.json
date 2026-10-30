@@ -1,7 +1,7 @@
 {
   "name": "@codelitdev/mcp-server-kit",
   "version": "0.4.2",
-  "description": "MCP transport, session, auth hooks, and error mapping for CodeLit products",
+  "description": "Stateless MCP 2026-07-28 endpoint, auth hooks, and error mapping for CodeLit products",
   "author": "CodeLit",
   "type": "module",
   "license": "MIT",
@@ -33,14 +33,16 @@
     "tag": "latest"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "zod": "^3.25.76"
+    "@modelcontextprotocol/server": "^2.4.0",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.25.2"
   },
   "peerDependencies": {
     "@codelitdev/platform": ">=0.4.2"
   },
   "devDependencies": {
     "@codelitdev/platform": "workspace:*",
+    "@modelcontextprotocol/client": "^2.4.0",
     "@types/bun": "^1.4.1",
     "@types/node": "^22.14.1",
     "typescript": "^5.9.3"

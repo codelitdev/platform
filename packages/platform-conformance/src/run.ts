@@ -33,6 +33,15 @@ type HttpAdapter = PlatformConformanceAdapter<
 function errorCode(body: unknown): string | undefined {
   if (!body || typeof body !== "object") return undefined;
   if ("code" in body && typeof body.code === "string") return body.code;
+  // MCP tool failures are tool results flagged `isError`, not JSON-RPC errors.
+  if ("result" in body && body.result && typeof body.result === "object") {
+    const result = body.result as {
+      isError?: boolean;
+      structuredContent?: { code?: unknown };
+    };
+    const code = result.isError ? result.structuredContent?.code : undefined;
+    return typeof code === "string" ? code : undefined;
+  }
   if (
     "error" in body &&
     body.error &&
@@ -226,10 +235,13 @@ export async function runPlatformConformance(
       args: {},
     });
     const mcpBody = mcpList.body as {
-      result?: { content?: Array<{ json?: { items?: unknown[] } }> };
-      error?: { code?: string };
+      result?: { isError?: boolean; structuredContent?: { items?: unknown[] } };
     };
-    if (mcpList.status !== 200 || !mcpBody.result) {
+    if (
+      mcpList.status !== 200 ||
+      mcpBody.result?.isError ||
+      !Array.isArray(mcpBody.result?.structuredContent?.items)
+    ) {
       fail("mcp", "notes.list MCP call failed");
     }
     const cookieMcp = await adapter.mcp!({

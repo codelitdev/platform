@@ -67,17 +67,20 @@ writeFileSync(
   path.join(dir, "assert.mjs"),
   `
 import { createMcpServerKit, validateParityManifest } from "@codelitdev/mcp-server-kit";
+import { z } from "zod";
 const kit = createMcpServerKit({
   name: "c",
   version: "0",
-  async authenticate() { return { kind: "absent" }; },
-  async resolveContext() { return { ok: false, error: { code: "unauthenticated", message: "x" } }; },
+  async authenticate() {
+    return { kind: "authenticated", principalId: "u", credential: { kind: "oauth" } };
+  },
+  async resolveContext() { return { ok: true, context: { tenant: "t" } }; },
   tools: [{
     name: "t",
     description: "t",
     risk: "read",
-    inputSchema: { safeParse: (value) => ({ success: true, data: value }) },
-    async handler() { return {}; },
+    inputSchema: z.object({}),
+    async handler({ context }) { return { tenant: context.tenant }; },
   }],
 });
 const res = await kit.handle({
@@ -86,6 +89,14 @@ const res = await kit.handle({
   body: { jsonrpc: "2.0", id: 1, method: "tools/list" },
 });
 if (res.status !== 401) throw new Error("cookie session accepted");
+const called = await kit.handle({
+  method: "POST",
+  headers: { authorization: "Bearer t" },
+  body: { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "t", arguments: {} } },
+});
+if (JSON.stringify(called.body?.result?.structuredContent) !== '{"tenant":"t"}') {
+  throw new Error("packed tool call failed: " + JSON.stringify(called.body));
+}
 if (JSON.stringify(kit.listTools()).includes("src/")) throw new Error("src");
 validateParityManifest([], { restOperationIds: new Set(), mcpToolNames: new Set() });
 console.log("packed-exports-ok");

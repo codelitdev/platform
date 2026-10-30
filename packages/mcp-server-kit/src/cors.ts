@@ -7,7 +7,6 @@ export const MCP_ALLOWED_HEADERS = [
   "X-API-Key",
   "X-Tenant-ID",
   "MCP-Protocol-Version",
-  "Mcp-Session-Id",
   "Mcp-Method",
   "Mcp-Name",
 ].join(", ");
@@ -18,8 +17,7 @@ export function mcpCorsHeaders(requestHeaders: HeaderMap): Record<string, string
   return {
     "Access-Control-Allow-Origin": origin && origin.length > 0 ? origin : "*",
     Vary: "Origin",
-    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": MCP_ALLOWED_HEADERS,
-    "Access-Control-Expose-Headers": "Mcp-Session-Id",
   };
 }
