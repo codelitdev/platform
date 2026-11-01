@@ -1,5 +1,15 @@
 # @codelitdev/mcp-server-kit
 
+## 0.7.0
+
+### Minor Changes
+
+- 9f7ad30: MCP tool definitions take an optional `title`, `outputSchema` (a Zod object schema) and `annotations` with `idempotentHint` and `openWorldHint`. `tools/list` advertises them, and the SDK checks a successful result's `structuredContent` against `outputSchema`. `risk` still sets `readOnlyHint` and `destructiveHint`. Tools without the new fields are unchanged.
+
+### Patch Changes
+
+- @codelitdev/platform@0.7.0
+
 ## 0.6.0
 
 ### Patch Changes
