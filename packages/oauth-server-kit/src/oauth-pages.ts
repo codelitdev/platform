@@ -4,6 +4,11 @@ export type HostedLoginMethod =
   | { type: "email-otp"; label?: string }
   | { type: "social"; providerId: string; label: string };
 
+/** A bot check the email-OTP form completes before asking for a code. The
+ * page sends its token in the `x-captcha-response` header, which Better
+ * Auth's `captcha` plugin verifies with the provider's secret key. */
+export type HostedLoginCaptcha = { provider: "cloudflare-turnstile"; siteKey: string };
+
 export interface CreateOAuthPagesRouterOptions {
   appName: string;
   authBasePath: string;
@@ -14,6 +19,7 @@ export interface CreateOAuthPagesRouterOptions {
   logoUrl?: string;
   faviconUrl?: string;
   primaryColor?: string;
+  captcha?: HostedLoginCaptcha;
 }
 
 type NormalizedOptions = Omit<
@@ -148,6 +154,14 @@ function normalizeOptions(options: CreateOAuthPagesRouterOptions): NormalizedOpt
       }
     }
   }
+  if (options.captcha) {
+    if (options.captcha.provider !== "cloudflare-turnstile") {
+      throw new Error("captcha provider must be cloudflare-turnstile");
+    }
+    if (!/^[A-Za-z0-9_-]+$/.test(options.captcha.siteKey)) {
+      throw new Error("captcha siteKey must be a Turnstile site key");
+    }
+  }
   for (const name of options.legacyHostOnlySessionCookieNames ?? []) {
     if (!/^[A-Za-z0-9._-]+$/.test(name)) {
       throw new Error("legacy cookie names contain invalid characters");
@@ -171,7 +185,7 @@ html{--brand-primary:#8c7a6b;color-scheme:light}*{box-sizing:border-box}body{mar
 h1{margin:0 0 24px;text-align:center;font-size:22px;font-weight:650}.sub{margin:-12px 0 24px;text-align:center;color:#71717a;font-size:13px;line-height:1.5}.error{display:none;margin-bottom:16px;padding:10px 12px;border-radius:8px;background:#fef2f2;color:#b42318;font-size:13px}
 form{margin:0}.field{margin-bottom:14px}label{display:block;margin-bottom:6px;font-size:12px;color:#52525b}input{width:100%;padding:11px 13px;border:1px solid #d4d4d8;border-radius:8px;background:#fff;color:#171717;font-size:15px}input:focus{outline:2px solid var(--brand-primary);outline-offset:1px;border-color:transparent}
 button{width:100%;margin-top:8px;padding:11px;border:1px solid #d4d4d8;border-radius:8px;background:#fafafa;color:#171717;font-size:14px;font-weight:550;cursor:pointer}button:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}.primary{border-color:var(--brand-primary);background:var(--brand-primary);color:#fff}.secondary{color:#52525b;background:transparent}.social{display:inline-flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#1f1f1f;border-color:#dadce0;font-weight:500}.social:hover{background:#f7f8f8}.social svg{width:18px;height:18px;flex:0 0 18px}
-.divider{display:flex;align-items:center;gap:10px;margin:18px 0;color:#a1a1aa;font-size:12px}.divider:before,.divider:after{content:"";flex:1;height:1px;background:#e4e4e7}
+.captcha{margin-bottom:6px;min-height:65px}.divider{display:flex;align-items:center;gap:10px;margin:18px 0;color:#a1a1aa;font-size:12px}.divider:before,.divider:after{content:"";flex:1;height:1px;background:#e4e4e7}
 button:disabled{opacity:.55;cursor:not-allowed}.client{margin:20px 0;padding:14px;border:1px solid #e4e4e7;border-radius:9px;background:#fafafa}.client-name{font-weight:600;word-break:break-all}.scopes{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.scope{padding:4px 7px;border:1px solid #e4e4e7;border-radius:6px;color:#52525b;font-size:12px}.actions{display:flex;gap:8px}.actions button{margin:0}
 `;
 
@@ -226,8 +240,12 @@ function loginMarkup(options: NormalizedOptions): string {
     (method): method is Extract<HostedLoginMethod, { type: "social" }> =>
       method.type === "social",
   );
+  const captcha =
+    emailMethod && options.captcha
+      ? `<div class="captcha"><div class="cf-turnstile" data-sitekey="${escapeHtml(options.captcha.siteKey)}" data-theme="light" data-size="flexible"></div></div><script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>`
+      : "";
   const email = emailMethod
-    ? `<form id="email-form"><div class="field"><label for="email">Email address</label><input id="email" type="email" required autocomplete="email"></div><button class="primary" type="submit">${escapeHtml(emailMethod.label ?? "Continue with email")}</button></form><form id="otp-form" hidden><div class="field"><label for="otp">Verification code</label><input id="otp" inputmode="numeric" required autocomplete="one-time-code"></div><button class="primary" type="submit">Sign in</button><button class="secondary" type="button" id="change-email">Use a different email</button></form>`
+    ? `<form id="email-form"><div class="field"><label for="email">Email address</label><input id="email" type="email" required autocomplete="email"></div>${captcha}<button class="primary" type="submit">${escapeHtml(emailMethod.label ?? "Continue with email")}</button></form><form id="otp-form" hidden><div class="field"><label for="otp">Verification code</label><input id="otp" inputmode="numeric" required autocomplete="one-time-code"></div><button class="primary" type="submit">Sign in</button><button class="secondary" type="button" id="change-email">Use a different email</button></form>`
     : "";
   const social = socialMethods.map(socialButton).join("");
   const divider = email && social ? '<div class="divider">or</div>' : "";
@@ -238,12 +256,12 @@ function loginScript(options: NormalizedOptions, oauth: boolean, redirect?: stri
   const authBasePath = scriptLiteral(options.authBasePath);
   const redirectTarget = scriptLiteral(redirect ?? "");
   return `<script>(function(){
-var authBasePath=${authBasePath};var oauth=${oauth};var oauthQuery=location.search.slice(1);var redirectTarget=${redirectTarget};var errorEl=document.getElementById("error");
+var authBasePath=${authBasePath};var oauth=${oauth};var captcha=${Boolean(options.captcha)};var oauthQuery=location.search.slice(1);var redirectTarget=${redirectTarget};var errorEl=document.getElementById("error");
 function showError(message){errorEl.textContent=message||"Sign-in failed. Please try again.";errorEl.style.display="block"}function clearError(){errorEl.style.display="none"}
-async function post(path,body){var response=await fetch(authBasePath+path,{method:"POST",headers:{"content-type":"application/json",accept:"application/json"},body:JSON.stringify(body)});var data={};try{data=await response.json()}catch{}if(!response.ok)throw new Error(typeof data.message==="string"&&data.message?data.message:"Sign-in failed. Please try again.");return data}
+async function post(path,body,headers){var response=await fetch(authBasePath+path,{method:"POST",headers:{"content-type":"application/json",accept:"application/json",...headers},body:JSON.stringify(body)});var data={};try{data=await response.json()}catch{}if(!response.ok)throw new Error(typeof data.message==="string"&&data.message?data.message:"Sign-in failed. Please try again.");return data}
 function follow(data){var target=data.url||data.redirect_uri||redirectTarget;if(!target)throw new Error("Sign-in failed. Please try again.");location.assign(target)}
 var emailForm=document.getElementById("email-form"),otpForm=document.getElementById("otp-form"),email="";
-if(emailForm){emailForm.addEventListener("submit",async function(event){event.preventDefault();clearError();email=emailForm.querySelector("input").value;try{await post("/email-otp/send-verification-otp",{email:email,type:"sign-in",...(oauth?{oauth_query:oauthQuery}:{})});emailForm.hidden=true;otpForm.hidden=false}catch(error){showError(error.message)}});otpForm.addEventListener("submit",async function(event){event.preventDefault();clearError();try{var data=await post("/sign-in/email-otp",{email:email,otp:document.getElementById("otp").value,name:email.split("@")[0],...(oauth?{oauth_query:oauthQuery}:{})});follow(data)}catch(error){showError(error.message)}});document.getElementById("change-email").addEventListener("click",function(){otpForm.hidden=true;emailForm.hidden=false;clearError()})}
+if(emailForm){emailForm.addEventListener("submit",async function(event){event.preventDefault();clearError();email=document.getElementById("email").value;var headers={};if(captcha){var token=emailForm.querySelector('input[name="cf-turnstile-response"]');if(!token||!token.value){showError("Complete the security check, then try again.");return}headers["x-captcha-response"]=token.value}try{await post("/email-otp/send-verification-otp",{email:email,type:"sign-in",...(oauth?{oauth_query:oauthQuery}:{})},headers);emailForm.hidden=true;otpForm.hidden=false}catch(error){showError(error.message)}finally{if(captcha&&typeof turnstile!=="undefined")turnstile.reset()}});otpForm.addEventListener("submit",async function(event){event.preventDefault();clearError();try{var data=await post("/sign-in/email-otp",{email:email,otp:document.getElementById("otp").value,name:email.split("@")[0],...(oauth?{oauth_query:oauthQuery}:{})});follow(data)}catch(error){showError(error.message)}});document.getElementById("change-email").addEventListener("click",function(){otpForm.hidden=true;emailForm.hidden=false;clearError()})}
 document.querySelectorAll("button.social").forEach(function(button){button.addEventListener("click",async function(){clearError();button.disabled=true;try{var body={provider:button.dataset.provider,...(oauth?{oauth_query:oauthQuery}:{callbackURL:redirectTarget,errorCallbackURL:location.href})};follow(await post("/sign-in/social",body))}catch(error){showError(error.message);button.disabled=false}})});
 })();</script>`;
 }
