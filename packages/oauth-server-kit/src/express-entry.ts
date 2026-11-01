@@ -5,5 +5,6 @@ export {
 export {
   type CreateOAuthPagesRouterOptions,
   createOAuthPagesRouter,
+  type HostedLoginCaptcha,
   type HostedLoginMethod,
 } from "./oauth-pages";

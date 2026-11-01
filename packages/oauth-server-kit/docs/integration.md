@@ -144,6 +144,11 @@ app.use(
                 label: "Continue with Google",
             },
         ],
+        // Optional bot check on the email form; see "Turnstile" below.
+        captcha: {
+            provider: "cloudflare-turnstile",
+            siteKey: process.env.TURNSTILE_SITE_KEY!,
+        },
         // Use only during a host-only to shared-domain cookie migration.
         legacyHostOnlySessionCookieNames: [
             "__Secure-better-auth.session_token",
@@ -153,6 +158,26 @@ app.use(
     }),
 );
 ```
+
+### Turnstile
+
+With `captcha` set, the email form renders a Cloudflare Turnstile widget and
+sends its token in the `x-captcha-response` header when it asks for a sign-in
+code. The page only collects the token; the product must verify it with Better
+Auth's `captcha` plugin on the same endpoint, or the check does nothing:
+
+```ts
+import { captcha } from "better-auth/plugins";
+
+captcha({
+    provider: "cloudflare-turnstile",
+    secretKey: process.env.TURNSTILE_SECRET_KEY!,
+    endpoints: ["/email-otp/send-verification-otp"],
+});
+```
+
+Set both or neither: a server that requires a token while the page renders no
+widget refuses every email sign-in.
 
 For a BFF or server-rendered page, validate the session and then perform
 product authorization:
