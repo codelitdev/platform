@@ -18,16 +18,26 @@ import {
 } from "@modelcontextprotocol/server";
 import type { z } from "zod";
 import { mcpCorsHeaders } from "./cors.js";
-import { toMcpInputSchema } from "./schema.js";
+import { toMcpInputSchema, toMcpObjectSchema } from "./schema.js";
 import { patchMcpAccept, readMcpResponse, toWebRequest } from "./streamable-http.js";
 
 export type McpToolRisk = "read" | "write" | "destructive";
 
 export type McpToolDefinition<Context> = {
   name: string;
+  /** A human-readable name clients may show instead of `name`. */
+  title?: string;
   description: string;
   risk: McpToolRisk;
   inputSchema: z.ZodType;
+  /**
+   * The shape of a successful result. Advertised in `tools/list`, and the
+   * handler's result must match it: the SDK checks `structuredContent`
+   * against it.
+   */
+  outputSchema?: z.ZodType;
+  /** Hints beside the ones `risk` sets (`readOnlyHint`, `destructiveHint`). */
+  annotations?: Pick<ToolAnnotations, "idempotentHint" | "openWorldHint">;
   handler: (input: {
     context: Context;
     args: unknown;
@@ -78,9 +88,15 @@ const DEFAULT_CATALOG_CACHE_HINT: CacheHint = {
   cacheScope: "private",
 };
 
-function toolAnnotations(risk: McpToolRisk): ToolAnnotations {
-  if (risk === "read") return { readOnlyHint: true };
-  return { readOnlyHint: false, destructiveHint: risk === "destructive" };
+function toolAnnotations(
+  risk: McpToolRisk,
+  hints: McpToolDefinition<unknown>["annotations"],
+): ToolAnnotations {
+  const riskHints =
+    risk === "read"
+      ? { readOnlyHint: true }
+      : { readOnlyHint: false, destructiveHint: risk === "destructive" };
+  return { ...hints, ...riskHints };
 }
 
 /**
@@ -139,6 +155,9 @@ export function createMcpServerKit<Context>(
   const tools = options.tools.map((tool) => ({
     tool,
     inputSchema: toMcpInputSchema(tool.inputSchema),
+    outputSchema: tool.outputSchema
+      ? toMcpObjectSchema(tool.outputSchema, "output")
+      : undefined,
   }));
   const catalogCacheHint = options.catalogCacheHint ?? DEFAULT_CATALOG_CACHE_HINT;
 
@@ -169,13 +188,15 @@ export function createMcpServerKit<Context>(
         },
       },
     );
-    for (const { tool, inputSchema } of tools) {
+    for (const { tool, inputSchema, outputSchema } of tools) {
       server.registerTool(
         tool.name,
         {
+          ...(tool.title ? { title: tool.title } : {}),
           description: tool.description,
           inputSchema,
-          annotations: toolAnnotations(tool.risk),
+          ...(outputSchema ? { outputSchema } : {}),
+          annotations: toolAnnotations(tool.risk, tool.annotations),
           _meta: { risk: tool.risk },
         },
         async (args, ctx) => {
