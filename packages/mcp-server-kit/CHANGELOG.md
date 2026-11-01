@@ -1,5 +1,11 @@
 # @codelitdev/mcp-server-kit
 
+## 0.8.1
+
+### Patch Changes
+
+- @codelitdev/platform@0.8.1
+
 ## 0.8.0
 
 ### Minor Changes
