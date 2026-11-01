@@ -48,7 +48,9 @@ bunx @codelitdev/platform-cli@0.2.0 sync
 replaces a file only when its hash still matches the manifest, and creates a
 newly managed file only when it is absent or already identical. Any other
 difference is a conflict: nothing is written, and you reconcile the file by
-hand. Writes require a clean Git worktree; `--dry-run` works in a dirty one. If
+hand. To reconcile, make the file match this release's template, for example
+by moving a product change into a product-owned file; the next `sync` records
+it. Writes require a clean Git worktree; `--dry-run` works in a dirty one. If
 writing fails, the CLI restores the files it changed.
 
 When a release requires changes to product-owned files, its release notes say
