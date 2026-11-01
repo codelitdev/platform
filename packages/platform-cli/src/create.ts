@@ -92,7 +92,7 @@ function validateGeneratedMetadata(root: string): void {
   ) as {
     packageManager?: string;
   };
-  if (packageJson.packageManager !== "bun@1.4.1") {
+  if (packageJson.packageManager !== "bun@1.4.4") {
     throw new Error("create_metadata_invalid");
   }
 }

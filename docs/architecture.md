@@ -378,7 +378,7 @@ Products depend on individual packages; CI verifies that resolved versions match
 {
   "schemaVersion": 1,
   "runtime": {
-    "bun": "1.4.1"
+    "bun": "1.4.4"
   },
   "packages": {
     "@codelitdev/platform": {

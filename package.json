@@ -5,7 +5,7 @@
   "description": "Shared infrastructure packages and product bootstrap for CodeLit applications",
   "license": "UNLICENSED",
   "type": "module",
-  "packageManager": "bun@1.4.1",
+  "packageManager": "bun@1.4.4",
   "workspaces": [
     "packages/*",
     "examples/*/apps/*",
@@ -24,7 +24,7 @@
     "@anatine/zod-openapi@1.14.2": "patches/@anatine__zod-openapi@1.14.2.patch"
   },
   "engines": {
-    "bun": ">=1.4.1"
+    "bun": ">=1.4.4"
   },
   "scripts": {
     "build": "bun run --workspaces --if-present build",

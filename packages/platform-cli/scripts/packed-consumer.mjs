@@ -50,7 +50,7 @@ writeFileSync(
     name: "consumer",
     type: "module",
     private: true,
-    packageManager: "bun@1.4.1",
+    packageManager: "bun@1.4.4",
     dependencies: {
       "@codelitdev/platform-cli": tarball,
     },

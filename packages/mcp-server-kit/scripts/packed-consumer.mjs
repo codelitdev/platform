@@ -46,7 +46,7 @@ writeFileSync(
     name: "consumer",
     type: "module",
     private: true,
-    packageManager: "bun@1.4.1",
+    packageManager: "bun@1.4.4",
     overrides: {
       "@codelitdev/platform": platformTarball,
     },
