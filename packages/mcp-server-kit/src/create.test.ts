@@ -162,12 +162,22 @@ describe("createMcpServerKit", () => {
     expect(listed.ttlMs).toBe(300_000);
     expect(listed.cacheScope).toBe("private");
     const [list, create, remove] = listed.tools;
-    expect(list?.annotations).toEqual({ readOnlyHint: true });
+    const defaults = { idempotentHint: false, openWorldHint: false };
+    expect(list?.annotations).toEqual({
+      ...defaults,
+      readOnlyHint: true,
+      destructiveHint: false,
+    });
     expect(create?.annotations).toEqual({
+      ...defaults,
       readOnlyHint: false,
       destructiveHint: false,
     });
-    expect(remove?.annotations).toEqual({ readOnlyHint: false, destructiveHint: true });
+    expect(remove?.annotations).toEqual({
+      ...defaults,
+      readOnlyHint: false,
+      destructiveHint: true,
+    });
     expect(remove?._meta?.risk).toBe("destructive");
     expect(list?.inputSchema).toMatchObject({
       type: "object",
@@ -225,6 +235,7 @@ describe("createMcpServerKit", () => {
       idempotentHint: true,
       openWorldHint: false,
       readOnlyHint: true,
+      destructiveHint: false,
     });
 
     const called = await client.callTool({

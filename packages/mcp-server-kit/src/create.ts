@@ -36,7 +36,10 @@ export type McpToolDefinition<Context> = {
    * against it.
    */
   outputSchema?: z.ZodType;
-  /** Hints beside the ones `risk` sets (`readOnlyHint`, `destructiveHint`). */
+  /**
+   * Hints beside the ones `risk` sets (`readOnlyHint`, `destructiveHint`).
+   * Every hint is advertised as an explicit boolean; these default to false.
+   */
   annotations?: Pick<ToolAnnotations, "idempotentHint" | "openWorldHint">;
   handler: (input: {
     context: Context;
@@ -92,11 +95,14 @@ function toolAnnotations(
   risk: McpToolRisk,
   hints: McpToolDefinition<unknown>["annotations"],
 ): ToolAnnotations {
-  const riskHints =
-    risk === "read"
-      ? { readOnlyHint: true }
-      : { readOnlyHint: false, destructiveHint: risk === "destructive" };
-  return { ...hints, ...riskHints };
+  // Directories (ChatGPT) want every hint as an explicit boolean. Product
+  // tools act on the tenant's own workspace unless they say otherwise.
+  return {
+    idempotentHint: hints?.idempotentHint ?? false,
+    openWorldHint: hints?.openWorldHint ?? false,
+    readOnlyHint: risk === "read",
+    destructiveHint: risk === "destructive",
+  };
 }
 
 /**
