@@ -186,6 +186,83 @@ describe("createMcpServerKit", () => {
     ]);
   });
 
+  it("advertises a tool's title, output schema and extra hints", async () => {
+    const server = createMcpServerKit<Ctx>({
+      name: "reference",
+      version: "0.0.0",
+      authenticate: oauth,
+      async resolveContext({ principalId }) {
+        return { ok: true, context: { principalId, tenantId: "tnt_a" } };
+      },
+      tools: [
+        {
+          name: "notes.get",
+          title: "Get note",
+          description: "Get a note",
+          risk: "read",
+          inputSchema: z.object({ noteId: z.string() }),
+          outputSchema: z.object({ id: z.string(), title: z.string() }),
+          annotations: {
+            idempotentHint: true,
+            openWorldHint: false,
+          },
+          async handler({ args }) {
+            const { noteId } = args as { noteId: string };
+            return noteId === "bad" ? { id: noteId } : { id: noteId, title: "Hi" };
+          },
+        },
+      ],
+    });
+    const client = await connect(server, "modern");
+    const [tool] = (await client.listTools()).tools;
+    expect(tool?.title).toBe("Get note");
+    expect(tool?.outputSchema).toMatchObject({
+      type: "object",
+      properties: { id: { type: "string" }, title: { type: "string" } },
+    });
+    expect(tool?.outputSchema).not.toHaveProperty("$schema");
+    expect(tool?.annotations).toEqual({
+      idempotentHint: true,
+      openWorldHint: false,
+      readOnlyHint: true,
+    });
+
+    const called = await client.callTool({
+      name: "notes.get",
+      arguments: { noteId: "n1" },
+    });
+    expect(called.structuredContent).toEqual({ id: "n1", title: "Hi" });
+    // A result that breaks the advertised output schema is never returned as success.
+    const broken = await rawCall(server, "notes.get", { noteId: "bad" });
+    const body = broken.body as { error?: unknown; result?: { isError?: boolean } };
+    expect(body.error ?? body.result?.isError).toBeTruthy();
+  });
+
+  it("refuses an output schema that is not an object", () => {
+    expect(() =>
+      createMcpServerKit<Ctx>({
+        name: "reference",
+        version: "0.0.0",
+        authenticate: oauth,
+        async resolveContext({ principalId }) {
+          return { ok: true, context: { principalId, tenantId: "tnt_a" } };
+        },
+        tools: [
+          {
+            name: "notes.count",
+            description: "Count notes",
+            risk: "read",
+            inputSchema: z.object({}),
+            outputSchema: z.number() as unknown as z.ZodType,
+            async handler() {
+              return 1;
+            },
+          },
+        ],
+      }),
+    ).toThrow("MCP tool output schemas must describe an object");
+  });
+
   it("serves 2025-era Streamable HTTP clients without sessions", async () => {
     const server = kit();
     const client = await connect(server, "legacy");
