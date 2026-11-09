@@ -36,17 +36,20 @@ export function syncProduct(input: {
   const managedFiles: Record<string, string> = {};
 
   // Compute and validate the complete plan before touching any file. A
-  // managed hash mismatch is a conflict, not a best-effort warning. A new
-  // managed file may be adopted only when it is absent or already identical.
+  // managed hash mismatch is a conflict, not a best-effort warning. A file
+  // that already matches the template is never a conflict: that is how a
+  // product reconciles a conflict by hand, and how a new managed file is
+  // adopted when it exists.
   for (const rel of MANAGED_FILES) {
     const file = path.join(root, rel);
     const desired = renderTemplateFile(rel, manifest.product);
     const recorded = manifest.managedFiles[rel];
     const current = existsSync(file) ? readFileSync(file, "utf8") : undefined;
     const drifted =
-      recorded === undefined
-        ? current !== undefined && current !== desired
-        : current === undefined || sha256File(file) !== recorded;
+      current !== desired &&
+      (recorded === undefined
+        ? current !== undefined
+        : current === undefined || sha256File(file) !== recorded);
     if (drifted) {
       conflicts.push(rel);
       continue;

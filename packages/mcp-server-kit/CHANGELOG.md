@@ -1,5 +1,74 @@
 # @codelitdev/mcp-server-kit
 
+## 0.8.1
+
+### Patch Changes
+
+- @codelitdev/platform@0.8.1
+
+## 0.8.0
+
+### Minor Changes
+
+- ac3b371: Every tool now advertises all four annotation hints as explicit booleans: `readOnlyHint` and `destructiveHint` from its `risk`, and `idempotentHint` and `openWorldHint` from `annotations`, defaulting to `false`. The ChatGPT Plugins Directory requires `readOnlyHint`, `destructiveHint` and `openWorldHint` to be set explicitly on every tool. Read tools used to leave `destructiveHint` out, and tools without `annotations` left out the other two.
+  
+  ### Product changes
+  
+  A tool that reaches outside the tenant's own workspace (sends email, posts to arbitrary destinations, searches the public web) should now pass `annotations: { openWorldHint: true }`; without it the kit advertises `false`.
+
+### Patch Changes
+
+- @codelitdev/platform@0.8.0
+
+## 0.7.0
+
+### Minor Changes
+
+- 9f7ad30: MCP tool definitions take an optional `title`, `outputSchema` (a Zod object schema) and `annotations` with `idempotentHint` and `openWorldHint`. `tools/list` advertises them, and the SDK checks a successful result's `structuredContent` against `outputSchema`. `risk` still sets `readOnlyHint` and `destructiveHint`. Tools without the new fields are unchanged.
+
+### Patch Changes
+
+- @codelitdev/platform@0.7.0
+
+## 0.6.0
+
+### Patch Changes
+
+- @codelitdev/platform@0.6.0
+
+## 0.5.0
+
+### Minor Changes
+
+- ffcabaa: Serve MCP 2026-07-28. The kit now runs on the official MCP TypeScript SDK 2 (`@modelcontextprotocol/server`) and is stateless: every request is authenticated, resolved to the product context, and handled by a fresh request-local server.
+  
+  - Modern clients get the 2026-07-28 protocol: `server/discover`, per-request protocol envelopes, `Mcp-Method`/`Mcp-Name` header validation, `resultType`, and cache hints on `tools/list` and `server/discover` (five minutes, private by default; set `catalogCacheHint` to change it).
+  - 2025-era Streamable HTTP clients keep working through the SDK's stateless legacy mode. `initialize` no longer mints an `Mcp-Session-Id`; `GET` and `DELETE` answer `405`.
+  - Tool results carry `structuredContent` plus one `text` copy. The invalid `{ type: "json" }` content item is gone; strict clients such as ChatGPT rejected every result carrying it and retried, duplicating writes.
+  - Tool failures, including a destructive call without `confirm: true`, are tool results with `isError: true` and `structuredContent: { code, message, details }`, returned with HTTP 200. They were JSON-RPC errors with string codes, which JSON-RPC does not allow. Authentication and context failures before dispatch return the platform error body (`{ code, message }`) with its HTTP status.
+  - Tool input schemas are advertised as JSON Schema without `$schema`, so clients read them under MCP's default dialect. Annotations follow the spec (`readOnlyHint`, `destructiveHint`); the risk stays in the tool's `_meta.risk`.
+  - New options: `description`, `instructions`, `catalogCacheHint`.
+  - Removed exports: `createMcpSessionStore`, `McpSession`, `McpSessionStore`, `StreamableHTTPServerTransport`, `WebStandardStreamableHTTPServerTransport`, and the kit's `sessions` property.
+  
+  `platform-conformance` reads MCP tool failures from `isError` tool results.
+
+### Patch Changes
+
+- @codelitdev/platform@0.5.0
+
+## 0.4.2
+
+### Patch Changes
+
+- @codelitdev/platform@0.4.2
+
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [b04e522]
+  - @codelitdev/platform@0.4.1
+
 ## 0.4.0
 
 ### Patch Changes

@@ -1,7 +1,14 @@
 # @codelitdev/mcp-server-kit
 
-MCP transport helpers for CodeLit products: CORS, sessions, OAuth/API-key
-hooks over `@codelitdev/platform` credentials, tool risk metadata, error
-mapping, cancellation, shutdown, and parity-manifest validation.
+A stateless MCP endpoint for CodeLit products, built on the official MCP
+TypeScript SDK 2. It serves protocol `2026-07-28` and, through the SDK's
+stateless legacy mode, 2025-era Streamable HTTP clients from one handler.
 
-Products own tool names, Zod schemas, authorization, and service calls.
+The kit owns protocol compliance: OAuth/API-key authentication over
+`@codelitdev/platform` credentials, CORS, tool annotations and risk metadata,
+spec-shaped tool results and errors, cancellation, shutdown, and
+parity-manifest validation. Products own tool names, Zod schemas,
+authorization, and service calls.
+
+Every request is authenticated and resolved to a product context before a
+fresh, request-local server handles it; there are no MCP sessions.

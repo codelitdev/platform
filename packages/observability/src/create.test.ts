@@ -215,6 +215,62 @@ describe("createObservability", () => {
     expect(Date.now() - started).toBeLessThan(500);
   });
 
+  it("keeps identifier values that the long-token mask would hide", () => {
+    const client = fakeClient();
+    const obs = createObservability({
+      serviceName: "reference-api",
+      environment: "test",
+      posthog: { apiKey: "phc_test", client },
+      contextPolicy: {
+        propertyAllowlist: new Set(["team_id", "note", "owner_id"]),
+        identifierKeys: new Set(["team_id", "owner_id"]),
+      },
+    });
+    const teamId = "01a15eb2-1861-7bbe-9b50-6a8f0bf0ef6e";
+    obs.captureEvent({
+      event: "team_paused",
+      source: "abuse",
+      properties: {
+        team_id: teamId,
+        owner_id: "someone@example.com",
+        note: "abcdefghijklmnopqrstuvwxyz0123",
+      },
+    });
+    const [event] = client.events as Array<{ properties: Record<string, unknown> }>;
+    expect(event?.properties.team_id).toBe(teamId);
+    expect(event?.properties.owner_id).toBe("[redacted-email]");
+    expect(event?.properties.note).toBe("[redacted-token]");
+  });
+
+  it("batches events from the default HTTP client with their timestamps", async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const obs = createObservability({
+        serviceName: "reference-api",
+        environment: "test",
+        posthog: { apiKey: "phc_test", host: "https://posthog.example" },
+        contextPolicy: { propertyAllowlist: new Set() },
+        dedupeTtlMs: 0,
+        perSourceCap: Number.POSITIVE_INFINITY,
+      });
+      for (let i = 0; i < 10; i++) {
+        obs.captureEvent({ event: `step_${i}`, source: "worker", subjectId: `t${i}` });
+      }
+      await obs.shutdown(500);
+      const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.[0]).toBe("https://posthog.example/batch/");
+      const body = JSON.parse(String(calls[0]?.[1].body));
+      expect(body.api_key).toBe("phc_test");
+      expect(body.batch).toHaveLength(10);
+      expect(typeof body.batch[0].timestamp).toBe("string");
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+
   it("fans structured logs to OTLP without disabling stdout", async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
     const previousFetch = globalThis.fetch;

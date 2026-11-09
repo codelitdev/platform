@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import pino, { type Logger } from "pino";
 import { type Clock, createDedupe, createSourceCap } from "./limits.js";
 import { opaqueSubjectId, pickAllowlisted, redactText } from "./redaction.js";
+import { createBatchSender } from "./transport.js";
 
 export type ObservabilityClock = Clock;
 
@@ -23,12 +24,9 @@ function createOtlpLogStream(input: {
   endpoint: string;
   headers?: Record<string, string>;
 }) {
-  const pending = new Set<Promise<void>>();
-  const stream = {
-    write(message: string) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 2_000);
-      const request = fetch(input.endpoint, {
+  const sender = createBatchSender<string>({
+    send: (messages, signal) =>
+      fetch(input.endpoint, {
         method: "POST",
         headers: { "content-type": "application/json", ...input.headers },
         body: JSON.stringify({
@@ -36,28 +34,24 @@ function createOtlpLogStream(input: {
             {
               scopeLogs: [
                 {
-                  logRecords: [{ body: { stringValue: message.trim() } }],
+                  logRecords: messages.map((message) => ({
+                    body: { stringValue: message },
+                  })),
                 },
               ],
             },
           ],
         }),
-        signal: controller.signal,
-      })
-        .then(() => undefined)
-        .catch(() => undefined)
-        .finally(() => {
-          clearTimeout(timer);
-          pending.delete(request);
-        });
-      pending.add(request);
-    },
-  };
+        signal,
+      }),
+  });
   return {
-    stream,
-    async shutdown() {
-      await Promise.allSettled([...pending]);
+    stream: {
+      write(message: string) {
+        sender.push(message.trim());
+      },
     },
+    shutdown: () => sender.shutdown(),
   };
 }
 
@@ -65,28 +59,22 @@ function createHttpCaptureClient(input: {
   apiKey: string;
   host?: string;
 }): CaptureClient {
-  const endpoint = `${(input.host ?? "https://app.posthog.com").replace(/\/$/, "")}/capture/`;
-  const pending = new Set<Promise<void>>();
-  const send = (payload: Record<string, unknown>) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2_000);
-    const request = fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${input.apiKey}`,
-      },
-      body: JSON.stringify({ api_key: input.apiKey, ...payload }),
-      signal: controller.signal,
-    })
-      .then(() => undefined)
-      .catch(() => undefined)
-      .finally(() => {
-        clearTimeout(timer);
-        pending.delete(request);
-      });
-    pending.add(request);
-  };
+  const endpoint = `${(input.host ?? "https://app.posthog.com").replace(/\/$/, "")}/batch/`;
+  const sender = createBatchSender<Record<string, unknown>>({
+    send: (batch, signal) =>
+      fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${input.apiKey}`,
+        },
+        body: JSON.stringify({ api_key: input.apiKey, batch }),
+        signal,
+      }),
+  });
+  // Events wait in a batch, so each carries the time it happened.
+  const send = (payload: Record<string, unknown>) =>
+    sender.push({ ...payload, timestamp: new Date().toISOString() });
   return {
     captureException(error, distinctId, properties) {
       send({
@@ -107,14 +95,16 @@ function createHttpCaptureClient(input: {
         properties: input.properties,
       });
     },
-    async shutdown() {
-      await Promise.allSettled([...pending]);
-    },
+    shutdown: () => sender.shutdown(),
   };
 }
 
 export type ContextPolicy = {
   propertyAllowlist: ReadonlySet<string>;
+  /** Allowlisted keys holding opaque record ids (for example `team_id`).
+   * Their values are sent as-is apart from email and secret masking. Don't
+   * list keys that can hold session or access tokens. */
+  identifierKeys?: ReadonlySet<string>;
 };
 
 export type CreateObservabilityOptions = {
@@ -268,6 +258,7 @@ export function createObservability(
         ...pickAllowlisted(
           input.context ?? {},
           options.contextPolicy.propertyAllowlist,
+          options.contextPolicy.identifierKeys,
         ),
       });
     } catch {
@@ -297,6 +288,7 @@ export function createObservability(
             ...pickAllowlisted(
               input.properties ?? {},
               options.contextPolicy.propertyAllowlist,
+              options.contextPolicy.identifierKeys,
             ),
           },
         });

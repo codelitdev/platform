@@ -13,7 +13,7 @@ export type PackagePin = {
  * versions of each @codelitdev package, plus pins for the external packages
  * the template uses. An external pin is the exact version `create` writes and
  * the floor `doctor` accepts: any later release on the same caret line passes
- * (ADR 0016). `scripts/sync-preset.mjs` writes `recommended`
+ * (ADR 0017). `scripts/sync-preset.mjs` writes `recommended`
  * and `external`; `supported` and `minimumSecure` are hand-maintained.
  */
 export type PresetManifest = {

@@ -1,4 +1,4 @@
-# ADR 0016: External preset pins are caret floors
+# ADR 0017: External preset pins are caret floors
 
 Status: accepted; amends ADR 0002 and ADR 0006  
 Date: 2026-11-09

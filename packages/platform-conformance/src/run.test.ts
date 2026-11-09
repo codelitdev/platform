@@ -131,14 +131,18 @@ function memoryAdapter(options: {
             input.args &&
             typeof input.args === "object"
           ) {
-            if ((input.args as { confirm?: unknown }).confirm !== true) {
-              return { status: 403, body: { error: { code: "forbidden" } } };
-            }
-            return { status: 404, body: { error: { code: "not_found" } } };
+            const code =
+              (input.args as { confirm?: unknown }).confirm !== true
+                ? "forbidden"
+                : "not_found";
+            return {
+              status: 200,
+              body: { result: { isError: true, structuredContent: { code } } },
+            };
           }
           return {
             status: 200,
-            body: { result: { content: [{ json: { items: [] } }] } },
+            body: { result: { structuredContent: { items: [] } } },
           };
         }
       : undefined,

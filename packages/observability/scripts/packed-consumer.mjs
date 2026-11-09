@@ -32,7 +32,7 @@ writeFileSync(
     name: "consumer",
     type: "module",
     private: true,
-    packageManager: "bun@1.4.1",
+    packageManager: "bun@1.4.4",
   }),
 );
 execFileSync("bun", ["add", tarball, "--ignore-scripts"], {

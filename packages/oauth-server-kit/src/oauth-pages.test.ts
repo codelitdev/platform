@@ -27,6 +27,53 @@ function pagesApp(overrides: Partial<CreateOAuthPagesRouterOptions> = {}) {
   return app;
 }
 
+/** Runs the login page's inline script against stub DOM and fetch, submits
+ * the email form, and returns the error banner text. */
+async function submitEmail(
+  html: string,
+  response: Response,
+  {
+    captchaToken,
+    fetchCalls = [],
+  }: { captchaToken?: string; fetchCalls?: RequestInit[] } = {},
+): Promise<string> {
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+  if (!script) throw new Error("login_script_missing");
+  const listeners = new Map<string, (event: unknown) => Promise<void>>();
+  const element = (id: string) => ({
+    id,
+    hidden: false,
+    textContent: "",
+    style: { display: "" },
+    value: "person@example.com",
+    addEventListener(type: string, listener: (event: unknown) => Promise<void>) {
+      listeners.set(`${id}:${type}`, listener);
+    },
+    querySelector: () => (captchaToken === undefined ? null : { value: captchaToken }),
+  });
+  const elements = new Map(
+    ["error", "email-form", "email", "otp-form", "otp", "change-email"].map((id) => [
+      id,
+      element(id),
+    ]),
+  );
+  const document = {
+    getElementById: (id: string) => elements.get(id) ?? null,
+    querySelectorAll: () => [],
+  };
+  const location = { search: "", href: "https://auth.example.com/login" };
+  new Function("document", "location", "fetch", script)(
+    document,
+    location,
+    async (_url: string, init: RequestInit) => {
+      fetchCalls.push(init);
+      return response;
+    },
+  );
+  await listeners.get("email-form:submit")?.({ preventDefault() {} });
+  return elements.get("error")?.textContent ?? "";
+}
+
 describe("createOAuthPagesRouter", () => {
   it("renders configured email and social login using the custom auth path", async () => {
     await withHttpServer(pagesApp(), async (baseUrl) => {
@@ -61,6 +108,25 @@ describe("createOAuthPagesRouter", () => {
       );
       expect(response.headers.getSetCookie()).toHaveLength(2);
       expect(response.headers.getSetCookie().join("\n")).toContain("Max-Age=0");
+    });
+  });
+
+  it("shows the auth API's error message, or a generic one without it", async () => {
+    await withHttpServer(pagesApp(), async (baseUrl) => {
+      const html = await (await fetch(`${baseUrl}/login`)).text();
+      const refused = await submitEmail(
+        html,
+        Response.json(
+          { code: "DISPOSABLE_EMAIL", message: "Use your work or personal email." },
+          { status: 403 },
+        ),
+      );
+      expect(refused).toBe("Use your work or personal email.");
+      const broken = await submitEmail(
+        html,
+        new Response("<html>Bad gateway</html>", { status: 502 }),
+      );
+      expect(broken).toBe("Sign-in failed. Please try again.");
     });
   });
 
@@ -118,6 +184,47 @@ describe("createOAuthPagesRouter", () => {
     );
   });
 
+  it("renders the Turnstile widget and sends its token with the code request", async () => {
+    await withHttpServer(
+      pagesApp({
+        captcha: { provider: "cloudflare-turnstile", siteKey: "0x4AAAAAAAtest" },
+      }),
+      async (baseUrl) => {
+        for (const path of ["/login", "/oauth/login"]) {
+          const html = await (await fetch(`${baseUrl}${path}`)).text();
+          expect(html).toContain('class="cf-turnstile" data-sitekey="0x4AAAAAAAtest"');
+          expect(html).toContain(
+            "https://challenges.cloudflare.com/turnstile/v0/api.js",
+          );
+          expect(html).toContain("var captcha=true");
+        }
+        const html = await (await fetch(`${baseUrl}/login`)).text();
+        const fetchCalls: RequestInit[] = [];
+        expect(
+          await submitEmail(html, Response.json({}), { captchaToken: "", fetchCalls }),
+        ).toBe("Complete the security check, then try again.");
+        expect(fetchCalls).toHaveLength(0);
+        await submitEmail(html, Response.json({}), {
+          captchaToken: "token-1",
+          fetchCalls,
+        });
+        expect(fetchCalls).toHaveLength(1);
+        expect(fetchCalls[0]?.headers).toHaveProperty("x-captcha-response", "token-1");
+      },
+    );
+  });
+
+  it("omits the captcha when none is configured", async () => {
+    await withHttpServer(pagesApp(), async (baseUrl) => {
+      const html = await (await fetch(`${baseUrl}/login`)).text();
+      expect(html).not.toContain('class="cf-turnstile"');
+      expect(html).toContain("var captcha=false");
+      const fetchCalls: RequestInit[] = [];
+      await submitEmail(html, Response.json({}), { fetchCalls });
+      expect(fetchCalls[0]?.headers).not.toHaveProperty("x-captcha-response");
+    });
+  });
+
   it("escapes consent client and scope display values and posts both decisions", async () => {
     await withHttpServer(pagesApp(), async (baseUrl) => {
       const query = new URLSearchParams({
@@ -161,6 +268,14 @@ describe("createOAuthPagesRouter", () => {
       "defaultRedirectUrl must use an allowed origin",
     ],
     [{ loginMethods: [] }, "loginMethods must contain at least one method"],
+    [
+      { captcha: { provider: "cloudflare-turnstile", siteKey: 'x" onload="1' } },
+      "captcha siteKey must be a Turnstile site key",
+    ],
+    [
+      { captcha: { provider: "recaptcha", siteKey: "key" } as never },
+      "captcha provider must be cloudflare-turnstile",
+    ],
     [
       { loginMethods: [{ type: "email-otp" }, { type: "email-otp" }] },
       "loginMethods must have unique method identifiers",

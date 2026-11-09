@@ -378,7 +378,7 @@ Products depend on individual packages; CI verifies that resolved versions match
 {
   "schemaVersion": 1,
   "runtime": {
-    "bun": "1.4.1"
+    "bun": "1.4.4"
   },
   "packages": {
     "@codelitdev/platform": {
@@ -393,7 +393,7 @@ Products depend on individual packages; CI verifies that resolved versions match
 }
 ```
 
-`recommended` is the exact version emitted into a new product. `supported` is the range covered by conformance for an existing adopter. `minimumSecure` is monotonic within a supported major line and makes `doctor` and conformance fail when the resolved version is older. An `external` pin is the exact version `create` emits and, for `doctor`, a caret floor: later releases on the same major line pass, older ones fail (ADR 0016). The preset validates the product manifest and lockfile; it does not mutate dependencies. Dependabot performs upgrades through reviewable product pull requests.
+`recommended` is the exact version emitted into a new product. `supported` is the range covered by conformance for an existing adopter. `minimumSecure` is monotonic within a supported major line and makes `doctor` and conformance fail when the resolved version is older. An `external` pin is the exact version `create` emits and, for `doctor`, a caret floor: later releases on the same major line pass, older ones fail (ADR 0017). The preset validates the product manifest and lockfile; it does not mutate dependencies. Dependabot performs upgrades through reviewable product pull requests.
 
 ### 6.8 @codelitdev/platform-conformance
 

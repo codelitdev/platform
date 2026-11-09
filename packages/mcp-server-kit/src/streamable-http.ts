@@ -1,9 +1,4 @@
 import type { HeaderMap } from "@codelitdev/platform";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-
-export { StreamableHTTPServerTransport, WebStandardStreamableHTTPServerTransport };
 
 export function headerString(headers: HeaderMap, name: string): string | undefined {
   const value = headers[name] ?? headers[name.toLowerCase()];
@@ -22,113 +17,92 @@ export function patchMcpAccept(headers: HeaderMap): HeaderMap {
     ...(needsSse ? ["text/event-stream"] : []),
   ];
   const next = accept ? `${accept}, ${additions.join(", ")}` : additions.join(", ");
-  return { ...headers, accept: next, Accept: next };
+  const rest = Object.fromEntries(
+    Object.entries(headers).filter(([key]) => key.toLowerCase() !== "accept"),
+  );
+  return { ...rest, accept: next };
 }
 
-export function headersToRecord(headers: HeaderMap): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(headers)) {
-    if (typeof value === "string") out[key] = value;
-    else if (Array.isArray(value) && value[0]) out[key] = value[0];
+// The body is re-serialized from its parsed form, so the original framing
+// headers no longer describe it.
+const DROPPED_REQUEST_HEADERS = new Set(["content-length", "transfer-encoding"]);
+
+export function toWebRequest(input: {
+  headers: HeaderMap;
+  body?: unknown;
+  signal?: AbortSignal;
+}): Request {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(input.headers)) {
+    if (DROPPED_REQUEST_HEADERS.has(key.toLowerCase())) continue;
+    const single = Array.isArray(value) ? value[0] : value;
+    if (typeof single === "string") headers.set(key, single);
   }
-  return out;
+  if (!headers.has("content-type")) headers.set("content-type", "application/json");
+  return new Request("http://localhost/mcp", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(input.body ?? null),
+    signal: input.signal,
+  });
 }
 
-export async function dispatchWebStandard(
-  transport: WebStandardStreamableHTTPServerTransport,
-  request: {
-    method: string;
-    headers: HeaderMap;
-    body?: unknown;
-    signal?: AbortSignal;
-    authInfo?: {
-      token: string;
-      clientId: string;
-      scopes: string[];
-      extra?: Record<string, unknown>;
-    };
-  },
-): Promise<{
+/** JSON-RPC messages carried by a complete `text/event-stream` body. */
+function sseMessages(text: string): unknown[] {
+  const messages: unknown[] = [];
+  for (const event of text.split(/\r?\n\r?\n/)) {
+    const data = event
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).replace(/^ /, ""))
+      .join("\n");
+    if (!data) continue;
+    try {
+      messages.push(JSON.parse(data));
+    } catch {
+      // Not a JSON-RPC frame; ignore it like a client would.
+    }
+  }
+  return messages;
+}
+
+function isResponseMessage(message: unknown): boolean {
+  return Boolean(
+    message &&
+      typeof message === "object" &&
+      "id" in message &&
+      ("result" in message || "error" in message),
+  );
+}
+
+/**
+ * Settle an SDK response into a JSON record. The stateless 2025 leg answers a
+ * POST over a short SSE stream that closes after its one response; Streamable
+ * HTTP lets the same response go back as `application/json`, which is what the
+ * kit's record-based `handle()` returns.
+ */
+export async function readMcpResponse(response: Response): Promise<{
   status: number;
   headers: Record<string, string>;
   body: unknown;
 }> {
-  const patched = patchMcpAccept(request.headers);
-  const webHeaders = new Headers();
-  for (const [key, value] of Object.entries(headersToRecord(patched))) {
-    webHeaders.set(key, value);
-  }
-  const method = request.method.toUpperCase();
-  if (
-    method !== "GET" &&
-    method !== "HEAD" &&
-    method !== "DELETE" &&
-    !webHeaders.has("content-type")
-  ) {
-    webHeaders.set("content-type", "application/json");
-  }
-  const init: RequestInit = {
-    method,
-    headers: webHeaders,
-    signal: request.signal,
-  };
-  if (method !== "GET" && method !== "HEAD" && method !== "DELETE") {
-    init.body = JSON.stringify(request.body ?? {});
-  }
-  const webRequest = new Request("http://127.0.0.1/mcp", init);
-  const response = await transport.handleRequest(webRequest, {
-    parsedBody: request.body,
-    authInfo: request.authInfo,
-  });
-  const outHeaders: Record<string, string> = {};
+  const headers: Record<string, string> = {};
   response.headers.forEach((value, key) => {
-    outHeaders[key] = value;
+    if (key !== "content-length") headers[key] = value;
   });
   const contentType = response.headers.get("content-type") ?? "";
-  if (contentType.includes("text/event-stream")) {
-    await response.body?.cancel();
-    return { status: response.status, headers: outHeaders, body: null };
-  }
-  if (contentType.includes("application/json")) {
-    return {
-      status: response.status,
-      headers: outHeaders,
-      body: await response.json(),
-    };
-  }
   const text = await response.text();
-  return {
-    status: response.status,
-    headers: outHeaders,
-    body: text.length > 0 ? text : null,
-  };
-}
-
-export function createStreamableSession(input: {
-  name: string;
-  version: string;
-  sessionId?: string;
-  registerTools: (server: McpServer) => void;
-  onclosed?: (sessionId: string) => void;
-}): {
-  server: McpServer;
-  transport: WebStandardStreamableHTTPServerTransport;
-  ready: Promise<void>;
-} {
-  // MediaLit mounts StreamableHTTPServerTransport (Node wrapper around this
-  // Web Standard transport). The kit handle() API is request/response records,
-  // so the Web Standard transport is the protocol implementation.
-  void StreamableHTTPServerTransport;
-  const transport = new WebStandardStreamableHTTPServerTransport({
-    sessionIdGenerator: input.sessionId ? () => input.sessionId as string : undefined,
-    enableJsonResponse: true,
-    onsessioninitialized: () => undefined,
-    onsessionclosed: (id) => input.onclosed?.(id),
-  });
-  const server = new McpServer({
-    name: input.name,
-    version: input.version,
-  });
-  input.registerTools(server);
-  return { server, transport, ready: server.connect(transport) };
+  if (contentType.includes("text/event-stream")) {
+    const messages = sseMessages(text);
+    const body = messages.find(isResponseMessage) ?? messages.at(-1) ?? null;
+    headers["content-type"] = "application/json";
+    for (const streamOnly of ["connection", "x-accel-buffering"])
+      delete headers[streamOnly];
+    return { status: response.status, headers, body };
+  }
+  if (!text) return { status: response.status, headers, body: null };
+  if (contentType.includes("application/json")) {
+    return { status: response.status, headers, body: JSON.parse(text) };
+  }
+  return { status: response.status, headers, body: text };
 }

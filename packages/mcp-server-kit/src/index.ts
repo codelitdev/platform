@@ -2,6 +2,8 @@ export { MCP_ALLOWED_HEADERS, mcpCorsHeaders } from "./cors.js";
 export {
   type CreateMcpServerKitOptions,
   createMcpServerKit,
+  type McpKitRequest,
+  type McpKitResponse,
   type McpServerKit,
   type McpToolDefinition,
   type McpToolRisk,
@@ -12,13 +14,4 @@ export {
   type ParityValidationIssue,
   validateParityManifest,
 } from "./parity.js";
-export {
-  createMcpSessionStore,
-  type McpSession,
-  type McpSessionStore,
-} from "./sessions.js";
-export {
-  patchMcpAccept,
-  StreamableHTTPServerTransport,
-  WebStandardStreamableHTTPServerTransport,
-} from "./streamable-http.js";
+export { patchMcpAccept } from "./streamable-http.js";

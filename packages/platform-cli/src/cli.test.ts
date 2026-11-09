@@ -138,6 +138,29 @@ describe("platform-cli", () => {
     expect(readManifest(target)).toEqual(manifestBefore);
   });
 
+  it("records a drifted managed file reconciled by hand to the template", () => {
+    const target = createCommitted("cli-reconcile-");
+    const file = path.join(target, WORKFLOW);
+    const desired = readFileSync(file, "utf8");
+    writeFileSync(file, "name: edited by the product\n");
+    const manifest = readManifest(target);
+    manifest.managedFiles[WORKFLOW] = sha256File(file);
+    writeManifest(target, manifest);
+    // An edit after the hash was recorded: drift.
+    writeFileSync(file, desired.replace("bun-version", "bun-version "));
+    expect(syncProduct({ root: target, allowDirty: true }).conflicts).toEqual([
+      WORKFLOW,
+    ]);
+    // The product resolves it by restoring the template's content.
+    writeFileSync(file, desired);
+    git(target, ["commit", "-am", "reconcile workflow"]);
+    const result = syncProduct({ root: target });
+    expect(result.conflicts).toEqual([]);
+    expect(result.changed).toEqual([]);
+    expect(readManifest(target).managedFiles[WORKFLOW]).toBe(sha256File(file));
+    expect(doctor(target).issues.filter((i) => i.startsWith("managed_"))).toEqual([]);
+  });
+
   it("adopts a missing managed file but not a different existing one", () => {
     const target = createCommitted("cli-adopt-");
     const manifest = readManifest(target);

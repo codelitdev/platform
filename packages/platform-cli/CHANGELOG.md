@@ -1,5 +1,40 @@
 # @codelitdev/platform-cli
 
+## 0.8.1
+
+### Patch Changes
+
+- b7dd97e: The preset and product template now pin `next` 16.4.3 and Bun 1.4.4, the patched releases, so `doctor` no longer fails products that already moved to them. `sync` also records a managed file that was reconciled by hand to the template instead of reporting it as a conflict.
+  
+  ## Product changes
+  
+  - Use `next` 16.4.3 and Bun 1.4.4 (`packageManager`, CI `bun-version`, `@types/bun` 1.4.4).
+  - Run `bunx @codelitdev/platform-cli@<this version> sync`. If it reports `platform-conformance.yml` as a conflict, make that file match this release's template, then run `sync` again.
+
+## 0.8.0
+
+No changes in this release.
+
+## 0.7.0
+
+No changes in this release.
+
+## 0.6.0
+
+No changes in this release.
+
+## 0.5.0
+
+No changes in this release.
+
+## 0.4.2
+
+No changes in this release.
+
+## 0.4.1
+
+No changes in this release.
+
 ## 0.4.0
 
 No changes in this release.

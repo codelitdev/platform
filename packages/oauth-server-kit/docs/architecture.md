@@ -506,7 +506,13 @@ export interface CreateOAuthPagesRouterOptions {
     logoUrl?: string;
     faviconUrl?: string;
     primaryColor?: string;
+    captcha?: HostedLoginCaptcha;
 }
+
+export type HostedLoginCaptcha = {
+    provider: "cloudflare-turnstile";
+    siteKey: string;
+};
 
 export function createOAuthPagesRouter(
     options: CreateOAuthPagesRouterOptions,
@@ -532,6 +538,10 @@ Hosted-page rules:
 - A social method calls Better Auth social sign-in using its configured
   `providerId`. The router does not store or receive provider credentials.
 - The router renders only the supplied methods; Google is not special-cased.
+- With `captcha`, the email form renders a Turnstile widget and sends its
+  token in the `x-captcha-response` header on the send-code request. The
+  router does not verify the token; the product verifies it with Better Auth's
+  `captcha` plugin.
 - Unsupported or invalid configuration throws synchronously at router
   creation.
 
@@ -654,7 +664,7 @@ The exact exports are:
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | package root   | `AuthenticatedIdentity`, `AuthenticationResult`, `OAuthResourceClient`, `VerifyOAuthAccessTokenOptions`, `verifyOAuthAccessToken`                                                        |
 | `/better-auth` | `BetterAuthSession`, `BetterAuthSessionApi`, `ResolveBetterAuthSessionOptions`, `resolveBetterAuthSession`, `CreateOAuthProviderOptionsInput`, `createOAuthProviderOptions`              |
-| `/express`     | `HostedLoginMethod`, `CreateOAuthPagesRouterOptions`, `createOAuthPagesRouter`, `CreateOAuthBearerMiddlewareOptions`, `createOAuthBearerMiddleware`, Express `Request.auth` augmentation |
+| `/express`     | `HostedLoginMethod`, `HostedLoginCaptcha`, `CreateOAuthPagesRouterOptions`, `createOAuthPagesRouter`, `CreateOAuthBearerMiddlewareOptions`, `createOAuthBearerMiddleware`, Express `Request.auth` augmentation |
 | `/mcp`         | `BetterAuthMetadataApi`, `CreateMcpOAuthDiscoveryRoutesOptions`, `createMcpOAuthDiscoveryRoutes`                                                                                         |
 
 There is no default export. The root does not import Express or Drizzle.

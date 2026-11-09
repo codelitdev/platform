@@ -5,7 +5,7 @@ describe("platform preset", () => {
   it("ships schemaVersion 1 with recommended/supported/minimumSecure", () => {
     const manifest = loadPresetManifest();
     expect(manifest.schemaVersion).toBe(1);
-    expect(manifest.runtime.bun).toBe("1.4.1");
+    expect(manifest.runtime.bun).toBe("1.4.4");
     const platform = manifest.packages["@codelitdev/platform"];
     expect(platform?.recommended).toBeTruthy();
     expect(platform?.supported).toContain(">=");
