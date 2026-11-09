@@ -10,8 +10,10 @@ export type PackagePin = {
 
 /**
  * Compatibility rules for products: recommended, supported, and minimum-secure
- * versions of each @codelitdev package, plus exact pins for the external
- * packages the template uses. `scripts/sync-preset.mjs` writes `recommended`
+ * versions of each @codelitdev package, plus pins for the external packages
+ * the template uses. An external pin is the exact version `create` writes and
+ * the floor `doctor` accepts: any later release on the same caret line passes
+ * (ADR 0016). `scripts/sync-preset.mjs` writes `recommended`
  * and `external`; `supported` and `minimumSecure` are hand-maintained.
  */
 export type PresetManifest = {
@@ -83,6 +85,20 @@ function satisfies(version: string, range: string): boolean {
   });
 }
 
+/**
+ * `^pin`: at or above the pin without crossing the next breaking line
+ * (the major, or the minor while the major is 0). Lets products take patch
+ * and minor security fixes without a preset release.
+ */
+function satisfiesCaret(version: string, pin: string): boolean {
+  const v = parseVersion(version);
+  const p = parseVersion(pin);
+  if (!v || !p) return cmp(version, pin) === 0;
+  if (v.major !== p.major) return false;
+  if (p.major === 0 && v.minor !== p.minor) return false;
+  return cmp(version, pin) >= 0;
+}
+
 export type PresetIssue = {
   packageName: string;
   reason:
@@ -101,7 +117,7 @@ export function validateResolvedVersions(
   for (const [name, version] of Object.entries(resolved)) {
     const pin = manifest.packages[name];
     if (!pin && name in manifest.external) {
-      if (cmp(version, manifest.external[name]!) !== 0) {
+      if (!satisfiesCaret(version, manifest.external[name]!)) {
         issues.push({
           packageName: name,
           reason: "external_mismatch",

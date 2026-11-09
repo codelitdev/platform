@@ -24,7 +24,7 @@ describe("platform preset", () => {
     expect(ok).toEqual([]);
   });
 
-  it("checks exact external compatibility pins", () => {
+  it("treats external pins as caret floors", () => {
     const manifest = loadPresetManifest();
     expect(
       validateResolvedVersions(
@@ -37,5 +37,13 @@ describe("platform preset", () => {
     expect(
       validateResolvedVersions({ typescript: manifest.external.typescript }, manifest),
     ).toEqual([]);
+    const pinned = { ...manifest, external: { next: "16.4.1", pino: "0.5.2" } };
+    const reasons = (resolved: Record<string, string>) =>
+      validateResolvedVersions(resolved, pinned).map((issue) => issue.packageName);
+    expect(reasons({ next: "16.4.1", pino: "0.5.2" })).toEqual([]);
+    expect(reasons({ next: "16.4.5", pino: "0.5.9" })).toEqual([]);
+    expect(reasons({ next: "16.5.0" })).toEqual([]);
+    expect(reasons({ next: "16.3.6", pino: "0.5.1" })).toEqual(["next", "pino"]);
+    expect(reasons({ next: "17.0.0", pino: "0.6.0" })).toEqual(["next", "pino"]);
   });
 });
