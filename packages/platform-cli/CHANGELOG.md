@@ -1,5 +1,11 @@
 # @codelitdev/platform-cli
 
+## 0.8.2
+
+### Patch Changes
+
+- 2bc8c62: `doctor` now treats external pins as caret floors, so products can take later patch and minor releases (including security fixes) without failing conformance. The `@modelcontextprotocol/sdk` floor rises to 1.32.1.
+
 ## 0.8.1
 
 ### Patch Changes

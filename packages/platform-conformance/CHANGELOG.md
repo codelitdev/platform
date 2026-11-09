@@ -1,5 +1,11 @@
 # @codelitdev/platform-conformance
 
+## 0.8.2
+
+### Patch Changes
+
+- @codelitdev/platform@0.8.2
+
 ## 0.8.1
 
 ### Patch Changes
