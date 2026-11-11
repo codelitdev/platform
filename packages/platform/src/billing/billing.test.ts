@@ -4,6 +4,7 @@ import {
   BillingConfigurationError,
   BillingWorkflowError,
 } from "@codelitdev/billing/core";
+import type { BillingAction } from "@codelitdev/billing/workflows";
 import { frozenClock } from "../clock.js";
 import {
   billingErrorResponse,
@@ -19,7 +20,12 @@ import {
 const now = new Date("2026-06-01T12:00:00.000Z");
 const target = { kind: "user", id: "user_1" };
 
-function grants(options: { recentAuthMaxAgeMs?: number } = {}) {
+function grants(
+  options: {
+    recentAuthMaxAgeMs?: number;
+    recentAuthActions?: readonly BillingAction[];
+  } = {},
+) {
   return createBillingActionGrants({
     store: new MemoryActionGrantStore(),
     clock: frozenClock(now),
@@ -85,6 +91,45 @@ describe("billing action grants", () => {
           now,
         ),
       ).rejects.toMatchObject({ code: "grant_invalid" });
+    }
+  });
+
+  it("asks for a recent sign-in only for the actions the product names", async () => {
+    const g = grants({
+      recentAuthMaxAgeMs: 60_000,
+      recentAuthActions: ["payer_transfer"],
+    });
+    const signedInLongAgo = new Date(now.getTime() - 3_600_000);
+    const checkout = await g.issue({
+      actorId: "user_1",
+      sessionId: "session_1",
+      sessionCreatedAt: signedInLongAgo,
+      action: "checkout",
+      target,
+    });
+    expect(checkout.ok).toBe(true);
+    const transfer = await g.issue({
+      actorId: "user_1",
+      sessionId: "session_1",
+      sessionCreatedAt: signedInLongAgo,
+      action: "payer_transfer",
+      target,
+    });
+    expect(transfer).toEqual({ ok: false, error: "recent_authentication_required" });
+
+    const none = grants({ recentAuthMaxAgeMs: 60_000, recentAuthActions: [] });
+    for (const action of ["checkout", "cancellation", "payer_transfer"] as const) {
+      expect(
+        (
+          await none.issue({
+            actorId: "user_1",
+            sessionId: "session_1",
+            sessionCreatedAt: signedInLongAgo,
+            action,
+            target,
+          })
+        ).ok,
+      ).toBe(true);
     }
   });
 

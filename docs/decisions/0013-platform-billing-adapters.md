@@ -43,7 +43,8 @@ encryption keys. These adapters belong next to it, not inside it.
 
 - Products delete their own grant, encryption, return-URL, worker, webhook,
   and error-mapping code, and adopt these adapters.
-- Billing actions need a recent sign-in. Products must handle
-  `recent_authentication_required` by asking the person to sign in again.
+- Billing actions need a recent sign-in by default. Products choose which
+  actions do with `recentAuthActions` (see the architecture guide's rule on
+  sensitive actions) and handle `recent_authentication_required` for those.
 - The `exports` test of `@codelitdev/platform` now lists the two billing
   exports.
