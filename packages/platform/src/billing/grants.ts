@@ -51,10 +51,20 @@ export function createBillingActionGrants(options: {
   ttlMs?: number;
   /** How recently the session must have signed in. Default 15 minutes. */
   recentAuthMaxAgeMs?: number;
+  /**
+   * The actions that need a recent sign-in. Default: every action. Pass the
+   * ones that are hard to undo, such as `payer_transfer`, or `[]` for none.
+   * Buying and managing a plan rarely qualify: the provider confirms the
+   * payer, and the single-use token already stops replay and CSRF.
+   */
+  recentAuthActions?: readonly BillingAction[];
 }) {
   const clock = options.clock ?? systemClock;
   const ttlMs = options.ttlMs ?? 5 * 60 * 1000;
   const recentAuthMaxAgeMs = options.recentAuthMaxAgeMs ?? 15 * 60 * 1000;
+  const recentAuthActions = options.recentAuthActions
+    ? new Set<BillingAction>(options.recentAuthActions)
+    : null;
 
   async function issue(input: {
     actorId: string;
@@ -65,7 +75,11 @@ export function createBillingActionGrants(options: {
     target: BillingGrantTarget;
   }): Promise<IssueBillingGrantResult> {
     const now = clock.now();
-    if (now.getTime() - input.sessionCreatedAt.getTime() > recentAuthMaxAgeMs) {
+    const needsRecentAuth = recentAuthActions?.has(input.action) ?? true;
+    if (
+      needsRecentAuth &&
+      now.getTime() - input.sessionCreatedAt.getTime() > recentAuthMaxAgeMs
+    ) {
       return { ok: false, error: "recent_authentication_required" };
     }
     await options.store.purgeExpired?.(now);

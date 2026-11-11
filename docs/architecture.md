@@ -511,6 +511,12 @@ Admin auth follows FrontLit:
 - API and MCP accept configured OAuth tokens and tenant-scoped API keys.
 - Product code checks membership on every request.
 - Sensitive actions use recent auth and a single-use action token or equivalent grant.
+  Sensitive means hard to undo or able to move money or control away from the
+  owner: deleting a tenant, changing payout or payment credentials, or moving
+  who pays for a subscription. Buying, changing, or cancelling a plan is not:
+  the payment provider confirms the payer, the single-use token already stops
+  replay and CSRF, and asking someone to sign in again before they pay only
+  loses the sale.
 
 ### 8.1 Auth persistence and schema lifecycle
 
