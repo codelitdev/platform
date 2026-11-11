@@ -1,5 +1,12 @@
 # @codelitdev/platform-conformance
 
+## 0.9.0
+
+### Patch Changes
+
+- Updated dependencies [52a5744]
+  - @codelitdev/platform@0.9.0
+
 ## 0.8.2
 
 ### Patch Changes
