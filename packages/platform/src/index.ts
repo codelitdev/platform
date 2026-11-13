@@ -16,6 +16,14 @@ export {
 } from "./credentials.js";
 export { parseDate, serializeDate, serializeDatesDeep } from "./dates.js";
 export {
+  createDnsResolver,
+  createDomainVerification,
+  type DnsResolver,
+  isApexHostname,
+  issueOwnershipToken,
+  normalizeHostname,
+} from "./domain-verification.js";
+export {
   captureAndMapException,
   createPlatformError,
   isPlatformError,

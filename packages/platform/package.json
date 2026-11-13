@@ -66,5 +66,8 @@
     "drizzle-orm": {
       "optional": true
     }
+  },
+  "dependencies": {
+    "tldts": "7.4.19"
   }
 }

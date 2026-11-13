@@ -80,7 +80,7 @@
     },
     "packages/billing": {
       "name": "@codelitdev/billing",
-      "version": "0.9.0",
+      "version": "0.10.0",
       "bin": {
         "codelit-billing": "./bin/codelit-billing.js",
       },
@@ -106,7 +106,7 @@
     },
     "packages/design-system": {
       "name": "@codelitdev/design-system",
-      "version": "0.9.0",
+      "version": "0.10.0",
       "devDependencies": {
         "@types/react": "^19.2.17",
         "@types/react-dom": "^19.2.5",
@@ -124,7 +124,7 @@
     },
     "packages/mcp-server-kit": {
       "name": "@codelitdev/mcp-server-kit",
-      "version": "0.9.0",
+      "version": "0.10.0",
       "dependencies": {
         "@modelcontextprotocol/server": "^2.4.0",
         "zod": "^3.25.76",
@@ -143,7 +143,7 @@
     },
     "packages/oauth-server-kit": {
       "name": "@codelitdev/oauth-server-kit",
-      "version": "0.9.0",
+      "version": "0.10.0",
       "devDependencies": {
         "@better-auth/core": "1.7.22",
         "@better-auth/oauth-provider": "1.7.22",
@@ -167,7 +167,7 @@
     },
     "packages/observability": {
       "name": "@codelitdev/observability",
-      "version": "0.9.0",
+      "version": "0.10.0",
       "dependencies": {
         "pino": "^9.6.0",
       },
@@ -192,7 +192,10 @@
     },
     "packages/platform": {
       "name": "@codelitdev/platform",
-      "version": "0.9.0",
+      "version": "0.10.0",
+      "dependencies": {
+        "tldts": "7.4.19",
+      },
       "devDependencies": {
         "@codelitdev/billing": "workspace:*",
         "@electric-sql/pglite": "^0.2.17",
@@ -202,7 +205,7 @@
         "typescript": "^5.9.3",
       },
       "peerDependencies": {
-        "@codelitdev/billing": ">=0.9.0",
+        "@codelitdev/billing": ">=0.10.0",
         "drizzle-orm": "^0.45.2",
       },
       "optionalPeers": [
@@ -212,7 +215,7 @@
     },
     "packages/platform-cli": {
       "name": "@codelitdev/platform-cli",
-      "version": "0.9.0",
+      "version": "0.10.0",
       "bin": {
         "codelit-platform": "./dist/bin.js",
       },
@@ -224,7 +227,7 @@
     },
     "packages/platform-conformance": {
       "name": "@codelitdev/platform-conformance",
-      "version": "0.9.0",
+      "version": "0.10.0",
       "devDependencies": {
         "@codelitdev/platform": "workspace:*",
         "@types/bun": "^1.4.1",
@@ -1366,6 +1369,10 @@
     "tinyexec": ["tinyexec@1.3.1", "", {}, "sha512-GCvB3aoys96IuDFBMcTB46JOR6mdMtAToqwiW8JlWhsoh1mhHi/xn9ss/Dg7N555GiJyEt2qzoG/NHCwM6h1EA=="],
 
     "tinyglobby": ["tinyglobby@0.2.17", "", { "dependencies": { "fdir": "^6.5.0", "picomatch": "^4.0.4" } }, "sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g=="],
+
+    "tldts": ["tldts@7.4.19", "", { "dependencies": { "tldts-core": "^7.4.19" }, "bin": { "tldts": "bin/cli.js" } }, "sha512-48dH6aSpQnpbzDUc4vIQZ1VjB8tkK+e8c1yx05/SZK+rkssgjEOlxDd/yU8/a4vGYQ9vRgJr9dwMq9TJ0b3X2Q=="],
+
+    "tldts-core": ["tldts-core@7.5.2", "", {}, "sha512-8W1topazDwhMKbm2I83IPa57Ow5VUxFgLbXv42+vSILnv8FY5OHvdEY/tS6WoWeMbxkHZQhra5cmeFHriKptSQ=="],
 
     "to-regex-range": ["to-regex-range@5.0.1", "", { "dependencies": { "is-number": "^7.0.0" } }, "sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ=="],
 
