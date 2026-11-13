@@ -18,7 +18,12 @@ import { cimd } from "@better-auth/cimd";
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { oauthProviderResourceClient } from "@better-auth/oauth-provider/resource-client";
-import { createOAuthProviderOptions } from "@codelitdev/oauth-server-kit/better-auth";
+import {
+    createOAuthProviderOptions,
+    secureCookieOptions,
+    secureEmailAndPasswordOptions,
+    secureSessionOptions,
+} from "@codelitdev/oauth-server-kit/better-auth";
 
 const publicApiUrl = "https://api.example.com";
 const authBasePath = "/api/auth";
@@ -31,6 +36,19 @@ export const auth = betterAuth({
     basePath: authBasePath,
     secret: process.env.BETTER_AUTH_SECRET,
     database: productBetterAuthAdapter,
+    // Keep your own prefix; the helper makes it `__Host-<prefix>` over https.
+    advanced: {
+        ...secureCookieOptions({
+            baseURL: publicApiUrl,
+            cookiePrefix: "myproduct",
+            // crossSubDomainCookies: { enabled: true, domain: "example.com" },
+            clientIpHeader: "x-client-ip", // see "Client IP" below
+        }),
+    },
+    // No session cookie cache: revoked sessions stop working immediately.
+    session: secureSessionOptions(),
+    // Password sign-up off; `{ enabled: true }` also requires a verified email.
+    emailAndPassword: secureEmailAndPasswordOptions(),
     trustedOrigins: ["https://app.example.com", publicApiUrl],
     plugins: [
         emailOTP({ sendVerificationOTP: productSendOtp }),
@@ -69,6 +87,41 @@ export const auth = betterAuth({
 
 export const oauthResourceClient = oauthProviderResourceClient(auth);
 ```
+
+### Cookies, client IP and step-up checks
+
+`secureCookieOptions` returns Better Auth `advanced` settings: a
+`__Host-` session cookie over https (or `__Secure-` when
+`crossSubDomainCookies` is enabled, since `__Host-` forbids `Domain`), plain
+names over http. Products that pick credentials by cookie name can call
+`sessionCookieName(advanced)` for the exact name.
+
+Client IP. Set Express's trust proxy, then mount the middleware before Better
+Auth's handler so Better Auth never reads `X-Forwarded-For`:
+
+```ts
+import {
+    createClientIpMiddleware,
+    parseTrustProxy,
+} from "@codelitdev/oauth-server-kit/express";
+
+app.set("trust proxy", parseTrustProxy(process.env.TRUST_PROXY));
+app.use(createClientIpMiddleware({ header: "x-client-ip" }));
+app.all("/api/auth/*", toNodeHandler(auth));
+```
+
+Step-up checks. Session identities from `resolveBetterAuthSession` carry
+`authenticatedAt`; the product decides which actions need a recent sign-in:
+
+```ts
+if (!isRecentlyAuthenticated(identity, { maxAgeMs: 10 * 60 * 1000 })) {
+    return response.status(403).json({ error: "recent_sign_in_required" });
+}
+```
+
+Limitation: under `__Host-` the OAuth provider's logout-confirmation cookie
+(path `/api/auth/oauth2/end-session/confirm`) is rejected by browsers; see the
+README.
 
 ### MCP client registration with CIMD
 

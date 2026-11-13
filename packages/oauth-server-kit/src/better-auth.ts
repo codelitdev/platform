@@ -10,6 +10,8 @@ export type BetterAuthSession = {
   session: {
     id: string;
     expiresAt: Date;
+    /** When the session was created, i.e. when the user signed in. */
+    createdAt: Date | string;
   };
 };
 
@@ -59,6 +61,7 @@ export async function resolveBetterAuthSession(
         email: session.user.email,
         name: session.user.name,
         scopes: [],
+        authenticatedAt: new Date(session.session.createdAt),
       },
     };
   } catch (cause) {

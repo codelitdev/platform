@@ -8,6 +8,8 @@ export type AuthenticatedIdentity =
       email: string;
       name?: string | null;
       scopes: [];
+      /** When the session was created (the sign-in time), for step-up checks. */
+      authenticatedAt: Date;
     }
   | {
       method: "oauth";

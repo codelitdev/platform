@@ -1,9 +1,16 @@
 import { oauthProvider } from "@better-auth/oauth-provider";
-import { createOAuthProviderOptions } from "@codelitdev/oauth-server-kit/better-auth";
+import {
+  createOAuthProviderOptions,
+  secureCookieOptions,
+  secureEmailAndPasswordOptions,
+  secureSessionOptions,
+  sessionCookieName,
+} from "@codelitdev/oauth-server-kit/better-auth";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { jwt } from "better-auth/plugins/jwt";
 
 export const AUTH_BASE_PATH = "/api/auth";
+export const AUTH_COOKIE_PREFIX = "reference-product";
 export const AUTH_SECRET_MIN_LENGTH = 32;
 
 export const DATA_READ_SCOPE = "data:read";
@@ -15,6 +22,15 @@ export const MCP_SCOPES_SUPPORTED = [
   DATA_WRITE_SCOPE,
   "offline_access",
 ] as const;
+
+/** Better Auth's `advanced` cookie options, plus the session cookie name they produce. */
+export function authCookieOptions(publicApiUrl: string) {
+  const advanced = secureCookieOptions({
+    baseURL: publicApiUrl,
+    cookiePrefix: AUTH_COOKIE_PREFIX,
+  });
+  return { advanced, sessionCookieName: sessionCookieName(advanced) };
+}
 
 export type ReferenceAuthUrls = {
   publicApiUrl: string;
@@ -76,8 +92,12 @@ export function referenceAuthOptions(input: {
     baseURL: urls.publicApiUrl,
     basePath: AUTH_BASE_PATH,
     secret: input.secret,
+    // `__Host-` session cookie over https; each product keeps its own prefix.
+    advanced: { ...authCookieOptions(urls.publicApiUrl).advanced },
+    // No cookie cache: a revoked session stops working immediately.
+    session: secureSessionOptions(),
     trustedOrigins: [urls.webOrigin, urls.publicApiUrl],
-    emailAndPassword: { enabled: false },
+    emailAndPassword: secureEmailAndPasswordOptions(),
     ...(input.database ? { database: input.database } : {}),
     plugins: [
       jwt(),

@@ -12,14 +12,22 @@ describe("public API", () => {
   it("exports only the documented Better Auth helpers", () => {
     expect(Object.keys(betterAuthEntry).sort()).toEqual([
       "createOAuthProviderOptions",
+      "isRecentlyAuthenticated",
       "resolveBetterAuthSession",
+      "secureCookieOptions",
+      "secureEmailAndPasswordOptions",
+      "secureSessionOptions",
+      "sessionCookieName",
     ]);
   });
 
   it("exports only the documented Express helpers", () => {
     expect(Object.keys(expressEntry).sort()).toEqual([
+      "DEFAULT_TRUST_PROXY",
+      "createClientIpMiddleware",
       "createOAuthBearerMiddleware",
       "createOAuthPagesRouter",
+      "parseTrustProxy",
     ]);
   });
 
