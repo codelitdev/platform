@@ -27,6 +27,11 @@ not enable it for a production deployment.
 Open `http://127.0.0.1:4000/docs` for the interactive Swagger UI, or fetch the
 generated OpenAPI document from `http://127.0.0.1:4000/openapi.json`.
 
+The REST API is an oRPC contract in `packages/api-contract`. The committed
+`apps/api/openapi.json` is generated from it with
+`bun run --filter @reference-product/api generate:openapi`. CI fails when the
+file is stale, and the release version step regenerates it (ADR 0017).
+
 In a second terminal, start the Next.js web app:
 
 ```bash

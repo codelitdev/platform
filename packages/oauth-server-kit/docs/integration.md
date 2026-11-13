@@ -237,11 +237,11 @@ Exchange the code with the original verifier and no client secret. Store
 refresh tokens in the OS secure credential store. Reject callback state or
 issuer mismatches, and never accept an unregistered redirect URI.
 
-## 4. REST API, including ts-rest
+## 4. REST API, including oRPC
 
-Mount the bearer middleware immediately before the protected router. ts-rest
-needs no package-specific adapter because it consumes ordinary Express
-middleware.
+Mount the bearer middleware immediately before the protected router. The
+oRPC handler needs no package-specific adapter because it runs as ordinary
+Express middleware after it.
 
 ```ts
 import { createOAuthBearerMiddleware } from "@codelitdev/oauth-server-kit/express";
@@ -252,7 +252,7 @@ const requireOAuth = createOAuthBearerMiddleware({
     audiences: [restResource],
 });
 
-app.use("/api", requireOAuth, tsRestRouter);
+app.use("/api", requireOAuth, orpcMiddleware);
 ```
 
 `request.auth` is a neutral session/OAuth identity only after successful

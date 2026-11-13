@@ -1,15 +1,24 @@
 import { createOAuthPagesRouter } from "@codelitdev/oauth-server-kit/express";
 import { createMcpOAuthDiscoveryRoutes } from "@codelitdev/oauth-server-kit/mcp";
-import { readOrCreateRequestId } from "@codelitdev/platform";
+import {
+  healthReport,
+  readinessReport,
+  readOrCreateRequestId,
+} from "@codelitdev/platform";
+import {
+  encodePlatformErrorBody,
+  isPublicErrorBody,
+  listOperationIds,
+} from "@codelitdev/platform/rest";
+import { OpenAPIHandler } from "@orpc/openapi/node";
+import { implement, ORPCError, onError } from "@orpc/server";
 import { contract } from "@reference-product/api-contract";
-import { createExpressEndpoints, initServer } from "@ts-rest/express";
 import { toNodeHandler } from "better-auth/node";
 import express, { type Express, type RequestHandler } from "express";
 import swaggerUi from "swagger-ui-express";
 import { AUTH_BASE_PATH, MCP_SCOPES_SUPPORTED } from "./auth/options.js";
 import type { DispatchDeps } from "./deps.js";
 import { dispatch } from "./dispatch.js";
-import { createOpenApiDocument } from "./openapi.js";
 
 export function createExpressApp(deps: DispatchDeps): Express {
   const app = express();
@@ -26,7 +35,7 @@ export function createExpressApp(deps: DispatchDeps): Express {
       deps.clock,
     );
     // Keep the generated correlation ID on the request as well as the
-    // response so ts-rest and the fallback dispatcher audit the same value.
+    // response so the oRPC handler and the fallback dispatcher audit the same value.
     req.headers["x-request-id"] = requestId;
     res.setHeader("X-Request-ID", requestId);
     const now = Date.now();
@@ -71,8 +80,9 @@ export function createExpressApp(deps: DispatchDeps): Express {
   app.use(
     "/docs",
     ...(swaggerUi.serve as unknown as RequestHandler[]),
-    swaggerUi.setup(createOpenApiDocument(deps.auth.publicApiUrl), {
+    swaggerUi.setup(undefined, {
       explorer: true,
+      swaggerUrl: "/openapi.json",
       swaggerOptions: {
         persistAuthorization: true,
         displayRequestDuration: true,
@@ -83,55 +93,7 @@ export function createExpressApp(deps: DispatchDeps): Express {
   );
   app.use(express.json({ limit: "32kb" }));
 
-  const server = initServer();
-  const forward = async (input: {
-    req: {
-      method: string;
-      path: string;
-      headers: Record<string, string | string[] | undefined>;
-      body?: unknown;
-    };
-    res: { setHeader(name: string, value: string): void };
-  }) => {
-    const response = await dispatch(deps, {
-      method: input.req.method,
-      path: input.req.path,
-      headers: input.req.headers,
-      body: input.req.body,
-    });
-    for (const [name, value] of Object.entries(response.headers ?? {})) {
-      input.res.setHeader(name, value);
-    }
-    return { status: response.status, body: response.body } as never;
-  };
-  const router = server.router(contract, {
-    health: forward,
-    ready: forward,
-    listNotes: forward,
-    createNote: forward,
-    updateNote: forward,
-    deleteNote: forward,
-    getEntitlement: forward,
-    listTenants: forward,
-    createTenant: forward,
-    selectTenant: forward,
-    listApiKeys: forward,
-    createApiKey: forward,
-    revokeApiKey: forward,
-    createInvitation: forward,
-    acceptInvitation: forward,
-    revokeInvitation: forward,
-  } as never);
-  createExpressEndpoints(contract, router, app, {
-    logInitialization: false,
-    responseValidation: true,
-    requestValidationErrorHandler: (_error, _req, res) => {
-      res.status(400).json({
-        code: "validation_failed",
-        message: "The request body is invalid.",
-      });
-    },
-  });
+  app.use(createRestHandler(deps));
   app.use(async (req, res, next) => {
     try {
       const requestId = readOrCreateRequestId(
@@ -185,4 +147,72 @@ export function createExpressApp(deps: DispatchDeps): Express {
     },
   );
   return app;
+}
+
+type RestContext = { req: express.Request; res: express.Response };
+
+/**
+ * Serves the oRPC contract. oRPC validates input and output against the
+ * contract; the handlers forward to `dispatch`, which owns authentication,
+ * tenancy and the product logic for both REST and the fallback routes.
+ * Requests the contract does not match fall through to the next middleware.
+ */
+function createRestHandler(deps: DispatchDeps): RequestHandler {
+  const os = implement(contract).$context<RestContext>();
+  const forward = async ({ context }: { context: RestContext }) => {
+    const { req, res } = context;
+    const response = await dispatch(deps, {
+      method: req.method,
+      path: req.path,
+      headers: req.headers as Record<string, string | string[] | undefined>,
+      body: req.body,
+    });
+    for (const [name, value] of Object.entries(response.headers ?? {})) {
+      res.setHeader(name, value);
+    }
+    if (response.status >= 400) {
+      if (!isPublicErrorBody(response.body)) {
+        throw new Error(`dispatch returned a non-platform error (${response.status})`);
+      }
+      throw new ORPCError(response.body.code, {
+        status: response.status,
+        data: { details: response.body.details },
+      });
+    }
+    return (response.body ?? undefined) as never;
+  };
+  const handlers: Record<string, unknown> = {};
+  for (const id of listOperationIds(contract)) {
+    handlers[id] = os[id as keyof typeof contract].handler(forward as never);
+  }
+  handlers.health = os.health.handler(() => healthReport(deps.serviceName, deps.clock));
+  handlers.ready = os.ready.handler(() => {
+    const report = readinessReport([{ name: "database", ready: deps.databaseReady }]);
+    if (report.status !== "ready") {
+      throw new ORPCError("not_ready", { status: 503, data: report });
+    }
+    return report;
+  });
+  const router = os.router(handlers as never);
+  const handler = new OpenAPIHandler(router, {
+    customErrorResponseBodyEncoder: encodePlatformErrorBody,
+    interceptors: [
+      // Expected 4xx results are thrown as ORPCError; report only failures,
+      // including output that does not match the contract.
+      onError((error) => {
+        if (error instanceof ORPCError && error.status < 500) return;
+        deps.observability?.captureException({ error, source: "rest" });
+      }),
+    ],
+  });
+  return async (req, res, next) => {
+    try {
+      const { matched } = await handler.handle(req, res, {
+        context: { req, res },
+      });
+      if (!matched) next();
+    } catch (error) {
+      next(error);
+    }
+  };
 }

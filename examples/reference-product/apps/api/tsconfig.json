@@ -6,9 +6,10 @@
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
+    "resolveJsonModule": true,
     "noEmit": true,
     "rootDir": ".",
     "types": ["node", "bun"]
   },
-  "include": ["src", "billing.config.ts"]
+  "include": ["src", "scripts/*.ts", "billing.config.ts"]
 }

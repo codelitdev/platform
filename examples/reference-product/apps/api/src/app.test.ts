@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { listOperationIds } from "@codelitdev/platform/rest";
 import { contract } from "@reference-product/api-contract";
 import { eq } from "drizzle-orm";
 import { createReferenceAuth } from "./auth/better-auth.js";
@@ -109,6 +110,72 @@ describe.serial("reference API adapters", () => {
     );
     expect(body.items.some((item) => item.id === world.noteA.publicId)).toBe(true);
     await runtime.close();
+  });
+
+  it("serves success statuses, 204 bodies, and validated output over HTTP", async () => {
+    const clock = freezeRuntimeClock(new Date("2026-03-01T00:00:00.000Z"));
+    const runtime = await createPgliteRuntime({ clock });
+    const world = await seedWorld(runtime, clock);
+    const app = createExpressApp(runtime);
+    const server = await new Promise<ReturnType<typeof app.listen>>((resolve) => {
+      const listening = app.listen(0, () => resolve(listening));
+    });
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("listen_failed");
+    const base = `http://127.0.0.1:${address.port}`;
+    const headers = {
+      "content-type": "application/json",
+      cookie: world.owner.sessionCookie,
+      "x-tenant-id": world.tenantA.publicId,
+    };
+    try {
+      const created = await fetch(`${base}/v1/notes`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ title: "Over HTTP" }),
+      });
+      expect(created.status).toBe(201);
+      const note = (await created.json()) as { id: string; body: string };
+      expect(note.body).toBe("");
+
+      const updated = await fetch(`${base}/v1/notes/${note.id}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ title: "Renamed" }),
+      });
+      expect(updated.status).toBe(200);
+      expect(await updated.json()).toMatchObject({ id: note.id, title: "Renamed" });
+
+      const key = await fetch(`${base}/v1/api-keys`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ permissions: [] }),
+      });
+      expect(key.status).toBe(201);
+      const { publicId } = (await key.json()) as { publicId: string };
+      const revoked = await fetch(`${base}/v1/api-keys/${publicId}`, {
+        method: "DELETE",
+        headers,
+      });
+      expect(revoked.status).toBe(204);
+      expect(await revoked.text()).toBe("");
+
+      const missing = await fetch(`${base}/v1/notes/does-not-exist`, {
+        method: "DELETE",
+        headers,
+      });
+      expect(missing.status).toBe(404);
+      expect(await missing.json()).toEqual({
+        code: "not_found",
+        message: "The requested resource was not found.",
+      });
+
+      const unknownRoute = await fetch(`${base}/v1/unknown`, { headers });
+      expect(unknownRoute.status).toBe(404);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+      await runtime.close();
+    }
   });
 
   it("supports one-time API-key creation, metadata listing, scoped revocation, and expiry", async () => {
@@ -304,7 +371,7 @@ describe.serial("reference API adapters", () => {
     const { createReferenceMcp } = await import("./mcp.js");
     const mcp = createReferenceMcp(runtime);
     const issues = validateParityManifest([...mcpParityManifest], {
-      restOperationIds: new Set(Object.keys(contract)),
+      restOperationIds: new Set(listOperationIds(contract)),
       mcpToolNames: new Set(mcp.listTools().map((tool) => tool.name)),
       mcpToolRisks: new Map(
         mcp.listTools().map((tool) => [tool.name, tool.risk] as const),
@@ -497,7 +564,7 @@ describe.serial("reference API adapters", () => {
     await runtime.close();
   });
 
-  it("mounts the shared contract through the Express ts-rest adapter", async () => {
+  it("serves the oRPC contract through Express with platform error bodies", async () => {
     const runtime = await createPgliteRuntime({
       clock: freezeRuntimeClock(new Date("2026-03-01T00:00:00.000Z")),
     });
@@ -522,7 +589,27 @@ describe.serial("reference API adapters", () => {
       `http://127.0.0.1:${address.port}/docs/swagger-ui-init.js`,
     );
     expect(docsInitializer.status).toBe(200);
-    expect(await docsInitializer.text()).toContain('"/v1/notes"');
+    expect(await docsInitializer.text()).toContain('"/openapi.json"');
+    const base = `http://127.0.0.1:${address.port}`;
+    const unauthenticated = await fetch(`${base}/v1/notes`);
+    expect(unauthenticated.status).toBe(401);
+    expect(await unauthenticated.json()).toEqual({
+      code: "unauthenticated",
+      message: "Authentication is required.",
+    });
+    const invalid = await fetch(`${base}/v1/notes`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "" }),
+    });
+    expect(invalid.status).toBe(400);
+    expect(await invalid.json()).toEqual({
+      code: "validation_failed",
+      message: "The request is invalid.",
+    });
+    const ready = await fetch(`${base}/ready`);
+    expect(ready.status).toBe(200);
+    expect(await ready.json()).toMatchObject({ status: "ready" });
     const protectedResource = await fetch(
       `http://127.0.0.1:${address.port}/.well-known/oauth-protected-resource/mcp`,
     );

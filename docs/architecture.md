@@ -9,7 +9,7 @@ Package manager and runtime: Bun
 CodeLit Platform is the reusable application kernel and bootstrap system for CodeLit SaaS products. It lets products share a proven implementation of:
 
 - TypeScript monorepo and build conventions.
-- Express and ts-rest APIs with generated OpenAPI.
+- Express APIs defined by an oRPC contract, with a generated and committed OpenAPI document (ADR 0017).
 - Better Auth and @codelitdev/oauth-server-kit.
 - Tenant selection, membership, API-key, and authorization conventions.
 - REST and MCP parity over common application services.
@@ -74,7 +74,7 @@ Auth, MCP, observability, and billing improvements arrive as package releases. M
 
 REST routes and MCP tools call the same framework-independent application service:
 
-    web/API client -> ts-rest adapter --+
+    web/API client -> oRPC handler -----+
                                        +-> application service -> authorization
     MCP client     -> MCP adapter -----+                       -> repositories
                                                                -> audit/outbox
@@ -367,7 +367,7 @@ The extraction must not copy product event names, context allowlists, environmen
 The preset ships inside @codelitdev/platform-cli as `src/preset.json` (ADR 0006). It is a tested compatibility bill of materials pinning:
 
 - Exact compatible releases of the independently versioned Platform workspace packages and selected external peers such as dodopayments.
-- Express, ts-rest, Zod, Better Auth, Drizzle, MCP SDK, Pino, Bun test, and PGlite.
+- Express, oRPC, Zod, Better Auth, Drizzle, MCP SDK, Pino, Bun test, and PGlite.
 - Supported Bun, TypeScript, Next.js, and React lines.
 
 Products depend on individual packages; CI verifies that resolved versions match one preset. The preset has no runtime code.
@@ -473,9 +473,9 @@ A managed file may be replaced only when its current hash matches the hash recor
 
 The completed reference product is the executable specification:
 
-- apps/api: Express, ts-rest, OpenAPI, Better Auth, Drizzle/PostgreSQL, REST, MCP, Pino, optional PostHog, and worker entry point.
+- apps/api: Express, oRPC, OpenAPI, Better Auth, Drizzle/PostgreSQL, REST, MCP, Pino, optional PostHog, and worker entry point.
 - apps/web: Next.js admin shell, hosted sign-in redirect, session validation against the API, tenant switcher, and one resource screen.
-- packages/api-contract: shared Zod and ts-rest contract.
+- packages/api-contract: shared Zod schemas and the oRPC contract.
 - Tenant, membership, invitation, API-key, audit-event, and example-resource models.
 - Official @codelitdev/billing example with billing.config.ts, committed billing.generated.ts, application-owned Drizzle migration, createBilling composition, fake provider, action-grant adapter, audit/product-effect hooks, and worker maintenance entry point.
 - PGlite integration tests and Docker Compose for PostgreSQL.
@@ -583,7 +583,7 @@ Standard server order:
 3. Security headers, body limits, and rate limiting.
 4. Authentication.
 5. Tenant resolution and membership.
-6. ts-rest adapter or MCP transport.
+6. oRPC handler or MCP transport.
 7. Product service and transaction.
 8. Sanitized error capture.
 9. Final error response.
@@ -707,7 +707,7 @@ Exit: repository history disposition is recorded, blocking ADRs are accepted, an
 - Implement @codelitdev/platform's context, error, lifecycle, audit, ID, and safe transport-mapping contracts.
 - Create `examples/reference-product/apps/api`, `apps/web`, and `packages/api-contract` without creating the distributable template yet.
 - Implement Better Auth schema generation, OAuth composition, cross-subdomain session cookies, tenant selection, memberships, invitations, API keys, audit events, and the credential-precedence rules in section 8.
-- Add one tenant-owned example resource through ts-rest/OpenAPI and a Pino-stdout-only baseline.
+- Add one tenant-owned example resource through the oRPC contract and OpenAPI and a Pino-stdout-only baseline.
 - Integrate @codelitdev/billing through packed public exports, a committed generated schema, an application-owned migration, fake provider, action grants, audit/product-effect hooks, and bounded maintenance invocation.
 - Add PGlite tests, Docker Compose PostgreSQL, migration drift checks, and public-API reports.
 
@@ -779,7 +779,7 @@ Required tests:
 - Ambiguous/invalid credential rejection with no fallback, and proof that an API key cannot select another tenant.
 - API-key one-time display, digest verification, expiry, rotation overlap, immediate revocation, permission subsets, and log redaction.
 - Invitation expiry, resend invalidation, email mismatch, consume-once concurrency, membership idempotency, auditing, and last-owner protection.
-- ts-rest runtime/OpenAPI consistency.
+- oRPC runtime/OpenAPI consistency, and a committed `openapi.json` that matches the contract.
 - MCP session, auth, cancellation, and parity.
 - PostHog absent/configured/failing, idempotent initialization, and timeout-bounded flush/shutdown.
 - Exception redaction, product property allowlists, bounded dedupe state, per-source rate caps, and manual-versus-SDK double-capture prevention.
@@ -812,7 +812,7 @@ Security requirements:
 - Every credential kind passes tenant-isolation conformance.
 - Better Auth and billing schema generation are deterministic and application migrations remain application-owned.
 - Credential precedence, API-key lifecycle, invitations, tenant selection, and last-owner invariants pass security conformance.
-- OpenAPI comes from the runtime ts-rest contract.
+- OpenAPI comes from the oRPC contract and is committed as `apps/api/openapi.json`; CI and conformance fail when it is stale.
 - Optional PostHog is redacted, bounded, and failure-isolated.
 - The reference app consumes the preset-pinned official billing package using public exports, a checked-in generated schema, and application-owned migration.
 - Billing action grants, audit/product-effect hooks, fake-provider Cloud/OSS behavior, and maintenance invocation pass composition conformance.

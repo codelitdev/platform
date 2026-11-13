@@ -8,6 +8,7 @@ type Tenant = { id: string; publicId: string };
 function memoryAdapter(options: {
   mcp?: boolean;
   challenge?: string | null;
+  committedOpenApiCurrent?: boolean;
 }): PlatformConformanceAdapter<
   Principal,
   Tenant,
@@ -153,6 +154,7 @@ function memoryAdapter(options: {
       return {
         paths: { "/v1/notes": { get: { operationId: "listNotes" } } },
         contractOperationIds: ["listNotes", "createNote", "updateNote", "deleteNote"],
+        committedDocumentCurrent: options.committedOpenApiCurrent ?? true,
       };
     },
     observability: {
@@ -215,6 +217,18 @@ describe("runPlatformConformance", () => {
       shutdown: true,
     });
     expect(result.failures).toEqual([]);
+  });
+
+  it("fails OpenAPI conformance when the committed document is stale", async () => {
+    const result = await runPlatformConformance(
+      memoryAdapter({ committedOpenApiCurrent: false }),
+      { openapi: true },
+    );
+    expect(result.failures).toContainEqual({
+      suite: "openapi",
+      message:
+        "committed openapi.json does not match the contract; run generate:openapi",
+    });
   });
 
   it("fails MCP conformance when the unauthenticated response omits the bearer challenge", async () => {

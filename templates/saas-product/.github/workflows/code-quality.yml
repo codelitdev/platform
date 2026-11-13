@@ -26,6 +26,9 @@ jobs:
         if: ${{ !hashFiles('bun.lock') }}
       - run: bun install --frozen-lockfile
       - run: bun run lint
+      # Hosted docs serve the committed apps/api/openapi.json; fail when the
+      # contract changed without regenerating it (`bun run generate:openapi`).
+      - run: bun run check:openapi
       - run: bun run typecheck
       - run: bun run test
       - run: bun run build
