@@ -16,6 +16,7 @@ export function createBillingFrom(
   extras: {
     authorization?: MemoryAuthorizationPort;
     audit?: MemoryAuditHook;
+    planFeatures?: Record<string, readonly string[]>;
   } = {},
 ) {
   return createBilling({
@@ -29,6 +30,7 @@ export function createBillingFrom(
     requestedRevision: offers[0]!.revision,
     requiredOfferKeys: [...COURSELIT_OFFER_KEYS],
     offers,
+    planFeatures: extras.planFeatures,
     returnUrlValidator: (url) => url.startsWith("https://app.test/"),
   });
 }
@@ -38,6 +40,7 @@ export function createWorkflowHarness(
   options: {
     seedLocalCatalog?: boolean;
     offers?: BillingOffer[];
+    planFeatures?: Record<string, readonly string[]>;
   } = {},
 ) {
   const clock = frozenClock(now);
@@ -67,6 +70,7 @@ export function createWorkflowHarness(
     requestedRevision: offers[0]!.revision,
     requiredOfferKeys: [...COURSELIT_OFFER_KEYS],
     offers,
+    planFeatures: options.planFeatures,
     returnUrlValidator: (url) => url.startsWith("https://app.test/"),
   });
   return {
