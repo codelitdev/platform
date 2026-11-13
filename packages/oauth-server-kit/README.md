@@ -31,12 +31,19 @@ import {
 
 import {
     createOAuthProviderOptions,
+    isRecentlyAuthenticated,
     resolveBetterAuthSession,
+    secureCookieOptions,
+    secureEmailAndPasswordOptions,
+    secureSessionOptions,
+    sessionCookieName,
 } from "@codelitdev/oauth-server-kit/better-auth";
 
 import {
+    createClientIpMiddleware,
     createOAuthBearerMiddleware,
     createOAuthPagesRouter,
+    parseTrustProxy,
 } from "@codelitdev/oauth-server-kit/express";
 
 import { createMcpOAuthDiscoveryRoutes } from "@codelitdev/oauth-server-kit/mcp";
@@ -57,8 +64,32 @@ application.
 - Ordinary-login redirects are restricted to configured origins.
 - Hosted pages reject framing and clear configured stale host-only cookies at
   both `/login` and `/oauth/login`.
+- Session cookies are `__Host-<prefix>.session_token` (Secure, `Path=/`, no
+  `Domain`) over https through `secureCookieOptions`; with cross-subdomain
+  cookies they stay `__Secure-`, and over http (local dev) they are plain.
+  Products keep their own `cookiePrefix` and pass it to the helper.
+- `secureSessionOptions()` turns the session cookie cache off, so a revoked
+  session stops working on the next request.
+- `secureEmailAndPasswordOptions()` keeps password sign-up off; a product
+  that opts in with `{ enabled: true }` also requires a verified email before
+  sign-in, so nobody can claim an address they don't own.
+- `createClientIpMiddleware` resolves the client address from a trusted proxy
+  chain (`req.ip`, which ignores the attacker-controlled left of
+  `X-Forwarded-For`) into an internal header, and `secureCookieOptions`'
+  `clientIpHeader` makes Better Auth read only that header.
+- Session identities carry `authenticatedAt`; `isRecentlyAuthenticated`
+  supports step-up checks. OAuth identities never count as recent.
 - Product claims such as `team_id`, roles, or permissions are not returned as
   trusted package identity fields.
+
+Known limitation: `@better-auth/oauth-provider`'s RP-initiated logout
+confirmation cookie (`<session cookie>.oauth_logout_confirmation`) is set on
+`/api/auth/oauth2/end-session/confirm`. Browsers reject a `__Host-` cookie with a
+path other than `/`, so under `__Host-` that confirmation step (shown when an
+OAuth client calls end-session without a valid `id_token_hint`) cannot complete.
+Neither the plugin options nor `advanced.cookies` can change that cookie's name
+or path. Use cross-subdomain mode (`__Secure-`) if a product needs the flow.
+See [ADR 0018](../../docs/decisions/0018-secure-session-cookies-and-client-ip.md).
 
 See [docs/integration.md](docs/integration.md) for full web, mobile, REST, and
 MCP setup, and [docs/architecture.md](docs/architecture.md) for the normative

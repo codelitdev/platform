@@ -22,6 +22,7 @@ describe("resolveBetterAuthSession", () => {
       session: {
         id: "session_1",
         expiresAt: new Date(Date.now() + 1000),
+        createdAt: new Date("2026-03-01T12:00:00.000Z"),
       },
     });
     const headers = new Headers({ cookie: "session=value" });
@@ -36,6 +37,7 @@ describe("resolveBetterAuthSession", () => {
         email: "a@example.com",
         name: "A",
         scopes: [],
+        authenticatedAt: new Date("2026-03-01T12:00:00.000Z"),
       },
     });
     expect(auth.api.getSession).toHaveBeenCalledWith({ headers });

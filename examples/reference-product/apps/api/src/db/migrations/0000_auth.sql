@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS "session" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "account" (
   id text PRIMARY KEY,
-  "issuer" text NOT NULL,
   "account_id" text NOT NULL,
   "provider_id" text NOT NULL,
   "user_id" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,

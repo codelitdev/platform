@@ -3,7 +3,12 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import * as authSchema from "../db/schema/auth.generated.js";
 import type { AppDb } from "../types.js";
-import { AUTH_BASE_PATH, authUrls, referenceAuthOptions } from "./options.js";
+import {
+  AUTH_BASE_PATH,
+  authCookieOptions,
+  authUrls,
+  referenceAuthOptions,
+} from "./options.js";
 
 export function createReferenceAuth(input: {
   db: AppDb;
@@ -32,6 +37,7 @@ export function createReferenceAuth(input: {
     oauthResourceClient,
     ...urls,
     authBasePath: AUTH_BASE_PATH,
+    sessionCookieName: authCookieOptions(input.publicApiUrl).sessionCookieName,
   };
 }
 

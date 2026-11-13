@@ -33,7 +33,9 @@ export async function authenticateHttpRequest(
   headers: HeaderMap,
   deps: AuthRuntime,
 ): Promise<AuthenticationResult<string>> {
-  const selected = selectHttpCredential(headers);
+  const selected = selectHttpCredential(headers, {
+    sessionCookieName: deps.auth.sessionCookieName,
+  });
   if (selected.kind === "absent") {
     return mapTransportAuthentication({ kind: "absent" }, { transport: "http" });
   }
