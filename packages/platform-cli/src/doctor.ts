@@ -2,7 +2,11 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { sha256File } from "./hash.js";
 import { readManifest } from "./manifest.js";
-import { loadPresetManifest, validateResolvedVersions } from "./preset.js";
+import {
+  compareVersions,
+  loadPresetManifest,
+  validateResolvedVersions,
+} from "./preset.js";
 
 export type DoctorReport = {
   ok: boolean;
@@ -95,6 +99,15 @@ export function resolveCodelitVersions(
 ): Record<string, string> {
   const resolved: Record<string, string> = {};
   const names = managedNames ? new Set(managedNames) : undefined;
+  // Several manifests can declare the same package (for example the API and
+  // the contract both depend on @codelitdev/platform). Keep the lowest
+  // version so a vulnerable one is never hidden by directory read order.
+  const record = (name: string, version: string) => {
+    const current = resolved[name];
+    if (current === undefined || compareVersions(version, current) < 0) {
+      resolved[name] = version;
+    }
+  };
   for (const pkgPath of collectPackageJsonFiles(root)) {
     const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as {
       dependencies?: Record<string, string>;
@@ -108,11 +121,11 @@ export function resolveCodelitVersions(
         const version = (
           JSON.parse(readFileSync(installed, "utf8")) as { version: string }
         ).version;
-        resolved[name] = version;
+        record(name, version);
         continue;
       }
       if (spec.startsWith("workspace:")) continue;
-      resolved[name] = spec.replace(/^[\^~]/, "");
+      record(name, spec.replace(/^[\^~]/, ""));
     }
   }
   return resolved;
