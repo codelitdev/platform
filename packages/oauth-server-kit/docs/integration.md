@@ -110,6 +110,13 @@ app.use(createClientIpMiddleware({ header: "x-client-ip" }));
 app.all("/api/auth/*", toNodeHandler(auth));
 ```
 
+`TRUST_PROXY` defaults to private networks (`loopback, linklocal,
+uniquelocal`). Set it to your proxies' actual addresses or subnet when clients
+can also reach the app from a private network. This is the approach Better
+Auth recommends for `ipAddressHeaders` (list only a header your server sets,
+replacing any client value); its own `ipAddress.trustedProxies` is not needed
+alongside it.
+
 Step-up checks. Session identities from `resolveBetterAuthSession` carry
 `authenticatedAt`; the product decides which actions need a recent sign-in:
 

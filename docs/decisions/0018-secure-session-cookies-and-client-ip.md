@@ -12,6 +12,11 @@ own config.
 
 ## Decision
 
+- Better Auth 1.7.16 or later is required (peer floor): it fixes revoked
+  sessions outliving the cookie cache on sensitive routes, OTP attempt-limit
+  races, and unverified OAuth emails counting as verified (GHSA-fvxx-76fc-893x,
+  GHSA-2f9c-7xj7-gh55, GHSA-9hm7-xhfp-cx58). The kit is tested on 1.7.22.
+
 - Session cookies default to `__Host-<prefix>.session_token` over https
   (Secure, `Path=/`, no `Domain`) so a sibling subdomain cannot plant or
   shadow them. Better Auth only knows `__Secure-`, so `__Host-` is folded into
@@ -28,6 +33,11 @@ own config.
   `trust proxy` (`parseTrustProxy`), `createClientIpMiddleware` writes `req.ip`
   (which walks `X-Forwarded-For` from the right) into an internal header,
   overwriting client input, and Better Auth is told to read only that header.
+  The default trusted proxies are private networks; products whose clients
+  can reach them from a private network set `TRUST_PROXY` to the real proxy
+  subnet. The same internal header also feeds product rate limiting, so one
+  resolution serves Better Auth and the product (rather than Better Auth's
+  own `ipAddress.trustedProxies`, which only Better Auth would use).
 - Session identities expose `authenticatedAt` (the session's `createdAt`) and
   `isRecentlyAuthenticated` supports step-up checks. Products decide which
   actions need it; OAuth identities never count.

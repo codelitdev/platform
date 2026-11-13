@@ -6,6 +6,7 @@ import {
   secureSessionOptions,
   sessionCookieName,
 } from "@codelitdev/oauth-server-kit/better-auth";
+import type { BetterAuthOptions } from "better-auth";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { jwt } from "better-auth/plugins/jwt";
 
@@ -84,7 +85,7 @@ export function referenceAuthOptions(input: {
   publicApiUrl: string;
   secret: string;
   webOrigin?: string;
-  database?: unknown;
+  database?: BetterAuthOptions["database"];
 }) {
   const urls = authUrls(input.publicApiUrl, input.webOrigin);
   return {

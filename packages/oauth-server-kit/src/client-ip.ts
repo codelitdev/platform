@@ -1,6 +1,12 @@
 import type { RequestHandler } from "express";
 
-/** Private networks: the cluster and local development. */
+/**
+ * Private networks: the cluster and local development. Fine when clients come
+ * from the public internet. If clients can reach the app from a private
+ * network too, set `TRUST_PROXY` to your proxies' actual addresses or subnet,
+ * or those clients could forge their address (Better Auth gives the same
+ * advice for its own `trustedProxies`).
+ */
 export const DEFAULT_TRUST_PROXY = "loopback, linklocal, uniquelocal";
 
 /**
