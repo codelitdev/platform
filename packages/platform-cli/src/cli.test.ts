@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createProduct } from "./create.js";
-import { doctor } from "./doctor.js";
+import { doctor, resolveCodelitVersions } from "./doctor.js";
 import { sha256File } from "./hash.js";
 import { readManifest, writeManifest } from "./manifest.js";
 import { syncProduct } from "./sync.js";
@@ -222,6 +222,25 @@ describe("platform-cli", () => {
     expect(migrated.templateVersion).toBeUndefined();
     expect(migrated.presetVersion).toBeUndefined();
     expect(Object.keys(migrated.managedFiles)).not.toContain("legacy/managed.txt");
+  });
+
+  it("reports the lowest version when several manifests declare a package", () => {
+    const parent = mkdtempSync(path.join(tmpdir(), "cli-doctor-"));
+    const target = path.join(parent, "acme");
+    createProduct({ targetDir: target, productName: "Acme" });
+    // apps/api still declares the recommended version; only the contract is low.
+    writeFileSync(
+      path.join(target, "packages", "api-contract", "package.json"),
+      JSON.stringify(
+        { name: "acme-contract", dependencies: { "@codelitdev/platform": "0.0.1" } },
+        null,
+        2,
+      ),
+    );
+    expect(resolveCodelitVersions(target)["@codelitdev/platform"]).toBe("0.0.1");
+    expect(doctor(target).issues).toContain(
+      "below_minimum_secure:@codelitdev/platform",
+    );
   });
 
   it("fails doctor when a resolved @codelitdev package is below minimumSecure", () => {

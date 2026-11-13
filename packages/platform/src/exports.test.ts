@@ -9,7 +9,13 @@ describe("public exports", () => {
     ) as {
       exports: Record<string, { import: string; types: string }>;
     };
-    expect(Object.keys(pkg.exports)).toEqual([".", "./billing", "./billing/drizzle"]);
+    expect(Object.keys(pkg.exports)).toEqual([
+      ".",
+      "./billing",
+      "./billing/drizzle",
+      "./rest",
+    ]);
+    expect(pkg.exports["./rest"].import).toBe("./dist/rest/index.js");
     expect(pkg.exports["."].import).toBe("./dist/index.js");
     expect(pkg.exports["."].types).toBe("./dist/index.d.ts");
     expect(pkg.exports["./billing"].import).toBe("./dist/billing/index.js");

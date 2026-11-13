@@ -29,6 +29,11 @@
       "types": "./dist/billing/drizzle.d.ts",
       "import": "./dist/billing/drizzle.js",
       "default": "./dist/billing/drizzle.js"
+    },
+    "./rest": {
+      "types": "./dist/rest/index.d.ts",
+      "import": "./dist/rest/index.js",
+      "default": "./dist/rest/index.js"
     }
   },
   "files": [

@@ -75,7 +75,7 @@ export async function dispatch(
     if (request.method === "GET" && path === "/openapi.json") {
       return {
         status: 200,
-        body: createOpenApiDocument(deps.auth.publicApiUrl),
+        body: await createOpenApiDocument(deps.auth.publicApiUrl),
       };
     }
 

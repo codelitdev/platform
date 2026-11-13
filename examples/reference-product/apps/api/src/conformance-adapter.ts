@@ -1,10 +1,13 @@
+import { readFile } from "node:fs/promises";
 import { createObservability, redactText } from "@codelitdev/observability";
+import { listOperationIds, serializeOpenApiDocument } from "@codelitdev/platform/rest";
 import { runPlatformConformance } from "@codelitdev/platform-conformance";
 import { contract } from "@reference-product/api-contract";
 import { eq } from "drizzle-orm";
 import { runBoundedMaintenance } from "./billing.js";
 import { mcpFor } from "./dispatch.js";
 import { createExpressApp } from "./express-app.js";
+import { createOpenApiDocument } from "./openapi.js";
 import type { Runtime } from "./runtime.js";
 import type { SeededWorld } from "./seed.js";
 
@@ -156,8 +159,16 @@ export function createReferenceConformanceAdapter(
         headers: {},
       });
       const document = response.body as { paths: Record<string, unknown> };
-      const contractOperationIds = Object.keys(contract);
-      return { paths: document.paths, contractOperationIds };
+      const generated = await createOpenApiDocument();
+      const committed = await readFile(
+        new URL("../openapi.json", import.meta.url),
+        "utf8",
+      ).catch(() => undefined);
+      return {
+        paths: document.paths,
+        contractOperationIds: listOperationIds(contract),
+        committedDocumentCurrent: committed === serializeOpenApiDocument(generated),
+      };
     },
     observability: {
       async redact(secret: string) {

@@ -34,8 +34,16 @@ export type PlatformConformanceAdapter<
   mcp?(input: McpInput): Promise<McpOutput>;
   readAuditEvents(): Promise<readonly AuditEvent[]>;
   openapiDocument?(): Promise<{
+    /** Paths of the document the running API serves. */
     paths: Record<string, unknown>;
+    /** Operation ids from the contract, e.g. via `listOperationIds`. */
     contractOperationIds: readonly string[];
+    /**
+     * Whether the committed `openapi.json` equals the document generated from
+     * the contract (`generate:openapi --check` passes). Hosted docs serve the
+     * committed file, so a stale one publishes the wrong API.
+     */
+    committedDocumentCurrent: boolean;
   }>;
   observability?: {
     redact(secret: string): Promise<string>;

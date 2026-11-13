@@ -1,7 +1,6 @@
-import { initContract } from "@ts-rest/core";
+import { platformErrors } from "@codelitdev/platform/rest";
+import { oc } from "@orpc/contract";
 import { z } from "zod";
-
-const c = initContract();
 
 export const platformErrorSchema = z.object({
   code: z.enum([
@@ -79,178 +78,149 @@ export const invitationSchema = z.object({
   token: z.string().optional(),
 });
 
-export const contract = c.router({
-  health: {
-    method: "GET",
-    path: "/health",
-    responses: { 200: healthResponseSchema },
-    summary: "Liveness",
-  },
-  ready: {
-    method: "GET",
-    path: "/ready",
-    responses: { 200: readinessResponseSchema, 503: readinessResponseSchema },
-    summary: "Readiness",
-  },
-  listNotes: {
-    method: "GET",
-    path: "/v1/notes",
-    responses: {
-      200: z.object({ items: z.array(noteSchema) }),
-      400: platformErrorSchema,
-      401: platformErrorSchema,
-      403: platformErrorSchema,
-    },
-  },
-  createNote: {
-    method: "POST",
-    path: "/v1/notes",
-    body: createNoteBodySchema,
-    responses: {
-      201: noteSchema,
-      400: platformErrorSchema,
-      401: platformErrorSchema,
-      403: platformErrorSchema,
-    },
-  },
-  updateNote: {
-    method: "PATCH",
-    path: "/v1/notes/:noteId",
-    pathParams: z.object({ noteId: z.string() }),
-    body: updateNoteBodySchema,
-    responses: {
-      200: noteSchema,
-      400: platformErrorSchema,
-      401: platformErrorSchema,
-      403: platformErrorSchema,
-      404: platformErrorSchema,
-    },
-  },
-  deleteNote: {
-    method: "DELETE",
-    path: "/v1/notes/:noteId",
-    pathParams: z.object({ noteId: z.string() }),
-    responses: {
-      200: z.object({ id: z.string() }),
-      400: platformErrorSchema,
-      401: platformErrorSchema,
-      403: platformErrorSchema,
-      404: platformErrorSchema,
-    },
-  },
-  getEntitlement: {
-    method: "GET",
-    path: "/v1/billing/entitlement",
-    responses: {
-      200: entitlementSchema,
-      400: platformErrorSchema,
-      401: platformErrorSchema,
-      403: platformErrorSchema,
-    },
-  },
-  listTenants: {
-    method: "GET",
-    path: "/v1/tenants",
-    responses: {
-      200: z.object({ items: z.array(tenantSchema) }),
-      401: platformErrorSchema,
-      403: platformErrorSchema,
-    },
-  },
-  createTenant: {
-    method: "POST",
-    path: "/v1/tenants",
-    body: z.object({ name: z.string().min(1).max(200) }),
-    responses: {
-      201: tenantSchema,
-      400: platformErrorSchema,
-      401: platformErrorSchema,
-    },
-  },
-  selectTenant: {
-    method: "POST",
-    path: "/api/tenant/select",
-    body: z.object({ tenantId: z.string().min(1) }),
-    responses: {
-      204: z.undefined(),
-      400: platformErrorSchema,
-      401: platformErrorSchema,
-      403: platformErrorSchema,
-    },
-  },
-  listApiKeys: {
-    method: "GET",
-    path: "/v1/api-keys",
-    responses: {
-      200: z.object({ items: z.array(apiKeySchema.omit({ raw: true })) }),
-      401: platformErrorSchema,
-      403: platformErrorSchema,
-    },
-  },
-  createApiKey: {
-    method: "POST",
-    path: "/v1/api-keys",
-    body: z.object({
-      permissions: z.array(z.string()).default([]),
-      expiresAt: z.string().datetime().optional(),
-    }),
-    responses: {
-      201: apiKeySchema.required({ raw: true }),
-      400: platformErrorSchema,
-      401: platformErrorSchema,
-      403: platformErrorSchema,
-    },
-  },
-  revokeApiKey: {
-    method: "DELETE",
-    path: "/v1/api-keys/:publicId",
-    pathParams: z.object({ publicId: z.string() }),
-    responses: {
-      204: z.undefined(),
-      401: platformErrorSchema,
-      403: platformErrorSchema,
-      404: platformErrorSchema,
-    },
-  },
-  createInvitation: {
-    method: "POST",
-    path: "/v1/invitations",
-    body: z.object({
-      email: z.string().email(),
-      role: z.string().min(1),
-      permissions: z.array(z.string()).default([]),
-    }),
-    responses: {
-      201: invitationSchema,
-      400: platformErrorSchema,
-      401: platformErrorSchema,
-      403: platformErrorSchema,
-    },
-  },
-  acceptInvitation: {
-    method: "POST",
-    path: "/v1/invitations/accept",
-    body: z.object({ token: z.string().min(1), email: z.string().email() }),
-    responses: {
-      200: z.object({ ok: z.literal(true), tenantId: z.string() }),
-      400: platformErrorSchema,
-      401: platformErrorSchema,
-      403: platformErrorSchema,
-      404: platformErrorSchema,
-    },
-  },
-  revokeInvitation: {
-    method: "DELETE",
-    path: "/v1/invitations/:invitationId",
-    pathParams: z.object({ invitationId: z.string() }),
-    responses: {
-      204: z.undefined(),
-      401: platformErrorSchema,
-      403: platformErrorSchema,
-      404: platformErrorSchema,
-    },
-  },
-});
+// Errors every authenticated route can return. Platform error codes keep the
+// public `{ code, message, details? }` body; see @codelitdev/platform/rest.
+const authenticated = platformErrors(
+  "unauthenticated",
+  "credential_ambiguous",
+  "forbidden",
+  "rate_limited",
+);
+const tenantScoped = {
+  ...authenticated,
+  ...platformErrors("tenant_required", "tenant_forbidden"),
+};
+
+export const contract = {
+  health: oc
+    .route({ method: "GET", path: "/health", summary: "Liveness" })
+    .output(healthResponseSchema),
+  ready: oc
+    .route({ method: "GET", path: "/ready", summary: "Readiness" })
+    // Readiness reports keep their own body on 503 instead of a platform error.
+    .errors({ not_ready: { status: 503, data: readinessResponseSchema } })
+    .output(readinessResponseSchema),
+  listNotes: oc
+    .route({ method: "GET", path: "/v1/notes", summary: "List notes" })
+    .errors(tenantScoped)
+    .output(z.object({ items: z.array(noteSchema) })),
+  createNote: oc
+    .route({
+      method: "POST",
+      path: "/v1/notes",
+      successStatus: 201,
+      summary: "Create a note",
+    })
+    .errors({ ...tenantScoped, ...platformErrors("validation_failed") })
+    .input(createNoteBodySchema)
+    .output(noteSchema),
+  updateNote: oc
+    .route({ method: "PATCH", path: "/v1/notes/{noteId}", summary: "Update a note" })
+    .errors({ ...tenantScoped, ...platformErrors("validation_failed", "not_found") })
+    .input(updateNoteBodySchema.extend({ noteId: z.string() }))
+    .output(noteSchema),
+  deleteNote: oc
+    .route({ method: "DELETE", path: "/v1/notes/{noteId}", summary: "Delete a note" })
+    .errors({ ...tenantScoped, ...platformErrors("not_found") })
+    .input(z.object({ noteId: z.string() }))
+    .output(z.object({ id: z.string() })),
+  getEntitlement: oc
+    .route({
+      method: "GET",
+      path: "/v1/billing/entitlement",
+      summary: "Billing entitlement",
+    })
+    .errors(tenantScoped)
+    .output(entitlementSchema),
+  listTenants: oc
+    .route({ method: "GET", path: "/v1/tenants", summary: "List tenants" })
+    .errors(authenticated)
+    .output(z.object({ items: z.array(tenantSchema) })),
+  createTenant: oc
+    .route({
+      method: "POST",
+      path: "/v1/tenants",
+      successStatus: 201,
+      summary: "Create a tenant",
+    })
+    .errors({ ...authenticated, ...platformErrors("validation_failed") })
+    .input(z.object({ name: z.string().min(1).max(200) }))
+    .output(tenantSchema),
+  selectTenant: oc
+    .route({
+      method: "POST",
+      path: "/api/tenant/select",
+      successStatus: 204,
+      summary: "Select the session tenant",
+    })
+    .errors({ ...tenantScoped, ...platformErrors("validation_failed") })
+    .input(z.object({ tenantId: z.string().min(1) }))
+    .output(z.void()),
+  listApiKeys: oc
+    .route({ method: "GET", path: "/v1/api-keys", summary: "List API keys" })
+    .errors(tenantScoped)
+    .output(z.object({ items: z.array(apiKeySchema.omit({ raw: true })) })),
+  createApiKey: oc
+    .route({
+      method: "POST",
+      path: "/v1/api-keys",
+      successStatus: 201,
+      summary: "Create an API key",
+    })
+    .errors({ ...tenantScoped, ...platformErrors("validation_failed") })
+    .input(
+      z.object({
+        permissions: z.array(z.string()).default([]),
+        expiresAt: z.string().datetime().optional(),
+      }),
+    )
+    .output(apiKeySchema.required({ raw: true })),
+  revokeApiKey: oc
+    .route({
+      method: "DELETE",
+      path: "/v1/api-keys/{publicId}",
+      successStatus: 204,
+      summary: "Revoke an API key",
+    })
+    .errors({ ...tenantScoped, ...platformErrors("not_found") })
+    .input(z.object({ publicId: z.string() }))
+    .output(z.void()),
+  createInvitation: oc
+    .route({
+      method: "POST",
+      path: "/v1/invitations",
+      successStatus: 201,
+      summary: "Invite a member",
+    })
+    .errors({ ...tenantScoped, ...platformErrors("validation_failed") })
+    .input(
+      z.object({
+        email: z.string().email(),
+        role: z.string().min(1),
+        permissions: z.array(z.string()).default([]),
+      }),
+    )
+    .output(invitationSchema),
+  acceptInvitation: oc
+    .route({
+      method: "POST",
+      path: "/v1/invitations/accept",
+      summary: "Accept an invitation",
+    })
+    .errors({ ...authenticated, ...platformErrors("validation_failed", "not_found") })
+    .input(z.object({ token: z.string().min(1), email: z.string().email() }))
+    .output(z.object({ ok: z.literal(true), tenantId: z.string() })),
+  revokeInvitation: oc
+    .route({
+      method: "DELETE",
+      path: "/v1/invitations/{invitationId}",
+      successStatus: 204,
+      summary: "Revoke an invitation",
+    })
+    .errors({ ...tenantScoped, ...platformErrors("not_found") })
+    .input(z.object({ invitationId: z.string() }))
+    .output(z.void()),
+};
 
 export type Contract = typeof contract;
 export { mcpParityManifest } from "./mcp-parity.js";

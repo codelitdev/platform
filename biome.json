@@ -15,6 +15,7 @@
       "!**/migrations",
       "!**/node_modules",
       "!**/*.generated.ts",
+      "!**/apps/api/openapi.json",
       "!**/*.tgz",
       "!packages/design-system/public/r"
     ]

@@ -292,15 +292,18 @@ export async function runPlatformConformance(
   if (capabilities.openapi) {
     const document = await adapter.openapiDocument!();
     if (!document.paths["/v1/notes"]) {
-      fail("openapi", "ts-rest contract is missing /v1/notes");
+      fail("openapi", "OpenAPI document is missing /v1/notes");
     }
-    if (!document.contractOperationIds.includes("listNotes")) {
-      fail("openapi", "ts-rest contract is missing listNotes");
-    }
-    for (const operationId of ["createNote", "updateNote", "deleteNote"]) {
+    for (const operationId of ["listNotes", "createNote", "updateNote", "deleteNote"]) {
       if (!document.contractOperationIds.includes(operationId)) {
-        fail("openapi", `ts-rest contract is missing ${operationId}`);
+        fail("openapi", `API contract is missing ${operationId}`);
       }
+    }
+    if (document.committedDocumentCurrent !== true) {
+      fail(
+        "openapi",
+        "committed openapi.json does not match the contract; run generate:openapi",
+      );
     }
   }
 

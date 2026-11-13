@@ -45,7 +45,8 @@ function parseVersion(value: string): {
   };
 }
 
-function cmp(a: string, b: string): number {
+/** Orders two versions by SemVer precedence (negative when `a` is lower). */
+export function compareVersions(a: string, b: string): number {
   const pa = parseVersion(a);
   const pb = parseVersion(b);
   if (!pa || !pb) return a.localeCompare(b);
@@ -76,7 +77,7 @@ function satisfies(version: string, range: string): boolean {
     const match = /^(>=|<=|>|<|=)?(.+)$/.exec(clause);
     if (!match) return false;
     const relation = match[1] ?? "=";
-    const result = cmp(version, match[2]!);
+    const result = compareVersions(version, match[2]!);
     if (relation === ">=") return result >= 0;
     if (relation === "<=") return result <= 0;
     if (relation === ">") return result > 0;
@@ -93,10 +94,10 @@ function satisfies(version: string, range: string): boolean {
 function satisfiesCaret(version: string, pin: string): boolean {
   const v = parseVersion(version);
   const p = parseVersion(pin);
-  if (!v || !p) return cmp(version, pin) === 0;
+  if (!v || !p) return compareVersions(version, pin) === 0;
   if (v.major !== p.major) return false;
   if (p.major === 0 && v.minor !== p.minor) return false;
-  return cmp(version, pin) >= 0;
+  return compareVersions(version, pin) >= 0;
 }
 
 export type PresetIssue = {
@@ -134,7 +135,7 @@ export function validateResolvedVersions(
       });
       continue;
     }
-    if (cmp(version, pin.minimumSecure) < 0) {
+    if (compareVersions(version, pin.minimumSecure) < 0) {
       issues.push({
         packageName: name,
         reason: "below_minimum_secure",
