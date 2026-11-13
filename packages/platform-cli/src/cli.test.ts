@@ -238,7 +238,9 @@ describe("platform-cli", () => {
       ),
     );
     expect(resolveCodelitVersions(target)["@codelitdev/platform"]).toBe("0.0.1");
-    expect(doctor(target).issues).toContain("below_minimum_secure:@codelitdev/platform");
+    expect(doctor(target).issues).toContain(
+      "below_minimum_secure:@codelitdev/platform",
+    );
   });
 
   it("fails doctor when a resolved @codelitdev package is below minimumSecure", () => {
