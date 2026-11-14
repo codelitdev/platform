@@ -1,5 +1,11 @@
 # @codelitdev/platform-conformance
 
+## 0.12.0
+
+### Patch Changes
+
+- @codelitdev/platform@0.12.0
+
 ## 0.11.0
 
 ### Patch Changes

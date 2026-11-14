@@ -1,5 +1,12 @@
 # @codelitdev/platform
 
+## 0.12.0
+
+### Patch Changes
+
+- Updated dependencies [9c87a66]
+  - @codelitdev/billing@0.12.0
+
 ## 0.11.0
 
 ### Minor Changes
