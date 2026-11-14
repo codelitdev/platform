@@ -22,7 +22,10 @@ import type {
   SubscriptionSnapshot,
   VerifiedWebhookEnvelope,
 } from "../core/subscription.js";
-import { retainsPaidEntitlement } from "../core/subscription.js";
+import {
+  DEFAULT_ENTITLEMENT_GRACE_MS,
+  retainsPaidEntitlement,
+} from "../core/subscription.js";
 import {
   decideCheckoutTransition,
   decideCustomerTransition,
@@ -102,6 +105,20 @@ export type CreateBillingOptions = {
    * `hasFeature`; `oss` mode ignores it and grants every feature.
    */
   planFeatures?: Record<string, readonly string[]>;
+  /**
+   * Numeric allowances each paid plan includes, e.g.
+   * `{ pro: { storage_bytes: 20e9 }, business: { storage_bytes: null } }`
+   * (`null` is unlimited). Every plan must declare the same keys, and in cloud
+   * mode every plan of `offers` must be listed. Read with `getLimit`/`limits`;
+   * `oss` mode answers unlimited. The package never counts usage: the
+   * application compares its own counts against these numbers.
+   */
+  planLimits?: Record<string, Readonly<Record<string, number | null>>>;
+  /**
+   * How long a paid subscription stays entitled past its `paidThroughAt`
+   * (default seven days). Bounds the damage of a lost provider webhook.
+   */
+  entitlementGraceMs?: number;
   webhookRetrieveCurrent?: boolean;
   /** How long work may sit before `runReconciliationBatch` treats it as stuck. */
   reconciliation?: {
@@ -179,6 +196,14 @@ export function createBilling(options: CreateBillingOptions) {
       }
     }
   }
+  const entitlementGraceMs = options.entitlementGraceMs ?? DEFAULT_ENTITLEMENT_GRACE_MS;
+  if (!Number.isSafeInteger(entitlementGraceMs) || entitlementGraceMs < 0) {
+    throw new BillingCompositionError("entitlement_grace_invalid");
+  }
+  const planLimits = validatePlanLimits(options);
+  const limitKeys = new Set(
+    Object.values(planLimits).flatMap((limits) => Object.keys(limits)),
+  );
   const planFeatures = new Map<string, ReadonlySet<string>>(
     Object.entries(options.planFeatures ?? {}).map(([plan, features]) => [
       plan,
@@ -770,7 +795,7 @@ export function createBilling(options: CreateBillingOptions) {
       });
 
     const existingSub = await store.findEntitlementSubscription(input.entity.id);
-    if (existingSub && retainsPaidEntitlement(existingSub, clock.now())) {
+    if (existingSub && retainsPaidEntitlement(existingSub, clock.now(), entitlementGraceMs)) {
       throw new BillingWorkflowError("active_subscription_exists");
     }
     if (existingSub) {
@@ -789,7 +814,7 @@ export function createBilling(options: CreateBillingOptions) {
           const snapshot = await callProvider(() =>
             adapter.retrieveSubscription(session.subscriptionId!),
           );
-          if (retainsPaidEntitlement(snapshot, clock.now())) {
+          if (retainsPaidEntitlement(snapshot, clock.now(), entitlementGraceMs)) {
             await projectSnapshot(snapshot, {
               checkoutAttemptId: resumable.attemptId,
             });
@@ -1790,7 +1815,7 @@ export function createBilling(options: CreateBillingOptions) {
       ? pendingChange.targetOfferKey
       : (existing?.offerKey ?? attempt?.offerKey ?? price.offerKey);
     const now = clock.now();
-    const paid = retainsPaidEntitlement(snapshot, now);
+    const paid = retainsPaidEntitlement(snapshot, now, entitlementGraceMs);
     const currentSource = await store.findEntitlementSubscription(billableEntityId);
     if (paid && currentSource && currentSource.id !== existing?.id) {
       throw new BillingWorkflowError("operation_quarantined");
@@ -2441,7 +2466,7 @@ export function createBilling(options: CreateBillingOptions) {
     if (subscriptions.some((sub) => !["cancelled", "expired"].includes(sub.status))) {
       blockers.push("nonterminal_subscription");
     }
-    if (subscriptions.some((sub) => retainsPaidEntitlement(sub, now))) {
+    if (subscriptions.some((sub) => retainsPaidEntitlement(sub, now, entitlementGraceMs))) {
       blockers.push("future_paid_entitlement");
     }
     if (await store.findLiveCheckout(entity.id)) {
@@ -2467,7 +2492,7 @@ export function createBilling(options: CreateBillingOptions) {
           if (row.provider !== customer.provider) return false;
           return (
             !["cancelled", "expired"].includes(row.status) ||
-            retainsPaidEntitlement(row, now)
+            retainsPaidEntitlement(row, now, entitlementGraceMs)
           );
         })
         .map((row) => row.id),
@@ -2525,7 +2550,7 @@ export function createBilling(options: CreateBillingOptions) {
       : undefined;
     // Re-check the clock: paid access may have lapsed since the last projection.
     const sub =
-      pointed?.isEntitlementSource && retainsPaidEntitlement(pointed, clock.now())
+      pointed?.isEntitlementSource && retainsPaidEntitlement(pointed, clock.now(), entitlementGraceMs)
         ? pointed
         : undefined;
     return {
@@ -2563,6 +2588,44 @@ export function createBilling(options: CreateBillingOptions) {
     }
   }
 
+  /**
+   * The allowance of `key` on the entity's entitled paid plan: a number, or
+   * `null` for unlimited. `oss` mode is always unlimited. With no entitled
+   * plan the allowance is 0. An undeclared key throws, so a typo can never read
+   * as unlimited. A billing read error throws too: callers refuse new usage
+   * and keep what already exists.
+   */
+  async function getLimit(
+    entityId: string,
+    key: string,
+    readOptions: { transaction?: unknown } = {},
+  ): Promise<number | null> {
+    if (options.mode === "oss") return null;
+    if (!limitKeys.has(key)) throw new BillingCompositionError("limit_key_unknown");
+    const { activePaidPlan } = await commercialState(entityId, readOptions);
+    if (!activePaidPlan) return 0;
+    const value = planLimits[activePaidPlan]?.[key];
+    return value === undefined ? 0 : value;
+  }
+
+  /** Every declared limit for the entity, for a usage screen. */
+  async function limits(
+    entityId: string,
+    readOptions: { transaction?: unknown } = {},
+  ): Promise<Record<string, number | null>> {
+    const result: Record<string, number | null> = {};
+    if (options.mode === "oss") {
+      for (const key of limitKeys) result[key] = null;
+      return result;
+    }
+    const { activePaidPlan } = await commercialState(entityId, readOptions);
+    for (const key of limitKeys) {
+      const value = activePaidPlan ? planLimits[activePaidPlan]?.[key] : undefined;
+      result[key] = value === undefined ? 0 : value;
+    }
+    return result;
+  }
+
   /** Stops a subscription whose paid access has lapsed from granting entitlement. */
   async function releaseLapsedEntitlement(subscriptionId: string, actorId: string) {
     await store.withTransaction(() =>
@@ -2577,7 +2640,7 @@ export function createBilling(options: CreateBillingOptions) {
     const subscription = await store.findSubscriptionById(subscriptionId);
     if (
       !subscription?.isEntitlementSource ||
-      retainsPaidEntitlement(subscription, clock.now())
+      retainsPaidEntitlement(subscription, clock.now(), entitlementGraceMs)
     ) {
       return;
     }
@@ -2891,6 +2954,8 @@ export function createBilling(options: CreateBillingOptions) {
     getPayerBillingResponsibilities,
     commercialState,
     hasFeature,
+    getLimit,
+    limits,
     publicCatalog,
     recordRequestedCatalog,
     verifyRequestedCatalog,
@@ -2904,6 +2969,54 @@ export function createBilling(options: CreateBillingOptions) {
 }
 
 export type BillingEngine = ReturnType<typeof createBilling>;
+
+/**
+ * Checks `planLimits`: plain objects of non-negative safe integers or `null`,
+ * the same keys on every plan, and in cloud mode exactly the plans of
+ * `offers`. Returns a prototype-free copy so keys like `constructor` can't
+ * resolve to anything.
+ */
+function validatePlanLimits(
+  options: Pick<CreateBillingOptions, "planLimits" | "offers" | "mode">,
+): Record<string, Readonly<Record<string, number | null>>> {
+  const result: Record<string, Readonly<Record<string, number | null>>> =
+    Object.create(null);
+  if (options.planLimits === undefined) return result;
+  const entries = Object.entries(options.planLimits);
+  let keys: string | undefined;
+  for (const [plan, values] of entries) {
+    if (typeof values !== "object" || values === null || Array.isArray(values)) {
+      throw new BillingCompositionError("plan_limits_invalid");
+    }
+    const copy: Record<string, number | null> = Object.create(null);
+    for (const [key, value] of Object.entries(values)) {
+      if (
+        key === "" ||
+        (value !== null && (!Number.isSafeInteger(value) || value < 0))
+      ) {
+        throw new BillingCompositionError("plan_limits_invalid");
+      }
+      copy[key] = value;
+    }
+    const signature = Object.keys(copy).sort().join("\u0000");
+    if (keys !== undefined && keys !== signature) {
+      throw new BillingCompositionError("plan_limits_keys_differ");
+    }
+    keys = signature;
+    result[plan] = copy;
+  }
+  if (options.mode === "cloud") {
+    const plans = new Set((options.offers ?? []).map((offer) => offer.plan));
+    const declared = new Set(entries.map(([plan]) => plan));
+    if (
+      [...declared].some((plan) => !plans.has(plan)) ||
+      [...plans].some((plan) => !declared.has(plan))
+    ) {
+      throw new BillingCompositionError("plan_limits_plans_mismatch");
+    }
+  }
+  return result;
+}
 
 /**
  * Provider idempotency key for a cancellation. It includes the subscription's

@@ -61,6 +61,7 @@ export {
 } from "./reconciliation-job.js";
 export {
   type CanonicalSubscription,
+  DEFAULT_ENTITLEMENT_GRACE_MS,
   PAID_STATUSES,
   retainsPaidEntitlement,
   type SubscriptionSnapshot,

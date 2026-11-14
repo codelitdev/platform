@@ -346,6 +346,14 @@ export class LemonSqueezyBillingProvider implements BillingProviderAdapter {
       if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) {
         throw new BillingProviderError("invalid", "provider_product_amount_invalid");
       }
+      // A variant id is global: one from another store on the same account
+      // would sell there, and its webhooks would be ignored here as foreign.
+      const product = await this.read(
+        `/products/${encodeURIComponent(String(attributes.product_id ?? ""))}`,
+      );
+      if (String(product.data.attributes.store_id) !== this.storeId) {
+        throw new BillingProviderError("invalid", "provider_product_wrong_store");
+      }
       return {
         provider: this.provider,
         providerProductId: String(variant.data.id),

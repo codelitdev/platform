@@ -17,9 +17,11 @@ export function mapLemonSqueezyStatus(status: string): CanonicalSubscriptionStat
       return "trialing";
     case "active":
       return "active";
-    case "paused":
     case "past_due":
       return "past_due";
+    // A paused subscription collects no payment, so it grants no plan. Lemon
+    // Squeezy moves it back to `active` when it resumes.
+    case "paused":
     case "unpaid":
     case "cancelled":
       return "cancelled";
@@ -43,7 +45,7 @@ export function normalizeLemonSqueezySubscription(
   const endsAt = dateOrNull(attributes.ends_at);
   const trialEndsAt = dateOrNull(attributes.trial_ends_at);
   const paidThroughAt =
-    status === "unpaid"
+    status === "unpaid" || status === "paused"
       ? null
       : scheduledEnd
         ? endsAt
