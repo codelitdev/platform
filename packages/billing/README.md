@@ -39,6 +39,7 @@ The engine is mechanical. It will not infer product policy from plan names.
 | Trial eligibility    | `trialDays` on checkout (0 if ineligible). Claims, HMAC, school trials stay in your tables               |
 | Upgrade vs downgrade | `startPlanChange({ effectiveAt, prorationMode })`. The package does not rank Pro/Business                |
 | What a plan unlocks  | `planFeatures` at `createBilling`, read with `hasFeature()`; anything finer is your entitlements resolver |
+| What a plan allows   | `planLimits` at `createBilling`, read with `getLimit()` / `limits()`; you count usage                     |
 | Entity lifecycle     | `getBillableEntityBillingBlockers` / `getPayerBillingResponsibilities`; you choose the user-facing error |
 | Product side effects | `afterProjection` on the **engine transaction** (`store.getTransaction() ?? db`)                         |
 
@@ -353,7 +354,7 @@ await db.transaction(async (tx) => {
 });
 ```
 
-`commercialState` is the source of truth for paid access. It re-checks the clock, so a scheduled cancellation stops counting as paid once `paidThroughAt` passes, even before the provider's final event or `runDeadlineBatch`. Decide what a plan unlocks from it; do not copy paid status into product tables and re-derive it.
+`commercialState` is the source of truth for paid access. It re-checks the clock, so a scheduled cancellation stops counting as paid once `paidThroughAt` passes, even before the provider's final event or `runDeadlineBatch`. Every other paid status (`active`, `trialing`, `past_due`) stops counting once `paidThroughAt` plus `entitlementGraceMs` (default seven days) has passed, so a lost renewal, failure or cancellation webhook can't leave an entity entitled for good. A paid status with no `paidThroughAt` stays entitled. Decide what a plan unlocks from it; do not copy paid status into product tables and re-derive it.
 
 ### Features on plans
 
@@ -374,6 +375,29 @@ if (await billing.hasFeature(schoolId, "learner_sso")) {
 - `cloud` mode: true only when `commercialState(...).activePaidPlan` includes the feature, so grace and cancellation rules are exactly those of `activePaidPlan`. No paid plan, or an unknown feature, is false.
 - `oss` mode: always true. `planFeatures` is ignored.
 - Any error reading state returns false (fail closed). Like `commercialState`, it takes `{ transaction }` to read inside an open transaction.
+
+### Limits on plans
+
+Declare the numeric allowances each paid plan includes with `planLimits`, then read them with `getLimit` or `limits`:
+
+```ts
+const billing = createBilling({
+  // ...
+  planLimits: {
+    pro: { marketing_emails_month: 10_000, storage_bytes: 20 * GB },
+    business: { marketing_emails_month: 50_000, storage_bytes: null }, // null: unlimited
+  },
+});
+
+const allowed = await billing.getLimit(schoolId, "storage_bytes"); // number | null
+const all = await billing.limits(schoolId); // every key, for a usage screen
+```
+
+- Every plan must declare the same keys (`plan_limits_keys_differ`). In `cloud` mode the plans must be exactly the plans of `offers` (`plan_limits_plans_mismatch`). Values are non-negative safe integers or `null` (`plan_limits_invalid`).
+- `cloud` mode: the allowance of `commercialState(...).activePaidPlan`; with no entitled plan, `0`. An undeclared key throws `limit_key_unknown`, so a typo never reads as unlimited.
+- `oss` mode: every key is `null` (unlimited).
+- Unlike `hasFeature`, a read error **throws**. Refuse new usage on an error; never take away what already exists.
+- The package never counts usage. Count in your own tables and compare.
 
 Compose those with your trial, Free plan, quotas, and `canManageBilling`. `projectionVersion` is a cache key; equivalent webhook replays update freshness only and do not increment it.
 

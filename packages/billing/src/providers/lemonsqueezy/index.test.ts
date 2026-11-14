@@ -60,7 +60,8 @@ describe("lemon squeezy adapter", () => {
     expect(mapLemonSqueezyStatus("on_trial")).toBe("trialing");
     expect(mapLemonSqueezyStatus("active")).toBe("active");
     expect(mapLemonSqueezyStatus("past_due")).toBe("past_due");
-    expect(mapLemonSqueezyStatus("paused")).toBe("past_due");
+    // Paused collects no payment, so it grants no plan.
+    expect(mapLemonSqueezyStatus("paused")).toBe("cancelled");
     expect(mapLemonSqueezyStatus("cancelled")).toBe("cancelled");
     expect(mapLemonSqueezyStatus("unpaid")).toBe("cancelled");
     expect(mapLemonSqueezyStatus("expired")).toBe("expired");
@@ -182,8 +183,12 @@ describe("lemon squeezy adapter", () => {
             interval: "month",
             interval_count: 1,
             price: 1000,
+            product_id: 5,
           },
         },
+      },
+      "GET /products/5": {
+        data: { id: "5", type: "products", attributes: { store_id: 123 } },
       },
       "GET /stores/123": {
         data: { id: "123", type: "stores", attributes: { currency: "usd" } },
@@ -243,6 +248,47 @@ describe("lemon squeezy adapter", () => {
       }),
     );
     expect(other.foreign).toBe(true);
+  });
+
+  it("rejects a variant from another store on the same account", async () => {
+    // Checkout would sell in that store, and its webhooks would be ignored here.
+    const attempt = adapter({
+      "GET /variants/78": {
+        data: {
+          id: "78",
+          type: "variants",
+          attributes: {
+            is_subscription: true,
+            interval: "month",
+            interval_count: 1,
+            price: 1000,
+            product_id: 6,
+          },
+        },
+      },
+      "GET /products/6": {
+        data: { id: "6", type: "products", attributes: { store_id: 999 } },
+      },
+      "GET /stores/123": {
+        data: { id: "123", type: "stores", attributes: { currency: "usd" } },
+      },
+    }).retrieveProduct("78");
+    await expect(attempt).rejects.toThrow("provider_product_wrong_store");
+  });
+
+  it("reads a paused subscription as granting nothing", async () => {
+    const snapshot = await adapter({
+      "GET /subscriptions/5": {
+        data: {
+          id: "5",
+          type: "subscriptions",
+          attributes: { ...subscriptionAttributes, status: "paused" },
+        },
+      },
+    }).retrieveSubscription("5");
+    expect(snapshot.status).toBe("cancelled");
+    expect(snapshot.paidThroughAt).toBeNull();
+    expect(snapshot.cancelAtPeriodEnd).toBe(false);
   });
 
   it("rejects a bad signature", async () => {

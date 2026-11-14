@@ -68,7 +68,7 @@ The package does not provide:
 
 - Product routes, ts-rest contracts, MCP tools, or UI.
 - Authentication, membership, owner-role policy, CSRF, or recent-auth token issuance.
-- Plan names, feature policy, quota dimensions, trial/grace duration, or availability.
+- Plan names, feature policy, quota dimensions, trial/grace duration, or availability. (The application may pass feature keys and limit numbers per plan, `planFeatures` and `planLimits`; the package resolves them against the entitled plan but never counts usage.)
 - Product-specific schema extensions, entitlement-adjustment tables, migrations, backfills, retention, or deletion policy.
 - Automatic DDL during package installation, import, API startup, or worker startup.
 - A shared billing database or hosted billing service.
