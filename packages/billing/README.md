@@ -38,7 +38,7 @@ The engine is mechanical. It will not infer product policy from plan names.
 | Paid offers          | `offers` + `requiredOfferKeys` at `createBilling`; exact set, no `"free"` in `planIds`                   |
 | Trial eligibility    | `trialDays` on checkout (0 if ineligible). Claims, HMAC, school trials stay in your tables               |
 | Upgrade vs downgrade | `startPlanChange({ effectiveAt, prorationMode })`. The package does not rank Pro/Business                |
-| What a plan unlocks  | Your entitlements resolver. `commercialState()` is paid snapshot only                                    |
+| What a plan unlocks  | `planFeatures` at `createBilling`, read with `hasFeature()`; anything finer is your entitlements resolver |
 | Entity lifecycle     | `getBillableEntityBillingBlockers` / `getPayerBillingResponsibilities`; you choose the user-facing error |
 | Product side effects | `afterProjection` on the **engine transaction** (`store.getTransaction() ?? db`)                         |
 
@@ -354,6 +354,26 @@ await db.transaction(async (tx) => {
 ```
 
 `commercialState` is the source of truth for paid access. It re-checks the clock, so a scheduled cancellation stops counting as paid once `paidThroughAt` passes, even before the provider's final event or `runDeadlineBatch`. Decide what a plan unlocks from it; do not copy paid status into product tables and re-derive it.
+
+### Features on plans
+
+Declare which feature keys each paid plan includes with `planFeatures`, then gate with `hasFeature`:
+
+```ts
+const billing = createBilling({
+  // ...
+  planFeatures: { business: ["learner_sso"] },
+});
+
+if (await billing.hasFeature(schoolId, "learner_sso")) {
+  // the school's entitled paid plan includes the feature
+}
+```
+
+- Keys are plan ids from `offers`; in `cloud` mode a key with no offer throws `plan_features_invalid` at composition. Plans do not inherit: list a feature on every plan that includes it.
+- `cloud` mode: true only when `commercialState(...).activePaidPlan` includes the feature, so grace and cancellation rules are exactly those of `activePaidPlan`. No paid plan, or an unknown feature, is false.
+- `oss` mode: always true. `planFeatures` is ignored.
+- Any error reading state returns false (fail closed). Like `commercialState`, it takes `{ transaction }` to read inside an open transaction.
 
 Compose those with your trial, Free plan, quotas, and `canManageBilling`. `projectionVersion` is a cache key; equivalent webhook replays update freshness only and do not increment it.
 

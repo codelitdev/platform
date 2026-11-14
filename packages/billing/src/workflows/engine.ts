@@ -96,6 +96,12 @@ export type CreateBillingOptions = {
   requestedRevision: number | null;
   requiredOfferKeys: string[];
   offers?: BillingOffer[];
+  /**
+   * Feature keys each paid plan includes, e.g. `{ business: ["learner_sso"] }`.
+   * Cloud mode requires every key to be a plan of `offers`. Read with
+   * `hasFeature`; `oss` mode ignores it and grants every feature.
+   */
+  planFeatures?: Record<string, readonly string[]>;
   webhookRetrieveCurrent?: boolean;
   /** How long work may sit before `runReconciliationBatch` treats it as stuck. */
   reconciliation?: {
@@ -161,6 +167,24 @@ export function createBilling(options: CreateBillingOptions) {
   ) {
     throw new BillingCompositionError("cloud_billing_configuration_incomplete");
   }
+  if (options.planFeatures !== undefined) {
+    const plans = new Set((options.offers ?? []).map((offer) => offer.plan));
+    for (const [plan, features] of Object.entries(options.planFeatures)) {
+      if (
+        !Array.isArray(features) ||
+        features.some((feature) => typeof feature !== "string" || feature === "") ||
+        (options.mode === "cloud" && !plans.has(plan))
+      ) {
+        throw new BillingCompositionError("plan_features_invalid");
+      }
+    }
+  }
+  const planFeatures = new Map<string, ReadonlySet<string>>(
+    Object.entries(options.planFeatures ?? {}).map(([plan, features]) => [
+      plan,
+      new Set(features),
+    ]),
+  );
   const requestedOffers =
     options.mode === "cloud"
       ? validateCatalog({
@@ -2519,6 +2543,26 @@ export function createBilling(options: CreateBillingOptions) {
     };
   }
 
+  /**
+   * Whether the entity's currently entitled paid plan includes `feature`.
+   * Uses the same entitlement rules as `commercialState().activePaidPlan`.
+   * `oss` mode grants every feature; any read error answers false.
+   */
+  async function hasFeature(
+    entityId: string,
+    feature: string,
+    readOptions: { transaction?: unknown } = {},
+  ): Promise<boolean> {
+    if (options.mode === "oss") return true;
+    try {
+      const { activePaidPlan } = await commercialState(entityId, readOptions);
+      if (!activePaidPlan) return false;
+      return planFeatures.get(activePaidPlan)?.has(feature) ?? false;
+    } catch {
+      return false;
+    }
+  }
+
   /** Stops a subscription whose paid access has lapsed from granting entitlement. */
   async function releaseLapsedEntitlement(subscriptionId: string, actorId: string) {
     await store.withTransaction(() =>
@@ -2846,6 +2890,7 @@ export function createBilling(options: CreateBillingOptions) {
     getBillableEntityBillingBlockers,
     getPayerBillingResponsibilities,
     commercialState,
+    hasFeature,
     publicCatalog,
     recordRequestedCatalog,
     verifyRequestedCatalog,
