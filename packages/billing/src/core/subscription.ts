@@ -69,12 +69,22 @@ export const PAID_STATUSES = new Set<CanonicalSubscriptionStatus>([
   "past_due",
 ]);
 
+/** How long a paid status keeps entitlement past `paidThroughAt` by default. */
+export const DEFAULT_ENTITLEMENT_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Whether a subscription still grants its paid plan. Every paid status ends at
+ * `paidThroughAt` plus `graceMs`, so a lost renewal, failure or cancellation
+ * webhook can't leave an entity entitled for good. A paid status with no
+ * `paidThroughAt` stays entitled: the provider gave no date to end it at.
+ */
 export function retainsPaidEntitlement(
   snapshot: Pick<
     SubscriptionSnapshot,
     "status" | "cancelAtPeriodEnd" | "paidThroughAt"
   >,
   now: Date,
+  graceMs: number = DEFAULT_ENTITLEMENT_GRACE_MS,
 ): boolean {
   // A cancellation scheduled for the period end stops paid access once the
   // period has passed, even if the provider's final event has not arrived.
@@ -85,7 +95,12 @@ export function retainsPaidEntitlement(
   ) {
     return false;
   }
-  if (PAID_STATUSES.has(snapshot.status)) return true;
+  if (PAID_STATUSES.has(snapshot.status)) {
+    return (
+      !snapshot.paidThroughAt ||
+      snapshot.paidThroughAt.getTime() + graceMs > now.getTime()
+    );
+  }
   return (
     snapshot.status === "cancelled" &&
     snapshot.cancelAtPeriodEnd &&

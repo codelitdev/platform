@@ -115,3 +115,145 @@ describe("hasFeature", () => {
     expect(REFERENCE_OFFERS.some((offer) => offer.plan === "gold")).toBe(false);
   });
 });
+
+const planLimits = {
+  pro: { marketing_emails_month: 10_000, storage_bytes: 20 },
+  business: { marketing_emails_month: 50_000, storage_bytes: null },
+};
+
+describe("getLimit and limits", () => {
+  it("answer the entitled plan's allowance, with null as unlimited", async () => {
+    const harness = createWorkflowHarness(undefined, { planLimits });
+    const business = await subscribe(harness, "business_month", "ws_business");
+    const pro = await subscribe(harness, "pro_month", "ws_pro");
+    const { billing } = harness;
+    expect(await billing.getLimit(pro.id, "marketing_emails_month")).toBe(10_000);
+    expect(await billing.getLimit(pro.id, "storage_bytes")).toBe(20);
+    expect(await billing.getLimit(business.id, "storage_bytes")).toBeNull();
+    expect(await billing.limits(business.id)).toEqual({
+      marketing_emails_month: 50_000,
+      storage_bytes: null,
+    });
+  });
+
+  it("answer 0 for an entity with no entitled plan", async () => {
+    const harness = createWorkflowHarness(undefined, { planLimits });
+    expect(await harness.billing.getLimit("ws_free", "storage_bytes")).toBe(0);
+    expect(await harness.billing.limits("ws_free")).toEqual({
+      marketing_emails_month: 0,
+      storage_bytes: 0,
+    });
+  });
+
+  it("answer 0 once paid access has lapsed", async () => {
+    const harness = createWorkflowHarness(undefined, { planLimits });
+    const pro = await subscribe(harness, "pro_month", "ws_pro");
+    const subscription = harness.store.subscriptions[0]!;
+    subscription.cancelAtPeriodEnd = true;
+    subscription.paidThroughAt = new Date(harness.now.getTime() - 1);
+    expect(await harness.billing.getLimit(pro.id, "storage_bytes")).toBe(0);
+  });
+
+  it("throw on an undeclared key, so a typo never reads as unlimited", async () => {
+    const harness = createWorkflowHarness(undefined, { planLimits });
+    const pro = await subscribe(harness, "pro_month", "ws_pro");
+    await expect(harness.billing.getLimit(pro.id, "storage_byte")).rejects.toThrow(
+      /limit_key_unknown/,
+    );
+    await expect(harness.billing.getLimit(pro.id, "constructor")).rejects.toThrow(
+      /limit_key_unknown/,
+    );
+  });
+
+  it("throw when billing can't be read, instead of answering a number", async () => {
+    const harness = createWorkflowHarness(undefined, { planLimits });
+    const pro = await subscribe(harness, "pro_month", "ws_pro");
+    harness.store.findPlanState = () => {
+      throw new Error("db down");
+    };
+    await expect(harness.billing.getLimit(pro.id, "storage_bytes")).rejects.toThrow(
+      "db down",
+    );
+    await expect(harness.billing.limits(pro.id)).rejects.toThrow("db down");
+  });
+
+  it("are unlimited in oss mode, even when reads fail", async () => {
+    const store = new MemoryBillingStore();
+    store.findPlanState = () => {
+      throw new Error("db down");
+    };
+    const billing = createBilling({
+      database: store,
+      providers: [],
+      clock: frozenClock(new Date("2026-01-01T00:00:00.000Z")),
+      authorization: new MemoryAuthorizationPort(),
+      mode: "oss",
+      checkoutProvider: "",
+      requestedRevision: null,
+      requiredOfferKeys: [],
+      planLimits,
+    });
+    expect(await billing.getLimit("any_entity", "storage_bytes")).toBeNull();
+    expect(await billing.limits("any_entity")).toEqual({
+      marketing_emails_month: null,
+      storage_bytes: null,
+    });
+  });
+
+  it("reject plans that declare different keys", () => {
+    expect(() =>
+      createWorkflowHarness(undefined, {
+        planLimits: {
+          pro: { storage_bytes: 1 },
+          business: { storage_bytes: 2, seats: 3 },
+        },
+      }),
+    ).toThrow(/plan_limits_keys_differ/);
+  });
+
+  it("reject a cloud catalog plan that has no limits, or limits for a plan with no offer", () => {
+    expect(() =>
+      createWorkflowHarness(undefined, { planLimits: { pro: { storage_bytes: 1 } } }),
+    ).toThrow(/plan_limits_plans_mismatch/);
+    expect(() =>
+      createWorkflowHarness(undefined, {
+        planLimits: {
+          ...planLimits,
+          gold: { marketing_emails_month: 1, storage_bytes: 1 },
+        },
+      }),
+    ).toThrow(/plan_limits_plans_mismatch/);
+  });
+
+  it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    "reject the value %p",
+    (value) => {
+      expect(() =>
+        createWorkflowHarness(undefined, {
+          planLimits: { pro: { storage_bytes: value }, business: { storage_bytes: 1 } },
+        }),
+      ).toThrow(/plan_limits_invalid/);
+    },
+  );
+});
+
+describe("entitlementGraceMs", () => {
+  it("ends paid access that long after paidThroughAt", async () => {
+    const harness = createWorkflowHarness(undefined, {
+      planFeatures,
+      entitlementGraceMs: 0,
+    });
+    const business = await subscribe(harness, "business_month", "ws_business");
+    const subscription = harness.store.subscriptions[0]!;
+    subscription.paidThroughAt = new Date(harness.now.getTime() - 1);
+    expect(await harness.billing.hasFeature(business.id, "learner_sso")).toBe(false);
+  });
+
+  it("rejects a negative or fractional grace", () => {
+    for (const entitlementGraceMs of [-1, 0.5]) {
+      expect(() => createWorkflowHarness(undefined, { entitlementGraceMs })).toThrow(
+        /entitlement_grace_invalid/,
+      );
+    }
+  });
+});

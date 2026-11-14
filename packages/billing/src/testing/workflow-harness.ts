@@ -17,6 +17,8 @@ export function createBillingFrom(
     authorization?: MemoryAuthorizationPort;
     audit?: MemoryAuditHook;
     planFeatures?: Record<string, readonly string[]>;
+    planLimits?: Record<string, Readonly<Record<string, number | null>>>;
+    entitlementGraceMs?: number;
   } = {},
 ) {
   return createBilling({
@@ -31,6 +33,8 @@ export function createBillingFrom(
     requiredOfferKeys: [...COURSELIT_OFFER_KEYS],
     offers,
     planFeatures: extras.planFeatures,
+    planLimits: extras.planLimits,
+    entitlementGraceMs: extras.entitlementGraceMs,
     returnUrlValidator: (url) => url.startsWith("https://app.test/"),
   });
 }
@@ -41,6 +45,8 @@ export function createWorkflowHarness(
     seedLocalCatalog?: boolean;
     offers?: BillingOffer[];
     planFeatures?: Record<string, readonly string[]>;
+    planLimits?: Record<string, Readonly<Record<string, number | null>>>;
+    entitlementGraceMs?: number;
   } = {},
 ) {
   const clock = frozenClock(now);
@@ -71,6 +77,8 @@ export function createWorkflowHarness(
     requiredOfferKeys: [...COURSELIT_OFFER_KEYS],
     offers,
     planFeatures: options.planFeatures,
+    planLimits: options.planLimits,
+    entitlementGraceMs: options.entitlementGraceMs,
     returnUrlValidator: (url) => url.startsWith("https://app.test/"),
   });
   return {
