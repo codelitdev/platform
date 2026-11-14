@@ -171,7 +171,9 @@ describe("getLimit and limits", () => {
     harness.store.findPlanState = () => {
       throw new Error("db down");
     };
-    await expect(harness.billing.getLimit(pro.id, "storage_bytes")).rejects.toThrow("db down");
+    await expect(harness.billing.getLimit(pro.id, "storage_bytes")).rejects.toThrow(
+      "db down",
+    );
     await expect(harness.billing.limits(pro.id)).rejects.toThrow("db down");
   });
 
@@ -201,7 +203,10 @@ describe("getLimit and limits", () => {
   it("reject plans that declare different keys", () => {
     expect(() =>
       createWorkflowHarness(undefined, {
-        planLimits: { pro: { storage_bytes: 1 }, business: { storage_bytes: 2, seats: 3 } },
+        planLimits: {
+          pro: { storage_bytes: 1 },
+          business: { storage_bytes: 2, seats: 3 },
+        },
       }),
     ).toThrow(/plan_limits_keys_differ/);
   });
@@ -212,23 +217,32 @@ describe("getLimit and limits", () => {
     ).toThrow(/plan_limits_plans_mismatch/);
     expect(() =>
       createWorkflowHarness(undefined, {
-        planLimits: { ...planLimits, gold: { marketing_emails_month: 1, storage_bytes: 1 } },
+        planLimits: {
+          ...planLimits,
+          gold: { marketing_emails_month: 1, storage_bytes: 1 },
+        },
       }),
     ).toThrow(/plan_limits_plans_mismatch/);
   });
 
-  it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])("reject the value %p", (value) => {
-    expect(() =>
-      createWorkflowHarness(undefined, {
-        planLimits: { pro: { storage_bytes: value }, business: { storage_bytes: 1 } },
-      }),
-    ).toThrow(/plan_limits_invalid/);
-  });
+  it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    "reject the value %p",
+    (value) => {
+      expect(() =>
+        createWorkflowHarness(undefined, {
+          planLimits: { pro: { storage_bytes: value }, business: { storage_bytes: 1 } },
+        }),
+      ).toThrow(/plan_limits_invalid/);
+    },
+  );
 });
 
 describe("entitlementGraceMs", () => {
   it("ends paid access that long after paidThroughAt", async () => {
-    const harness = createWorkflowHarness(undefined, { planFeatures, entitlementGraceMs: 0 });
+    const harness = createWorkflowHarness(undefined, {
+      planFeatures,
+      entitlementGraceMs: 0,
+    });
     const business = await subscribe(harness, "business_month", "ws_business");
     const subscription = harness.store.subscriptions[0]!;
     subscription.paidThroughAt = new Date(harness.now.getTime() - 1);

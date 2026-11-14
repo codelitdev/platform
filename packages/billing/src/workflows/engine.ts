@@ -795,7 +795,10 @@ export function createBilling(options: CreateBillingOptions) {
       });
 
     const existingSub = await store.findEntitlementSubscription(input.entity.id);
-    if (existingSub && retainsPaidEntitlement(existingSub, clock.now(), entitlementGraceMs)) {
+    if (
+      existingSub &&
+      retainsPaidEntitlement(existingSub, clock.now(), entitlementGraceMs)
+    ) {
       throw new BillingWorkflowError("active_subscription_exists");
     }
     if (existingSub) {
@@ -2466,7 +2469,9 @@ export function createBilling(options: CreateBillingOptions) {
     if (subscriptions.some((sub) => !["cancelled", "expired"].includes(sub.status))) {
       blockers.push("nonterminal_subscription");
     }
-    if (subscriptions.some((sub) => retainsPaidEntitlement(sub, now, entitlementGraceMs))) {
+    if (
+      subscriptions.some((sub) => retainsPaidEntitlement(sub, now, entitlementGraceMs))
+    ) {
       blockers.push("future_paid_entitlement");
     }
     if (await store.findLiveCheckout(entity.id)) {
@@ -2550,7 +2555,8 @@ export function createBilling(options: CreateBillingOptions) {
       : undefined;
     // Re-check the clock: paid access may have lapsed since the last projection.
     const sub =
-      pointed?.isEntitlementSource && retainsPaidEntitlement(pointed, clock.now(), entitlementGraceMs)
+      pointed?.isEntitlementSource &&
+      retainsPaidEntitlement(pointed, clock.now(), entitlementGraceMs)
         ? pointed
         : undefined;
     return {
@@ -2979,8 +2985,9 @@ export type BillingEngine = ReturnType<typeof createBilling>;
 function validatePlanLimits(
   options: Pick<CreateBillingOptions, "planLimits" | "offers" | "mode">,
 ): Record<string, Readonly<Record<string, number | null>>> {
-  const result: Record<string, Readonly<Record<string, number | null>>> =
-    Object.create(null);
+  const result: Record<string, Readonly<Record<string, number | null>>> = Object.create(
+    null,
+  );
   if (options.planLimits === undefined) return result;
   const entries = Object.entries(options.planLimits);
   let keys: string | undefined;
