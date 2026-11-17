@@ -33,7 +33,7 @@ Do not add `console.log` (Biome's console rule, `warn`/`error` allowed). Do not 
 | `src/schema/` | Canonical model + TS generator. |
 | `src/cli/` | `generate` / `--check` only. No migrate command. |
 | `src/adapters/drizzle/` | Store, `withTransaction`, `getTransaction()`, `noteProviderCall`. Only place that imports drizzle-orm. |
-| `src/providers/` | Contract, registry, fake, Dodo. Dodo must not read `process.env` or emit `sendlit*` metadata. |
+| `src/providers/` | Contract, registry, fake, Dodo, Lemon Squeezy, and `env/` (choose the provider from an env record passed in). None of them read `process.env`; Dodo must not emit `sendlit*` metadata. |
 | `src/workflows/engine.ts` | All cross-boundary workflows in one module (`createBilling`). Experimental. |
 | `src/operations/` | Operator inspect/retry/reconcile/cancel/decrypt. Requires `OperatorContext`. |
 | `src/ports/` | Audit, authorization grant, lifecycle hooks, sensitive values, telemetry. |
