@@ -1,5 +1,12 @@
 # @codelitdev/platform
 
+## 0.13.0
+
+### Patch Changes
+
+- Updated dependencies [9bd9dd6]
+  - @codelitdev/billing@0.13.0
+
 ## 0.12.0
 
 ### Patch Changes
