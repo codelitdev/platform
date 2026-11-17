@@ -80,6 +80,7 @@ Public imports (do not import `src/`):
 | `@codelitdev/billing/providers`      | Registry, fake, contract types       |
 | `@codelitdev/billing/providers/dodo` | `createDodoBillingProvider`          |
 | `@codelitdev/billing/providers/lemonsqueezy` | `createLemonSqueezyBillingProvider` |
+| `@codelitdev/billing/providers/env` | Choose the provider and catalog from env settings |
 | `@codelitdev/billing/core`           | Statuses, money, errors, clock       |
 | `@codelitdev/billing/catalog`        | Offer validation / public catalog    |
 | `@codelitdev/billing/testing`        | Provider contract + workflow harness |
@@ -174,6 +175,42 @@ Parse your own env. Pass typed Dodo options. Wire Drizzle, grants, encryption, a
 When several products share one Dodo business, Dodo sends every event to every webhook endpoint. Give each product its own Dodo brand, create its products under that brand, and set `brandId`. Webhooks whose `brand_id` names another brand are stored as `ignored`: they are kept for deduplication but never processed, retried, or quarantined. Webhooks without a `brand_id` are processed as before. See [ADR 0009](../../docs/decisions/0009-dodo-brand-webhook-filtering.md).
 
 To sell through Lemon Squeezy instead, compose `createLemonSqueezyBillingProvider` from `@codelitdev/billing/providers/lemonsqueezy` with `apiKey`, the product's `storeId`, and the store webhook's `webhookSecrets`, and set `checkoutProvider: "lemonsqueezy"`. Catalog offers name Lemon Squeezy variant IDs as `providerProductId`. Webhooks from other stores are stored as `ignored`. Trials come from the variant, so checkout rejects `trialDays`; plan changes apply immediately, and `do_not_bill` is refused for a change to another interval because Lemon Squeezy bills that at once. Turn off plan changes in the store's customer portal settings: the engine quarantines a plan change it did not start, along with that subscription's later webhooks.
+
+### Choosing the provider by settings
+
+`@codelitdev/billing/providers/env` lets a product change provider by changing settings, without code changes. The app passes its env record; the package does not read the process environment.
+
+```ts
+import {
+  createBillingProvidersFromEnv,
+  readBillingProviderEnv,
+} from "@codelitdev/billing/providers/env";
+
+const config = readBillingProviderEnv(process.env, {
+  offers: [
+    { key: "pro_month", plan: "pro", interval: "month" },
+    { key: "pro_year", plan: "pro", interval: "year" },
+  ],
+});
+// null when BILLING_PROVIDER is unset, e.g. a fake provider in development.
+const providers = config
+  ? await createBillingProvidersFromEnv(config.providers, process.env, clock)
+  : [];
+// createBilling({ providers, checkoutProvider: config.checkoutProvider,
+//   requestedRevision: config.revision, offers: config.offers, ... })
+```
+
+| Setting | Meaning |
+| --- | --- |
+| `BILLING_PROVIDER` | `dodo` or `lemonsqueezy`: where new checkout goes |
+| `BILLING_CATALOG_REVISION` | Raise it whenever prices, product IDs or the provider change |
+| `BILLING_CURRENCY` | Three-letter code |
+| `BILLING_DATA_ENCRYPTION_KEY` | Required here so a missing key fails at startup |
+| `BILLING_<OFFER>_AMOUNT_MINOR`, `BILLING_<OFFER>_PRODUCT_ID` | Per offer; `pro_month` reads `BILLING_PRO_MONTH_*`. A Dodo product ID or a Lemon Squeezy variant ID |
+| `DODO_PAYMENTS_API_KEY`, `DODO_PAYMENTS_WEBHOOK_KEY_CURRENT` | Dodo credentials. Optional: `DODO_PAYMENTS_ENVIRONMENT` (`test_mode` by default), `DODO_PAYMENTS_WEBHOOK_KEY_PREVIOUS`, `DODO_BRAND_ID` |
+| `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET` | Lemon Squeezy credentials. Optional: `LEMONSQUEEZY_WEBHOOK_SECRET_PREVIOUS` |
+
+A provider other than `BILLING_PROVIDER` stays connected while its credentials are set, so its existing subscribers keep receiving webhooks after a switch; set all of its credentials or none. Accept every name in `config.providers` on `POST /webhooks/billing/:provider`. Provider products must have no trial: offers always carry `providerTrialDays: 0`. Each adapter loads only when used, so `dodopayments` is needed only with Dodo.
 
 ```ts
 import { systemClock } from "@codelitdev/billing/core";

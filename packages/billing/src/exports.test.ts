@@ -19,6 +19,7 @@ describe("public exports", () => {
       "./operations",
       "./providers",
       "./providers/dodo",
+      "./providers/env",
       "./providers/lemonsqueezy",
       "./testing",
     ];
