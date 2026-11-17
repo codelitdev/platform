@@ -1,7 +1,7 @@
 import { type BillingOffer, validateCatalog } from "../../catalog/index.js";
 import type { Clock } from "../../core/clock.js";
-import type { BillingInterval } from "../../core/ids.js";
 import { BillingConfigurationError } from "../../core/errors.js";
+import type { BillingInterval } from "../../core/ids.js";
 import type {
   BillingProviderAdapter,
   DodoBillingProviderOptions,
