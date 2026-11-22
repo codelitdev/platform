@@ -27,22 +27,34 @@ function pagesApp(overrides: Partial<CreateOAuthPagesRouterOptions> = {}) {
   return app;
 }
 
-/** Runs the login page's inline script against stub DOM and fetch, submits
- * the email form, and returns the error banner text. */
-async function submitEmail(
+type FakeElement = {
+  id: string;
+  hidden: boolean;
+  disabled: boolean;
+  textContent: string;
+  style: { display: string };
+  value: string;
+  addEventListener(type: string, listener: (event: unknown) => Promise<void>): void;
+  querySelector(): { value: string } | null;
+};
+
+/** Runs the login page script against a fake DOM. Returns the elements, the
+ * page's window (for Turnstile's callbacks) and a submit function. */
+function loadLoginScript(
   html: string,
   response: Response,
   {
     captchaToken,
     fetchCalls = [],
   }: { captchaToken?: string; fetchCalls?: RequestInit[] } = {},
-): Promise<string> {
+) {
   const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
   if (!script) throw new Error("login_script_missing");
   const listeners = new Map<string, (event: unknown) => Promise<void>>();
-  const element = (id: string) => ({
+  const element = (id: string): FakeElement => ({
     id,
     hidden: false,
+    disabled: html.includes(`id="${id}" disabled`),
     textContent: "",
     style: { display: "" },
     value: "person@example.com",
@@ -52,26 +64,50 @@ async function submitEmail(
     querySelector: () => (captchaToken === undefined ? null : { value: captchaToken }),
   });
   const elements = new Map(
-    ["error", "email-form", "email", "otp-form", "otp", "change-email"].map((id) => [
-      id,
-      element(id),
-    ]),
+    [
+      "error",
+      "email-form",
+      "email",
+      "email-submit",
+      "otp-form",
+      "otp",
+      "change-email",
+    ].map((id) => [id, element(id)]),
   );
   const document = {
     getElementById: (id: string) => elements.get(id) ?? null,
     querySelectorAll: () => [],
   };
   const location = { search: "", href: "https://auth.example.com/login" };
-  new Function("document", "location", "fetch", script)(
+  const window: Record<string, () => void> = {};
+  const turnstile = { reset: () => window.oauthKitCaptchaCleared?.() };
+  new Function("document", "location", "fetch", "window", "turnstile", script)(
     document,
     location,
     async (_url: string, init: RequestInit) => {
       fetchCalls.push(init);
       return response;
     },
+    window,
+    turnstile,
   );
-  await listeners.get("email-form:submit")?.({ preventDefault() {} });
-  return elements.get("error")?.textContent ?? "";
+  return {
+    elements,
+    window,
+    submit: async () => {
+      await listeners.get("email-form:submit")?.({ preventDefault() {} });
+      return elements.get("error")?.textContent ?? "";
+    },
+  };
+}
+
+/** Submits the email form and returns the error banner text. */
+async function submitEmail(
+  html: string,
+  response: Response,
+  options: { captchaToken?: string; fetchCalls?: RequestInit[] } = {},
+): Promise<string> {
+  return await loadLoginScript(html, response, options).submit();
 }
 
 describe("createOAuthPagesRouter", () => {
@@ -214,11 +250,39 @@ describe("createOAuthPagesRouter", () => {
     );
   });
 
+  it("keeps the email button disabled until Turnstile returns a token", async () => {
+    await withHttpServer(
+      pagesApp({
+        captcha: { provider: "cloudflare-turnstile", siteKey: "0x4AAAAAAAtest" },
+      }),
+      async (baseUrl) => {
+        const html = await (await fetch(`${baseUrl}/login`)).text();
+        expect(html).toContain('id="email-submit" disabled');
+        expect(html).toContain('data-callback="oauthKitCaptchaSolved"');
+        expect(html).toContain('data-expired-callback="oauthKitCaptchaCleared"');
+        const page = loadLoginScript(html, Response.json({}), {
+          captchaToken: "token-1",
+        });
+        const button = page.elements.get("email-submit")!;
+        expect(button.disabled).toBe(true);
+        page.window.oauthKitCaptchaSolved();
+        expect(button.disabled).toBe(false);
+        page.window.oauthKitCaptchaCleared();
+        expect(button.disabled).toBe(true);
+        // A send resets the widget, so the button waits for a new token.
+        page.window.oauthKitCaptchaSolved();
+        await page.submit();
+        expect(button.disabled).toBe(true);
+      },
+    );
+  });
+
   it("omits the captcha when none is configured", async () => {
     await withHttpServer(pagesApp(), async (baseUrl) => {
       const html = await (await fetch(`${baseUrl}/login`)).text();
       expect(html).not.toContain('class="cf-turnstile"');
       expect(html).toContain("var captcha=false");
+      expect(html).not.toContain('id="email-submit" disabled');
       const fetchCalls: RequestInit[] = [];
       await submitEmail(html, Response.json({}), { fetchCalls });
       expect(fetchCalls[0]?.headers).not.toHaveProperty("x-captcha-response");
