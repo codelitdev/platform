@@ -1,5 +1,11 @@
 # @codelitdev/design-system
 
+## 0.15.0
+
+### Patch Changes
+
+- e40786b: Registry `dialog`: `DialogHeader` now leaves 20px before the dialog body, matching the design spec. Previously the body sat flush under the description.
+
 ## 0.14.1
 
 No changes in this release.
