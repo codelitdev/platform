@@ -20,10 +20,92 @@ export type CaptureClient = {
   shutdown(): Promise<void>;
 };
 
+type OtlpValue =
+  | { stringValue: string }
+  | { intValue: string }
+  | { doubleValue: number }
+  | { boolValue: boolean };
+
+function otlpValue(value: unknown): OtlpValue | null {
+  if (typeof value === "string") return { stringValue: value };
+  if (typeof value === "boolean") return { boolValue: value };
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Number.isInteger(value)
+      ? { intValue: String(value) }
+      : { doubleValue: value };
+  }
+  if (value && typeof value === "object") {
+    return { stringValue: JSON.stringify(value) };
+  }
+  return null;
+}
+
+/** pino levels as OTLP severities (trace 1, debug 5, info 9, warn 13, error 17, fatal 21). */
+function otlpSeverity(level: unknown) {
+  const n = typeof level === "number" ? level : 30;
+  if (n >= 60) return { severityNumber: 21, severityText: "fatal" };
+  if (n >= 50) return { severityNumber: 17, severityText: "error" };
+  if (n >= 40) return { severityNumber: 13, severityText: "warn" };
+  if (n >= 30) return { severityNumber: 9, severityText: "info" };
+  if (n >= 20) return { severityNumber: 5, severityText: "debug" };
+  return { severityNumber: 1, severityText: "trace" };
+}
+
+/** pino fields the record or its resource already carries. */
+const LOG_RECORD_FIELDS = new Set([
+  "level",
+  "time",
+  "msg",
+  "service",
+  "environment",
+  "name",
+]);
+
+/**
+ * One pino JSON line as an OTLP log record. The message is the body and the
+ * other fields become attributes, so log tools can filter on them.
+ */
+export function otlpLogRecord(line: string) {
+  let entry: Record<string, unknown> | null = null;
+  try {
+    const parsed: unknown = JSON.parse(line);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      entry = parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Not JSON: send the line as it is.
+  }
+  if (!entry) return { ...otlpSeverity(30), body: { stringValue: line } };
+  const attributes: Array<{ key: string; value: OtlpValue }> = [];
+  for (const [key, value] of Object.entries(entry)) {
+    if (LOG_RECORD_FIELDS.has(key)) continue;
+    const otlp = otlpValue(value);
+    if (otlp) attributes.push({ key, value: otlp });
+  }
+  const time = typeof entry.time === "number" ? entry.time : Date.now();
+  return {
+    timeUnixNano: `${Math.round(time)}000000`,
+    ...otlpSeverity(entry.level),
+    body: { stringValue: typeof entry.msg === "string" ? entry.msg : line },
+    attributes,
+  };
+}
+
 function createOtlpLogStream(input: {
   endpoint: string;
   headers?: Record<string, string>;
+  serviceName: string;
+  environment: string;
 }) {
+  const resource = {
+    attributes: [
+      { key: "service.name", value: { stringValue: input.serviceName } },
+      {
+        key: "deployment.environment",
+        value: { stringValue: input.environment },
+      },
+    ],
+  };
   const sender = createBatchSender<string>({
     send: (messages, signal) =>
       fetch(input.endpoint, {
@@ -32,11 +114,11 @@ function createOtlpLogStream(input: {
         body: JSON.stringify({
           resourceLogs: [
             {
+              resource,
               scopeLogs: [
                 {
-                  logRecords: messages.map((message) => ({
-                    body: { stringValue: message },
-                  })),
+                  scope: { name: input.serviceName },
+                  logRecords: messages.map(otlpLogRecord),
                 },
               ],
             },
@@ -53,6 +135,38 @@ function createOtlpLogStream(input: {
     },
     shutdown: () => sender.shutdown(),
   };
+}
+
+const STACK_FRAME =
+  /^\s*at (?:async )?(?:(.+?) \()?(?:(.+):(\d+):(\d+)|([^)]+))\)?\s*$/;
+const STACK_FRAME_LIMIT = 50;
+
+/**
+ * V8 stack lines as PostHog error-tracking frames, oldest call first (the
+ * order PostHog's SDKs send). Error tracking builds issues from
+ * `$exception_list`; without it a server exception never becomes an issue.
+ */
+export function stackFrames(stack: string) {
+  const frames: Array<Record<string, unknown>> = [];
+  for (const line of stack.split("\n")) {
+    const match = line.match(STACK_FRAME);
+    if (!match) continue;
+    const raw = match[2] ?? match[5] ?? "";
+    const filename = raw.startsWith("file://") ? raw.slice(7) : raw;
+    frames.push({
+      platform: "node:javascript",
+      filename,
+      function: match[1] ?? "?",
+      ...(match[3] ? { lineno: Number(match[3]), colno: Number(match[4]) } : {}),
+      in_app:
+        Boolean(filename) &&
+        !filename.includes("/node_modules/") &&
+        !filename.startsWith("node:") &&
+        filename !== "native" &&
+        filename !== "<anonymous>",
+    });
+  }
+  return frames.reverse().slice(-STACK_FRAME_LIMIT);
 }
 
 function createHttpCaptureClient(input: {
@@ -84,6 +198,14 @@ function createHttpCaptureClient(input: {
           ...properties,
           $exception_message: error.message,
           $exception_type: error.name,
+          $exception_list: [
+            {
+              type: error.name,
+              value: error.message,
+              mechanism: { handled: true, synthetic: false },
+              stacktrace: { type: "raw", frames: stackFrames(error.stack ?? "") },
+            },
+          ],
           $exception_stack_trace_raw: redactText(error.stack ?? "", 2_000),
         },
       });
@@ -143,9 +265,10 @@ export type CaptureEventInput = {
    * fingerprint dedupe that protects noisy signals must not drop them. The
    * per-source cap still applies. Defaults to `true`. */
   dedupe?: boolean;
-  /** `false` sends `$process_person_profile: false`: the event counts for its
-   * groups but creates no person, for events with no signed-in user behind
-   * them (webhooks, an end customer's actions). Defaults to `true`. */
+  /** `false` sends `$process_person_profile: false`: the event creates no
+   * person. PostHog does not link personless events to groups, so when group
+   * analytics must count an event, send it under a stable subject per group
+   * instead. Defaults to `true`. */
   processPerson?: boolean;
 };
 
@@ -235,7 +358,13 @@ export function createObservability(
   options: CreateObservabilityOptions,
 ): Observability {
   const clock = options.clock ?? systemClock;
-  const otlp = options.logs?.otlp ? createOtlpLogStream(options.logs.otlp) : null;
+  const otlp = options.logs?.otlp
+    ? createOtlpLogStream({
+        ...options.logs.otlp,
+        serviceName: options.serviceName,
+        environment: options.environment,
+      })
+    : null;
   const logger = pino(
     {
       name: options.serviceName,
@@ -357,8 +486,11 @@ export function createObservability(
         if (!groupType || !groupKey || cap.isLimited(input.source)) return;
         client.capture({
           event: "$groupidentify",
-          distinctId: `${groupType}_${groupKey}`,
+          // PostHog's SDKs use `$type_key`: the `$` keeps it apart from real
+          // distinct ids, and the event creates no person.
+          distinctId: `$${groupType}_${groupKey}`,
           properties: {
+            $process_person_profile: false,
             $group_type: groupType,
             $group_key: groupKey,
             $group_set: {

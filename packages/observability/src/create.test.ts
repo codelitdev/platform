@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "bun:test";
-import { type CaptureClient, createObservability } from "./create.js";
+import {
+  type CaptureClient,
+  createObservability,
+  otlpLogRecord,
+  stackFrames,
+} from "./create.js";
 
 function frozen(at: Date) {
   return { now: () => new Date(at.getTime()) };
@@ -130,9 +135,109 @@ describe("createObservability", () => {
       const payload = JSON.stringify(request.body);
       expect(payload).not.toContain("super-secret-value");
       expect(payload).toContain("[redacted]");
+      const [event] = JSON.parse(String(request.body)).batch as Array<{
+        properties: Record<string, unknown>;
+      }>;
+      const [exception] = event!.properties.$exception_list as Array<{
+        type: string;
+        value: string;
+        stacktrace: { type: string; frames: unknown[] };
+      }>;
+      expect(exception!.type).toBe("Error");
+      expect(exception!.value).toContain("[redacted]");
+      expect(exception!.stacktrace.type).toBe("raw");
+      expect(exception!.stacktrace.frames.length).toBeGreaterThan(0);
     } finally {
       globalThis.fetch = previousFetch;
     }
+  });
+
+  it("turns a V8 stack into error-tracking frames, oldest call first", () => {
+    const frames = stackFrames(
+      [
+        "Error: boom",
+        "    at handler (/app/src/routes.ts:10:5)",
+        "    at async run (file:///app/node_modules/express/index.js:3:7)",
+        "    at node:internal/process/task_queues:95:5",
+        "    at <anonymous>",
+      ].join("\n"),
+    );
+    expect(frames).toEqual([
+      {
+        platform: "node:javascript",
+        filename: "<anonymous>",
+        function: "?",
+        in_app: false,
+      },
+      {
+        platform: "node:javascript",
+        filename: "node:internal/process/task_queues",
+        function: "?",
+        lineno: 95,
+        colno: 5,
+        in_app: false,
+      },
+      {
+        platform: "node:javascript",
+        filename: "/app/node_modules/express/index.js",
+        function: "run",
+        lineno: 3,
+        colno: 7,
+        in_app: false,
+      },
+      {
+        platform: "node:javascript",
+        filename: "/app/src/routes.ts",
+        function: "handler",
+        lineno: 10,
+        colno: 5,
+        in_app: true,
+      },
+    ]);
+  });
+
+  it("ships logs as OTLP records with the service as a resource", async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const obs = createObservability({
+        serviceName: "reference-api",
+        environment: "test",
+        logs: { otlp: { endpoint: "https://logs.example/v1/logs" } },
+        contextPolicy: { propertyAllowlist: new Set() },
+      });
+      obs.logger.warn({ jobId: "job_1", attempt: 2 }, "retrying job");
+      await obs.shutdown(500);
+      const request = (
+        fetchMock.mock.calls as unknown as Array<[string, RequestInit]>
+      )[0]?.[1];
+      if (!request) throw new Error("logs_request_missing");
+      const [resourceLogs] = JSON.parse(String(request.body)).resourceLogs;
+      expect(resourceLogs.resource.attributes).toEqual([
+        { key: "service.name", value: { stringValue: "reference-api" } },
+        { key: "deployment.environment", value: { stringValue: "test" } },
+      ]);
+      const [record] = resourceLogs.scopeLogs[0].logRecords;
+      expect(record.severityText).toBe("warn");
+      expect(record.severityNumber).toBe(13);
+      expect(record.body).toEqual({ stringValue: "retrying job" });
+      expect(record.attributes).toEqual([
+        { key: "jobId", value: { stringValue: "job_1" } },
+        { key: "attempt", value: { intValue: "2" } },
+      ]);
+      expect(record.timeUnixNano).toMatch(/^\d+000000$/);
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+
+  it("sends a line that is not JSON as the log body", () => {
+    expect(otlpLogRecord("plain text")).toEqual({
+      severityNumber: 9,
+      severityText: "info",
+      body: { stringValue: "plain text" },
+    });
   });
 
   it("dedupes identical exceptions and applies a per-source cap", () => {
@@ -375,8 +480,9 @@ describe("createObservability", () => {
     expect(client.events).toEqual([
       {
         event: "$groupidentify",
-        distinctId: "school_sch_1",
+        distinctId: "$school_sch_1",
         properties: {
+          $process_person_profile: false,
           $group_type: "school",
           $group_key: "sch_1",
           $group_set: { service: "reference-api", environment: "test", plan: "pro" },
