@@ -1,5 +1,9 @@
 # @codelitdev/oauth-server-kit
 
+## 0.15.0
+
+No changes in this release.
+
 ## 0.14.1
 
 ### Patch Changes

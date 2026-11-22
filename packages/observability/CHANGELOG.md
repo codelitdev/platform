@@ -1,5 +1,19 @@
 # @codelitdev/observability
 
+## 0.15.0
+
+### Minor Changes
+
+- c30e278: Product analytics support: `captureEvent` accepts `groups` (sent as PostHog `$groups`), `personProperties` (`$set`) and `processPerson: false` (`$process_person_profile: false`) for events with no user behind them, and `dedupe: false` so every occurrence of a product event counts. New `identifyGroup` sets allowlisted group properties. The browser client gains `group(type, key)` and captures uncaught errors as `$exception` by default (`captureExceptions: false` turns it off).
+
+### Patch Changes
+
+- 4c835cf: PostHog ingestion fixes found by checking real data:
+  
+  - Server exceptions carry `$exception_list` with stack frames, so PostHog error tracking groups them into issues. Before, they arrived as `$exception` events but no issue was created.
+  - OTLP logs carry `service.name` and `deployment.environment` resource attributes, the pino level as severity, the timestamp, the message as body and the other fields as attributes. Before, each record was one raw JSON string with no service.
+  - `$groupidentify` uses PostHog's `$type_key` distinct id, so it no longer shares an id with a real subject such as `school_<id>`.
+
 ## 0.14.1
 
 No changes in this release.

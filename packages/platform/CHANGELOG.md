@@ -1,5 +1,11 @@
 # @codelitdev/platform
 
+## 0.15.0
+
+### Patch Changes
+
+- @codelitdev/billing@0.15.0
+
 ## 0.14.1
 
 ### Patch Changes
