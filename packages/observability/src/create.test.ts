@@ -296,4 +296,114 @@ describe("createObservability", () => {
       globalThis.fetch = previousFetch;
     }
   });
+
+  it("attaches groups and person properties, and lets product events skip dedupe", () => {
+    const client = fakeClient();
+    const obs = createObservability({
+      serviceName: "reference-api",
+      environment: "test",
+      posthog: { apiKey: "phc_test", client },
+      contextPolicy: {
+        propertyAllowlist: new Set(["step", "industry"]),
+        identifierKeys: new Set(),
+      },
+    });
+    const schoolId = "sch_0123456789abcdefghijklmnop";
+    for (const step of ["you", "school"]) {
+      obs.captureEvent({
+        event: "Onboarding step completed",
+        source: "onboarding",
+        subjectId: "user_1",
+        properties: { step, secret: "x", unlisted: "y" },
+        groups: { school: schoolId, empty: "", bad: { nested: true } },
+        personProperties: { industry: "education", email: "ada@example.com" },
+        dedupe: false,
+      });
+    }
+    expect(client.events).toHaveLength(2);
+    const [first, second] = client.events as Array<{
+      event: string;
+      distinctId: string;
+      properties: Record<string, unknown>;
+    }>;
+    expect(first!.distinctId).toBe("user_1");
+    expect(first!.properties.step).toBe("you");
+    expect(second!.properties.step).toBe("school");
+    expect(first!.properties.secret).toBeUndefined();
+    expect(first!.properties.unlisted).toBeUndefined();
+    // Group keys are opaque ids, so long tokens are kept.
+    expect(first!.properties.$groups).toEqual({ school: schoolId });
+    expect(first!.properties.$set).toEqual({ industry: "education" });
+  });
+
+  it("still dedupes events by default and omits empty groups", () => {
+    const client = fakeClient();
+    const obs = createObservability({
+      serviceName: "reference-api",
+      environment: "test",
+      posthog: { apiKey: "phc_test", client },
+      contextPolicy: { propertyAllowlist: new Set() },
+    });
+    obs.captureEvent({
+      event: "ping",
+      source: "s",
+      subjectId: "u",
+      groups: { school: "" },
+    });
+    obs.captureEvent({ event: "ping", source: "s", subjectId: "u" });
+    expect(client.events).toHaveLength(1);
+    const [event] = client.events as Array<{ properties: Record<string, unknown> }>;
+    expect(event!.properties.$groups).toBeUndefined();
+    expect(event!.properties.$set).toBeUndefined();
+  });
+
+  it("identifies a group with allowlisted properties", () => {
+    const client = fakeClient();
+    const obs = createObservability({
+      serviceName: "reference-api",
+      environment: "test",
+      posthog: { apiKey: "phc_test", client },
+      contextPolicy: { propertyAllowlist: new Set(["plan"]) },
+    });
+    obs.identifyGroup({
+      groupType: "school",
+      groupKey: "sch_1",
+      source: "billing",
+      properties: { plan: "pro", owner_email: "ada@example.com" },
+    });
+    obs.identifyGroup({ groupType: "school", groupKey: "", source: "billing" });
+    expect(client.events).toEqual([
+      {
+        event: "$groupidentify",
+        distinctId: "school_sch_1",
+        properties: {
+          $group_type: "school",
+          $group_key: "sch_1",
+          $group_set: { service: "reference-api", environment: "test", plan: "pro" },
+        },
+      },
+    ]);
+  });
+
+  it("sends personless events without person properties", () => {
+    const client = fakeClient();
+    const obs = createObservability({
+      serviceName: "reference-api",
+      environment: "test",
+      posthog: { apiKey: "phc_test", client },
+      contextPolicy: { propertyAllowlist: new Set(["plan"]) },
+    });
+    obs.captureEvent({
+      event: "Learner enrolled",
+      source: "activity",
+      subjectId: "school_sch_1",
+      groups: { school: "sch_1" },
+      personProperties: { plan: "pro" },
+      processPerson: false,
+    });
+    const [event] = client.events as Array<{ properties: Record<string, unknown> }>;
+    expect(event!.properties.$process_person_profile).toBe(false);
+    expect(event!.properties.$set).toBeUndefined();
+    expect(event!.properties.$groups).toEqual({ school: "sch_1" });
+  });
 });

@@ -4,12 +4,14 @@ type PosthogJs = {
     options: {
       api_host?: string;
       defaults?: string;
+      capture_exceptions?: boolean;
       loaded?: (instance: {
         register: (properties: Record<string, string>) => void;
       }) => void;
     },
   ): void;
   identify(id: string, properties?: Record<string, string>): void;
+  group(type: string, key: string, properties?: Record<string, string>): void;
   reset(): void;
 };
 
@@ -24,12 +26,22 @@ export type CreateBrowserObservabilityOptions = {
   environment: string;
   apiKey?: string | null;
   host?: string;
+  /** Sends uncaught errors and unhandled rejections as `$exception`.
+   * Defaults to `true`. */
+  captureExceptions?: boolean;
 };
 
 export type BrowserObservability = {
   enabled: boolean;
   init(): Promise<void>;
   identify(user: BrowserPerson | null | undefined): void;
+  /** Ties later events to a PostHog group, such as `group("school", id)`,
+   * so they line up with server events sent with the same `groups`. */
+  group(
+    type: string,
+    key: string | null | undefined,
+    properties?: Record<string, string>,
+  ): void;
   reset(): void;
 };
 
@@ -70,6 +82,7 @@ export function createBrowserObservability(
             posthog.init(apiKey, {
               api_host: options.host?.trim() || DEFAULT_HOST,
               defaults: "2026-05-30",
+              capture_exceptions: options.captureExceptions ?? true,
               loaded(instance) {
                 instance.register({
                   service: options.serviceName,
@@ -94,6 +107,13 @@ export function createBrowserObservability(
         ...(user.email ? { email: user.email } : {}),
         ...(user.name ? { name: user.name } : {}),
       });
+    },
+    group(type, key, properties) {
+      const groupKey = key?.trim();
+      if (!client || !type.trim() || !groupKey) {
+        return;
+      }
+      client.group(type.trim(), groupKey, properties);
     },
     reset() {
       client?.reset();

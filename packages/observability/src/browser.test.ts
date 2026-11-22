@@ -4,6 +4,7 @@ const mocks = {
   init: vi.fn(),
   identify: vi.fn(),
   reset: vi.fn(),
+  group: vi.fn(),
   register: vi.fn(),
 };
 
@@ -12,6 +13,7 @@ mock.module("posthog-js", () => ({
     init: mocks.init,
     identify: mocks.identify,
     reset: mocks.reset,
+    group: mocks.group,
   },
 }));
 
@@ -24,6 +26,7 @@ describe("createBrowserObservability", () => {
     mocks.init.mockReset();
     mocks.identify.mockReset();
     mocks.reset.mockReset();
+    mocks.group.mockReset();
     mocks.register.mockReset();
     mocks.init.mockImplementation(
       (
@@ -46,8 +49,10 @@ describe("createBrowserObservability", () => {
     expect(obs.enabled).toBe(false);
     await obs.init();
     obs.identify({ id: "user_1" });
+    obs.group("school", "sch_1");
     obs.reset();
     expect(mocks.init).not.toHaveBeenCalled();
+    expect(mocks.group).not.toHaveBeenCalled();
     expect(mocks.identify).not.toHaveBeenCalled();
     expect(mocks.reset).not.toHaveBeenCalled();
     process.env.POSTHOG_API_KEY = previous;
@@ -67,6 +72,7 @@ describe("createBrowserObservability", () => {
     expect(mocks.init).toHaveBeenCalledWith("phc_test", {
       api_host: "https://eu.i.posthog.com",
       defaults: "2026-05-30",
+      capture_exceptions: true,
       loaded: expect.any(Function),
     });
     expect(mocks.register).toHaveBeenCalledWith({
@@ -82,5 +88,21 @@ describe("createBrowserObservability", () => {
     expect(mocks.identify).toHaveBeenCalledTimes(1);
     obs.reset();
     expect(mocks.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it("joins a group and skips empty keys", async () => {
+    const { createBrowserObservability } = await load();
+    const obs = createBrowserObservability({
+      serviceName: "demo-web",
+      environment: "qa",
+      apiKey: "phc_test",
+    });
+    await obs.init();
+    obs.group("school", " sch_1 ", { name: "Acme" });
+    obs.group("school", "");
+    obs.group("school", null);
+    obs.group(" ", "sch_2");
+    expect(mocks.group).toHaveBeenCalledTimes(1);
+    expect(mocks.group).toHaveBeenCalledWith("school", "sch_1", { name: "Acme" });
   });
 });

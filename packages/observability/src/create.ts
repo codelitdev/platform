@@ -129,14 +129,39 @@ export type CreateObservabilityOptions = {
   dedupeMaxKeys?: number;
 };
 
+export type CaptureEventInput = {
+  event: string;
+  source: string;
+  subjectId?: unknown;
+  properties?: Record<string, unknown>;
+  /** PostHog groups the event belongs to, as `{ groupType: groupKey }`
+   * (for example `{ school: "sch_123" }`). Keys are opaque record ids. */
+  groups?: Record<string, unknown>;
+  /** Person properties to set (`$set`), filtered by the same allowlist. */
+  personProperties?: Record<string, unknown>;
+  /** Product events pass `false`: each occurrence counts, so the 60-second
+   * fingerprint dedupe that protects noisy signals must not drop them. The
+   * per-source cap still applies. Defaults to `true`. */
+  dedupe?: boolean;
+  /** `false` sends `$process_person_profile: false`: the event counts for its
+   * groups but creates no person, for events with no signed-in user behind
+   * them (webhooks, an end customer's actions). Defaults to `true`. */
+  processPerson?: boolean;
+};
+
+export type IdentifyGroupInput = {
+  groupType: string;
+  groupKey: unknown;
+  source: string;
+  /** Group properties (`$group_set`), filtered by the allowlist. */
+  properties?: Record<string, unknown>;
+};
+
 export type Observability = {
   logger: Logger;
-  captureEvent(input: {
-    event: string;
-    source: string;
-    subjectId?: unknown;
-    properties?: Record<string, unknown>;
-  }): void;
+  captureEvent(input: CaptureEventInput): void;
+  /** Sets properties on a PostHog group, such as a school's plan. */
+  identifyGroup(input: IdentifyGroupInput): void;
   captureException(input: {
     error: unknown;
     source: string;
@@ -153,6 +178,23 @@ export type Observability = {
   shutdown(timeoutMs?: number): Promise<void>;
   enabled: boolean;
 };
+
+/** A group key is an opaque record id: kept as-is apart from email masking. */
+function groupKeyOf(value: unknown): string | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const key = redactText(String(value).trim(), 200, { keepLongTokens: true });
+  return key || null;
+}
+
+function groupKeys(groups: Record<string, unknown> | undefined) {
+  if (!groups) return null;
+  const out: Record<string, string> = {};
+  for (const [type, value] of Object.entries(groups)) {
+    const key = groupKeyOf(value);
+    if (type.trim() && key) out[type.trim()] = key;
+  }
+  return Object.keys(out).length ? out : null;
+}
 
 const systemClock: Clock = { now: () => new Date() };
 
@@ -237,6 +279,12 @@ export function createObservability(
     clock,
   });
   const seenExpress = new WeakSet<object>();
+  const allowlisted = (properties: Record<string, unknown>) =>
+    pickAllowlisted(
+      properties,
+      options.contextPolicy.propertyAllowlist,
+      options.contextPolicy.identifierKeys,
+    );
 
   const captureException: Observability["captureException"] = (input) => {
     if (!client) return;
@@ -274,9 +322,12 @@ export function createObservability(
       try {
         const subject = opaqueSubjectId(input.subjectId);
         const fingerprint = `${input.source}|event|${input.event}|${subject}`;
-        if (dedupe.shouldSkip(fingerprint) || cap.isLimited(input.source)) {
-          return;
-        }
+        if (input.dedupe !== false && dedupe.shouldSkip(fingerprint)) return;
+        if (cap.isLimited(input.source)) return;
+        const groups = groupKeys(input.groups);
+        const personProperties = input.personProperties
+          ? allowlisted(input.personProperties)
+          : {};
         client.capture({
           event: input.event,
           distinctId: subject,
@@ -285,11 +336,36 @@ export function createObservability(
             environment: options.environment,
             source: input.source,
             subject_id: subject,
-            ...pickAllowlisted(
-              input.properties ?? {},
-              options.contextPolicy.propertyAllowlist,
-              options.contextPolicy.identifierKeys,
-            ),
+            ...allowlisted(input.properties ?? {}),
+            ...(groups ? { $groups: groups } : {}),
+            ...(input.processPerson === false
+              ? { $process_person_profile: false }
+              : Object.keys(personProperties).length
+                ? { $set: personProperties }
+                : {}),
+          },
+        });
+      } catch {
+        // Telemetry must never fail the caller.
+      }
+    },
+    identifyGroup(input) {
+      if (!client) return;
+      try {
+        const groupType = input.groupType.trim();
+        const groupKey = groupKeyOf(input.groupKey);
+        if (!groupType || !groupKey || cap.isLimited(input.source)) return;
+        client.capture({
+          event: "$groupidentify",
+          distinctId: `${groupType}_${groupKey}`,
+          properties: {
+            $group_type: groupType,
+            $group_key: groupKey,
+            $group_set: {
+              service: options.serviceName,
+              environment: options.environment,
+              ...allowlisted(input.properties ?? {}),
+            },
           },
         });
       } catch {
