@@ -486,11 +486,11 @@ export function createObservability(
         if (!groupType || !groupKey || cap.isLimited(input.source)) return;
         client.capture({
           event: "$groupidentify",
-          // PostHog's SDKs use `$type_key`: the `$` keeps it apart from real
-          // distinct ids, and the event creates no person.
+          // PostHog's SDKs use `$type_key`, which keeps it apart from real
+          // distinct ids. PostHog drops a personless `$groupidentify`, so it
+          // must not set `$process_person_profile: false`.
           distinctId: `$${groupType}_${groupKey}`,
           properties: {
-            $process_person_profile: false,
             $group_type: groupType,
             $group_key: groupKey,
             $group_set: {

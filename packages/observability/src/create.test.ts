@@ -482,7 +482,6 @@ describe("createObservability", () => {
         event: "$groupidentify",
         distinctId: "$school_sch_1",
         properties: {
-          $process_person_profile: false,
           $group_type: "school",
           $group_key: "sch_1",
           $group_set: { service: "reference-api", environment: "test", plan: "pro" },
