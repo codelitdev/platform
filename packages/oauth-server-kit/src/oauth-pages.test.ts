@@ -277,6 +277,18 @@ describe("createOAuthPagesRouter", () => {
     );
   });
 
+  it("fits phone screens: no zoom on input focus, and room for the widget", async () => {
+    await withHttpServer(pagesApp(), async (baseUrl) => {
+      const html = await (await fetch(`${baseUrl}/login`)).text();
+      // iOS Safari zooms into inputs under 16px when they get focus.
+      expect(html).toMatch(/input\{[^}]*font-size:16px/);
+      // Turnstile's flexible widget needs 300px; the padding shrinks so it
+      // fits on 375px screens, and the card frame goes on narrower ones.
+      expect(html).toContain("@media (max-width:420px)");
+      expect(html).toContain("@media (max-width:359px)");
+    });
+  });
+
   it("omits the captcha when none is configured", async () => {
     await withHttpServer(pagesApp(), async (baseUrl) => {
       const html = await (await fetch(`${baseUrl}/login`)).text();
