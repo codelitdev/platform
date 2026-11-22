@@ -34,7 +34,7 @@
     "lint": "biome lint .",
     "format": "biome format --write .",
     "format:check": "biome ci --linter-enabled=false .",
-    "verify": "bun run lint && bun scripts/sync-preset.mjs --check && bun run typecheck && bun run --filter @reference-product/api check:drift && bun run test && bun run build && bun run test:packed",
+    "verify": "bun run lint && bun scripts/sync-preset.mjs --check && bun scripts/check-registry.mjs && bun run typecheck && bun run --filter @reference-product/api check:drift && bun run test && bun run build && bun run test:packed",
     "test:packed": "bun run --filter @codelitdev/billing test:packed && bun run --filter @codelitdev/platform test:packed && bun run --filter @codelitdev/observability test:packed && bun run --filter @codelitdev/mcp-server-kit test:packed && bun run --filter @codelitdev/platform-conformance test:packed && bun run --filter @codelitdev/platform-cli test:packed && bun scripts/check-package-contents.mjs",
     "template:smoke": "bun scripts/template-smoke.mjs",
     "changeset": "changeset",
