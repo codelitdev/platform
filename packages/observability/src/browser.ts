@@ -37,7 +37,11 @@ export type BrowserObservability = {
   identify(user: BrowserPerson | null | undefined): void;
   /** Ties later events to a PostHog group, such as `group("school", id)`,
    * so they line up with server events sent with the same `groups`. */
-  group(type: string, key: string | null | undefined, properties?: Record<string, string>): void;
+  group(
+    type: string,
+    key: string | null | undefined,
+    properties?: Record<string, string>,
+  ): void;
   reset(): void;
 };
 

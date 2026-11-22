@@ -344,7 +344,12 @@ describe("createObservability", () => {
       posthog: { apiKey: "phc_test", client },
       contextPolicy: { propertyAllowlist: new Set() },
     });
-    obs.captureEvent({ event: "ping", source: "s", subjectId: "u", groups: { school: "" } });
+    obs.captureEvent({
+      event: "ping",
+      source: "s",
+      subjectId: "u",
+      groups: { school: "" },
+    });
     obs.captureEvent({ event: "ping", source: "s", subjectId: "u" });
     expect(client.events).toHaveLength(1);
     const [event] = client.events as Array<{ properties: Record<string, unknown> }>;
