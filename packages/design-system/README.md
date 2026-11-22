@@ -142,6 +142,9 @@ committing.
 | `dropdown-menu` | Matches `select`'s popover treatment; full Radix parts incl. checkbox/radio items and submenus |
 | `tooltip` | Dark chip; `TooltipProvider` included |
 | `toast` | Presentational card (`default`/`success`/`destructive`) — drive with your own queue |
+| `onboarding-shell` | Setup-wizard frame: top bar with step indicator, form pane with `OnboardingFooter`, `OnboardingPreview` pane (sheet on phones), `PreviewBrowser`. Stateless; see ADR 0021 |
+| `onboarding-ui` | Step building blocks: `StepHeader`, `FieldBlock`, `Hint`, `Note`, `Seg`, `Tile`, `ProgressList`, `DropZone`, `FileRow`, `CopyRow`, `StatusBadge`, `Spinner`, `useCopy` |
+| `onboarding-resume-dialog` | "Welcome back" dialog for a part-done setup |
 
 Install everything at once:
 
@@ -151,6 +154,30 @@ bunx shadcn@4.21.0 add @codelit/button @codelit/icon-button @codelit/badge @code
   @codelit/switch @codelit/select @codelit/tabs @codelit/dialog @codelit/dropdown-menu \
   @codelit/tooltip @codelit/toast
 ```
+
+For a product's setup flow, add the onboarding items:
+
+```sh
+bunx shadcn@4.21.0 add @codelit/onboarding-shell @codelit/onboarding-ui @codelit/onboarding-resume-dialog
+```
+
+```tsx
+<OnboardingShell
+  logo={<ProductLogo className="size-7" />}
+  productName="SendLit"
+  steps={[{ key: "team", label: "Team" }, { key: "domain", label: "Domain" }]}
+  current={step}
+  saveState="saved"
+  onFinishLater={finishLater}
+  footer={<OnboardingFooter>{/* Back, <span className="flex-1" />, Continue */}</OnboardingFooter>}
+  preview={<OnboardingPreview title="Live preview">{/* … */}</OnboardingPreview>}
+>
+  <StepHeader eyebrow="Step 1" title="Name your team" />
+  {/* fields */}
+</OnboardingShell>
+```
+
+The shell needs a parent with a fixed height, such as `h-dvh`.
 
 **Maintainers:** component sources live in `registry/codelit/ui/`. After changing
 one, rebuild with `bun run registry:build` (→ `public/r/*.json`) and commit the

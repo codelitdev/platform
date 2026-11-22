@@ -223,6 +223,51 @@
           "target": "@ui/codelit/toast.tsx"
         }
       ]
+    },
+    {
+      "name": "onboarding-shell",
+      "type": "registry:ui",
+      "title": "Onboarding shell",
+      "description": "Full-screen frame for a product's setup wizard: top bar with step indicator, save status and Finish later; mobile progress bar; scrolling form pane with a button footer; optional live-preview pane that becomes a sheet on phones. Stateless.",
+      "dependencies": ["lucide-react"],
+      "registryDependencies": ["@codelit/button"],
+      "files": [
+        {
+          "path": "registry/codelit/ui/onboarding-shell.tsx",
+          "type": "registry:ui",
+          "target": "@ui/codelit/onboarding-shell.tsx"
+        }
+      ]
+    },
+    {
+      "name": "onboarding-ui",
+      "type": "registry:ui",
+      "title": "Onboarding UI",
+      "description": "Building blocks for setup steps: StepHeader, FieldBlock, Hint, Note, Seg, Tile, ProgressList, DropZone, FileRow, CopyRow, StatusBadge, Spinner and useCopy.",
+      "dependencies": ["lucide-react"],
+      "registryDependencies": ["@codelit/button"],
+      "files": [
+        {
+          "path": "registry/codelit/ui/onboarding-ui.tsx",
+          "type": "registry:ui",
+          "target": "@ui/codelit/onboarding-ui.tsx"
+        }
+      ]
+    },
+    {
+      "name": "onboarding-resume-dialog",
+      "type": "registry:ui",
+      "title": "Onboarding resume dialog",
+      "description": "Welcome-back dialog for a part-done setup: lists done and next steps, focuses Continue, optional Never show again link.",
+      "dependencies": ["lucide-react"],
+      "registryDependencies": ["@codelit/button", "@codelit/dialog"],
+      "files": [
+        {
+          "path": "registry/codelit/ui/onboarding-resume-dialog.tsx",
+          "type": "registry:ui",
+          "target": "@ui/codelit/onboarding-resume-dialog.tsx"
+        }
+      ]
     }
   ]
 }
