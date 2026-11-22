@@ -1,5 +1,11 @@
 # @codelitdev/mcp-server-kit
 
+## 0.14.0
+
+### Patch Changes
+
+- @codelitdev/platform@0.14.0
+
 ## 0.13.0
 
 ### Patch Changes
