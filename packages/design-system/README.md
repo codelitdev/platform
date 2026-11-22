@@ -2,9 +2,9 @@
 
 Shared tokens, Tailwind preset, and React primitives for CourseLit, MediaLit, SendLit, and FrontLit.
 
-The **tokens + Tailwind preset are the product**; the React components are
-reference/fallback (see step 5). Consuming apps typically use only the CSS and
-the preset and keep their own shadcn components.
+Apps get the tokens and Tailwind preset from this npm package, and the
+components from its shadcn registry (see step 5). The plain-React components
+exported from `src/index.ts` are reference/fallback, except `Loader`.
 
 ## Install
 
@@ -80,27 +80,47 @@ CLI — keeping all four apps on one component layer instead of each re-styling 
 own. They're standard shadcn/Radix components; they pull their look from the DS
 tokens, so make sure `@codelitdev/design-system/styles.css` is imported (above).
 
-Add the registry namespace to your app's `components.json`:
+Products install these components with the shadcn CLI. Do not copy component
+files by hand: the CLI is what lets a product re-run `add` to take a fix.
+
+### Setup (once per app)
+
+Add the registry to the app's `components.json`, pinned to the **same exact
+version** as the app's `@codelitdev/design-system` dependency:
 
 ```jsonc
 {
   "registries": {
-    "@codelit": "https://raw.githubusercontent.com/codelitdev/platform/main/packages/design-system/public/r/{name}.json"
+    "@codelit": "https://cdn.jsdelivr.net/npm/@codelitdev/design-system@0.14.0/public/r/{name}.json"
   }
 }
 ```
 
-Then install components like any other shadcn component:
+The built registry ships inside the npm package (from 0.14.0), so a pinned URL
+always serves the same files. When you bump the npm dependency, bump this URL
+in the same commit, then re-run `add` for the components you use.
+
+The app also needs the token layer and preset (steps 1–2 above) and a `cn`
+helper at its `utils` alias (shadcn's default `@/lib/utils`).
+
+### Install and update
 
 ```sh
-bunx shadcn@latest add @codelit/button @codelit/badge @codelit/card
+bunx shadcn@4.21.0 add @codelit/button @codelit/badge @codelit/card
 ```
 
-Or install a single component directly by URL, no config:
+Every component installs into `<ui alias>/codelit/`, for example
+`components/ui/codelit/button.tsx`, so it never overwrites a stock shadcn
+component in `components/ui/`. Import it from there:
 
-```sh
-bunx shadcn@latest add https://raw.githubusercontent.com/codelitdev/platform/main/packages/design-system/public/r/button.json
+```tsx
+import { Button } from "@/components/ui/codelit/button";
 ```
+
+Use shadcn CLI 4.21.0 or later: older versions don't understand the
+`@ui/...` install target. To update, re-run `add` with `--overwrite`. That
+replaces the file, including any local edits, so review the diff before
+committing.
 
 ### Available components
 
@@ -126,15 +146,18 @@ bunx shadcn@latest add https://raw.githubusercontent.com/codelitdev/platform/mai
 Install everything at once:
 
 ```sh
-bunx shadcn@latest add @codelit/button @codelit/icon-button @codelit/badge @codelit/card \
+bunx shadcn@4.21.0 add @codelit/button @codelit/icon-button @codelit/badge @codelit/card \
   @codelit/input @codelit/textarea @codelit/label @codelit/checkbox @codelit/radio-group \
   @codelit/switch @codelit/select @codelit/tabs @codelit/dialog @codelit/dropdown-menu \
   @codelit/tooltip @codelit/toast
 ```
 
 **Maintainers:** component sources live in `registry/codelit/ui/`. After changing
-one, rebuild the served JSON with `bun run registry:build` (→ `public/r/*.json`) and
-commit it — the raw-URL install serves those committed files.
+one, rebuild with `bun run registry:build` (→ `public/r/*.json`) and commit the
+result. Every file in `registry.json` needs a `target` under `@ui/codelit/`.
+`bun run verify` (via `scripts/check-registry.mjs`) fails when `public/r` is out of
+date or a target is missing. Products receive registry changes only through a
+published release, so add a Changeset as for any other change.
 
 ## Publishing
 

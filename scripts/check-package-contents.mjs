@@ -57,8 +57,10 @@ const packages = [
       "package/src/index.ts",
       "package/src/styles.css",
       "package/tailwind-preset.js",
+      "package/public/r/registry.json",
+      "package/public/r/button.json",
     ],
-    forbidden: ["package/registry/", "package/public/"],
+    forbidden: ["package/registry/"],
   },
 ];
 
