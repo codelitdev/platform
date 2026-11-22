@@ -379,4 +379,26 @@ describe("createObservability", () => {
       },
     ]);
   });
+
+  it("sends personless events without person properties", () => {
+    const client = fakeClient();
+    const obs = createObservability({
+      serviceName: "reference-api",
+      environment: "test",
+      posthog: { apiKey: "phc_test", client },
+      contextPolicy: { propertyAllowlist: new Set(["plan"]) },
+    });
+    obs.captureEvent({
+      event: "Learner enrolled",
+      source: "activity",
+      subjectId: "school_sch_1",
+      groups: { school: "sch_1" },
+      personProperties: { plan: "pro" },
+      processPerson: false,
+    });
+    const [event] = client.events as Array<{ properties: Record<string, unknown> }>;
+    expect(event!.properties.$process_person_profile).toBe(false);
+    expect(event!.properties.$set).toBeUndefined();
+    expect(event!.properties.$groups).toEqual({ school: "sch_1" });
+  });
 });

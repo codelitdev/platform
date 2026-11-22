@@ -143,6 +143,10 @@ export type CaptureEventInput = {
    * fingerprint dedupe that protects noisy signals must not drop them. The
    * per-source cap still applies. Defaults to `true`. */
   dedupe?: boolean;
+  /** `false` sends `$process_person_profile: false`: the event counts for its
+   * groups but creates no person, for events with no signed-in user behind
+   * them (webhooks, an end customer's actions). Defaults to `true`. */
+  processPerson?: boolean;
 };
 
 export type IdentifyGroupInput = {
@@ -334,7 +338,11 @@ export function createObservability(
             subject_id: subject,
             ...allowlisted(input.properties ?? {}),
             ...(groups ? { $groups: groups } : {}),
-            ...(Object.keys(personProperties).length ? { $set: personProperties } : {}),
+            ...(input.processPerson === false
+              ? { $process_person_profile: false }
+              : Object.keys(personProperties).length
+                ? { $set: personProperties }
+                : {}),
           },
         });
       } catch {

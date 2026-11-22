@@ -26,7 +26,8 @@ not masked too. Never list a key that can hold a session or access token.
 `$groups` so funnels can be measured per account, not per person) and
 `personProperties` (sent as `$set`, through the same allowlist). Its
 60-second fingerprint dedupe suits noisy signals; product events pass
-`dedupe: false` so each occurrence counts. `identifyGroup` sets allowlisted
+`dedupe: false` so each occurrence counts. Events with no signed-in user behind them (webhooks, an end customer's
+actions) pass `processPerson: false` so they create no person. `identifyGroup` sets allowlisted
 properties on a group, such as its plan. The `distinct_id` is the
 `subjectId` as given: pass the same user id the browser identifies with, or
 server and browser events land on different people.
