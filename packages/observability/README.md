@@ -8,7 +8,12 @@ and own event catalogs. Tenant identity is an opaque `subjectId`.
 Pass `posthog: { apiKey }` for best-effort HTTP capture or provide a typed
 client in tests. `logs.otlp` adds an OTLP/HTTP log fan-out while structured
 stdout remains enabled; both remote pipelines are failure-isolated and
-timeout-bounded during shutdown.
+timeout-bounded during shutdown. Log records carry `service.name` and
+`deployment.environment` as resource attributes, the pino level as severity,
+the message as body and the remaining fields as attributes.
+
+Exceptions are sent with `$exception_list` (type, message and stack frames),
+which PostHog error tracking needs to group them into issues.
 
 Both pipelines queue what they send and post it in batches (PostHog
 `/batch/`, one OTLP request per batch): every second or once 50 items are
@@ -26,9 +31,12 @@ not masked too. Never list a key that can hold a session or access token.
 `$groups` so funnels can be measured per account, not per person) and
 `personProperties` (sent as `$set`, through the same allowlist). Its
 60-second fingerprint dedupe suits noisy signals; product events pass
-`dedupe: false` so each occurrence counts. Events with no signed-in user behind them (webhooks, an end customer's
-actions) pass `processPerson: false` so they create no person. `identifyGroup` sets allowlisted
-properties on a group, such as its plan. The `distinct_id` is the
+`dedupe: false` so each occurrence counts. `processPerson: false` sends an
+event that creates no person; PostHog does not link such events to groups,
+so when group analytics must count an event with no signed-in user behind it,
+send it under one stable subject per group instead. `identifyGroup` sets
+allowlisted properties on a group, such as its plan, under PostHog's
+`$type_key` distinct id. The `distinct_id` is the
 `subjectId` as given: pass the same user id the browser identifies with, or
 server and browser events land on different people.
 
