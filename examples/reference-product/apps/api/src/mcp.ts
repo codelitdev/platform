@@ -22,6 +22,13 @@ export function createReferenceMcp(deps: DispatchDeps): McpServerKit<Ctx> {
   return createMcpServerKit<Ctx>({
     name: "reference-product",
     version: "0.0.0",
+    serverCard: {
+      name: "dev.codelit/reference-product",
+      title: "Reference Product",
+      description: "Notes for the selected tenant.",
+      endpoint: deps.auth.mcpResource,
+      protectedResourceMetadataUrl: `${deps.auth.publicApiUrl}/.well-known/oauth-protected-resource/mcp`,
+    },
     onError: ({ error, source }) =>
       deps.observability?.captureException({ error, source }),
     authenticate: (headers) => authenticateMcpRequest(headers, deps),

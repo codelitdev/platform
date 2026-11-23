@@ -19,6 +19,13 @@ import {
 import type { z } from "zod";
 import { mcpCorsHeaders } from "./cors.js";
 import { toMcpInputSchema, toMcpObjectSchema } from "./schema.js";
+import {
+  buildMcpServerCard,
+  createDiscoveryDocumentHandler,
+  MCP_SERVER_CARD_MEDIA_TYPE,
+  type McpDiscoveryDocumentRequest,
+  type McpServerCardOptions,
+} from "./server-card.js";
 import { patchMcpAccept, readMcpResponse, toWebRequest } from "./streamable-http.js";
 
 export type McpToolRisk = "read" | "write" | "destructive";
@@ -68,6 +75,11 @@ export type CreateMcpServerKitOptions<Context> = {
    * authenticated callers, so the default is five minutes, private.
    */
   catalogCacheHint?: CacheHint;
+  /**
+   * A public MCP Server Card (SEP-2127) for discovery. Serve it with
+   * `handleServerCard()` at `<endpoint>/server-card`, outside authentication.
+   */
+  serverCard?: McpServerCardOptions;
   onError?: (input: { error: unknown; source: string }) => void;
 };
 
@@ -166,6 +178,16 @@ export function createMcpServerKit<Context>(
       : undefined,
   }));
   const catalogCacheHint = options.catalogCacheHint ?? DEFAULT_CATALOG_CACHE_HINT;
+  const serverCard = options.serverCard
+    ? buildMcpServerCard({
+        ...options.serverCard,
+        version: options.serverCard.version ?? options.version,
+        description: options.serverCard.description ?? options.description ?? "",
+      })
+    : undefined;
+  const serveServerCard = serverCard
+    ? createDiscoveryDocumentHandler(serverCard, MCP_SERVER_CARD_MEDIA_TYPE)
+    : undefined;
 
   function reportError(error: unknown, source: string) {
     try {
@@ -324,8 +346,26 @@ export function createMcpServerKit<Context>(
     };
   }
 
+  /**
+   * Answer `GET <endpoint>/server-card`. Public by design: call it before any
+   * authentication. Returns 404 when the kit has no `serverCard` config.
+   */
+  function handleServerCard(request: McpDiscoveryDocumentRequest): McpKitResponse {
+    if (!serveServerCard) {
+      return {
+        status: 404,
+        headers: {},
+        body: toPublicHttpError(createPlatformError("not_found")).body,
+      };
+    }
+    return serveServerCard(request);
+  }
+
   return {
     handle,
+    handleServerCard,
+    /** The Server Card, for building the domain's AI Catalog. */
+    serverCard,
     listTools: () => [...options.tools],
     shutdown: async () => {
       closed = true;
