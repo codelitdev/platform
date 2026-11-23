@@ -11,6 +11,10 @@ export {
   runMcpDiscoveryConformance,
 } from "./mcp-discovery.js";
 export {
+  type McpServerCardOptions,
+  runMcpServerCardConformance,
+} from "./mcp-server-card.js";
+export {
   type ReferenceHttpInput,
   type ReferenceMcpInput,
   runPlatformConformance,

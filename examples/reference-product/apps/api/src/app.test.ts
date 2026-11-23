@@ -531,6 +531,30 @@ describe.serial("reference API adapters", () => {
       resource: runtime.auth.mcpResource,
       authorization_servers: [runtime.auth.issuer],
     });
+    const { runMcpServerCardConformance } = await import(
+      "@codelitdev/platform-conformance"
+    );
+    const discovery = await runMcpServerCardConformance(
+      {
+        async request(input) {
+          const response = await fetch(
+            `http://127.0.0.1:${address.port}${input.path}`,
+            {
+              method: input.method,
+              headers: input.headers,
+            },
+          );
+          const text = await response.text();
+          return {
+            status: response.status,
+            headers: Object.fromEntries(response.headers.entries()),
+            body: text ? JSON.parse(text) : null,
+          };
+        },
+      },
+      { resourceUrl: runtime.auth.mcpResource },
+    );
+    expect(discovery.failures).toEqual([]);
     const authorizationServer = await fetch(
       `http://127.0.0.1:${address.port}/.well-known/oauth-authorization-server`,
     );

@@ -21,7 +21,7 @@ the reference runner is not yet a general adapter for every product.
 | OAuth integration | Advertised issuer, authorization and token endpoints, resource metadata, and declared DCR/CIMD support match the running product. | MCP protected-resource discovery has an independent suite; authorization-server and client-registration checks still need one. |
 | Tenancy and identity lifecycle | Membership is rechecked, API keys stay fixed to one tenant, cross-tenant access is denied, and key revocation, invitations, and last-owner safeguards work. | Basic isolation in the reference runner; lifecycle cases remain product tests. |
 | REST and OpenAPI | Runtime validation, stable safe errors, and generated OpenAPI agree with the product contract. | Reference-specific checks for `/v1/notes` and its operations. |
-| MCP transport and parity | Anonymous requests receive an OAuth challenge; authenticated tools follow product policy and match equivalent REST capabilities; destructive actions require explicit proof. | Independent discovery suite and reference-specific tool checks. Static parity validation lives in `@codelitdev/mcp-server-kit`. |
+| MCP transport and parity | Anonymous requests receive an OAuth challenge; the public Server Card and AI Catalog describe the endpoint; authenticated tools follow product policy and match equivalent REST capabilities; destructive actions require explicit proof. | Independent discovery and server-card suites, and reference-specific tool checks. Static parity validation lives in `@codelitdev/mcp-server-kit`. |
 | Observability | Disabled telemetry is safe, secrets are redacted, and a failed optional sink does not fail requests or jobs. | Reference runner hooks; independent composition suite still needed. |
 | Billing composition | Product schema, action grants, audit hooks, fake-provider flow, and maintenance are wired correctly. | Reference runner hooks. Provider and workflow contracts live in `@codelitdev/billing/testing`. |
 | Lifecycle | Health and readiness reflect state; shutdown stops new work and closes resources. | Reference runner checks fixed endpoints; independent suite still needed. |
@@ -76,6 +76,13 @@ const discovery = await runMcpDiscoveryConformance(
 );
 expect(discovery.failures).toEqual([]);
 ```
+
+`runMcpServerCardConformance(adapter, { resourceUrl })` uses the same adapter.
+Without credentials, it fetches `<resourceUrl>/server-card` and checks the
+card's `$schema`, name, version, description, CORS, and that it lists the
+endpoint as a `streamable-http` remote. It then checks that
+`/.well-known/ai-catalog.json` lists the card. Pass `serverCardUrl` for a card
+at another path, or `catalog: false` when the catalog is on another host.
 
 Run only the suites applicable to the product, but do not treat an omitted
 suite as a pass. Products should declare their supported capabilities in their

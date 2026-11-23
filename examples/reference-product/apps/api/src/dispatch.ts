@@ -1,3 +1,4 @@
+import { createAiCatalogHandler } from "@codelitdev/mcp-server-kit";
 import {
   captureAndMapException,
   createPlatformError,
@@ -42,6 +43,20 @@ export function mcpFor(deps: DispatchDeps) {
   return created;
 }
 
+const aiCatalogs = new WeakMap<
+  DispatchDeps,
+  ReturnType<typeof createAiCatalogHandler>
+>();
+
+function aiCatalogFor(deps: DispatchDeps) {
+  const existing = aiCatalogs.get(deps);
+  if (existing) return existing;
+  const card = mcpFor(deps).serverCard;
+  const created = createAiCatalogHandler(card ? [card] : []);
+  aiCatalogs.set(deps, created);
+  return created;
+}
+
 function requestHeaders(request: IncomingRequest) {
   return request.headers;
 }
@@ -77,6 +92,14 @@ export async function dispatch(
         status: 200,
         body: createOpenApiDocument(deps.auth.publicApiUrl),
       };
+    }
+
+    // Discovery documents are public: serve them before any authentication.
+    if (path === "/mcp/server-card") {
+      return mcpFor(deps).handleServerCard(request);
+    }
+    if (path === "/.well-known/ai-catalog.json") {
+      return aiCatalogFor(deps)(request);
     }
 
     if (path === "/mcp") {
