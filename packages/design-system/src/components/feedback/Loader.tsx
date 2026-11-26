@@ -6,6 +6,9 @@ export interface LoaderProps {
   /** Pixel size, square. Default 40. */
   size?: number;
   style?: React.CSSProperties;
+  /** Accessible name announced to screen readers. Default "Loading"; pass a
+   * translated string in apps that are not in English. */
+  label?: string;
 }
 
 const PATHS: Record<string, { d: string; transform?: string }[]> = {
@@ -87,7 +90,12 @@ const SEND_STROKE_WIDTH = 2.6;
  * out page CSS). `@keyframes cl-draw` lives in `components.css`; this
  * component only sets the per-path `stroke-dasharray`/`animation`.
  */
-export function Loader({ product = "codelit", size = 40, style }: LoaderProps) {
+export function Loader({
+  product = "codelit",
+  size = 40,
+  style,
+  label = "Loading",
+}: LoaderProps) {
   const paths = PATHS[product] ?? PATHS.codelit;
   const joined = JOINED.has(product);
   return (
@@ -96,7 +104,7 @@ export function Loader({ product = "codelit", size = 40, style }: LoaderProps) {
       height={size}
       viewBox="0 0 64 64"
       role="status"
-      aria-label="Loading"
+      aria-label={label}
       className={`cl-loader cl-loader--${product}`}
       style={style}
     >
