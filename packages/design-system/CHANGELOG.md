@@ -1,5 +1,11 @@
 # @codelitdev/design-system
 
+## 0.18.0
+
+### Minor Changes
+
+- 2678288: `Loader` takes an optional `label` for its screen-reader name, so apps that are not in English can translate "Loading".
+
 ## 0.17.0
 
 No changes in this release.

@@ -1,5 +1,11 @@
 # @codelitdev/platform-conformance
 
+## 0.18.0
+
+### Patch Changes
+
+- @codelitdev/platform@0.18.0
+
 ## 0.17.0
 
 ### Minor Changes
